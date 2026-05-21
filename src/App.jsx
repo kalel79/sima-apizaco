@@ -1,11 +1,15 @@
 import { LOGO_BASE64 } from './logo.js'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, PieChart, Pie, ResponsiveContainer } from 'recharts'
 import {
   useDashboardGlobal, useResumenEjes, useResumenAreas,
   useAlertasLogros, useIndicadores, useIndicadoresLista
 } from './hooks/useSupabase'
 import { guardarAvance } from './lib/supabase'
+import { useAuth } from './hooks/useAuth'
+import { signOut } from './lib/auth'
+import Login from './components/Login'
+import AdminUsuarios from './components/AdminUsuarios'
 
 /* ── PALETA INSTITUCIONAL ───────────────────────────────────── */
 const C = {
@@ -59,26 +63,27 @@ function Pill({sem}) {
   const color = semColor(sem)
   const textColor = sem === 'RIESGO' ? '#7A5800' : '#fff'
   return (
-    <span style={{fontSize:'0.6rem',fontWeight:700,letterSpacing:1.5,background:color,color:textColor,padding:'2px 8px',borderRadius:20,textTransform:'uppercase',whiteSpace:'nowrap'}}>
+    <span style={{fontSize:'0.65rem',fontWeight:800,letterSpacing:2,background:color,color:textColor,padding:'2px 8px',borderRadius:6,textTransform:'uppercase',whiteSpace:'nowrap'}}>
       {sem}
     </span>
   )
 }
 
 function Barra({pct, color, h=6}) {
+  const r = h >= 8 ? 4 : 3
   return (
-    <div style={{flex:1,height:h,background:'#ffffff09',borderRadius:3}}>
-      <div style={{width:`${Math.min((pct||0)*100,100)}%`,height:'100%',background:color,borderRadius:3,transition:'width 0.8s ease'}}/>
+    <div style={{flex:1,height:h,background:'#ffffff09',borderRadius:r}}>
+      <div style={{width:`${Math.min((pct||0)*100,100)}%`,height:'100%',background:color,borderRadius:r,transition:'width 0.8s ease'}}/>
     </div>
   )
 }
 
 function KPI({label, value, sub, icon, color}) {
   return (
-    <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderTop:`3px solid ${color}`,borderRadius:9,padding:'0.85rem'}}>
+    <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderTop:`3px solid ${color}`,borderRadius:12,padding:'1.1rem',boxShadow:'0 4px 12px rgba(0,0,0,0.3)'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
         <span style={{fontSize:20}}>{icon}</span>
-        <span style={{fontSize:'1.5rem',fontWeight:800,color,fontFamily:'Georgia,serif'}}>{value}</span>
+        <span style={{fontSize:'2rem',fontWeight:800,color}}>{value}</span>
       </div>
       <div style={{fontSize:'0.75rem',color:C.txt,fontWeight:600}}>{label}</div>
       {sub && <div style={{fontSize:'0.65rem',color:C.txtMuted,marginTop:2}}>{sub}</div>}
@@ -116,7 +121,7 @@ function PantallaDashboard() {
   return (
     <div>
       {/* KPIs */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))',gap:'0.65rem',marginBottom:'1.2rem'}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'0.65rem',marginBottom:'1.2rem'}}>
         <KPI label="Cumplimiento global" value={`${pctPct}%`}              sub="ENE–ABR 2026"        icon="📊" color={colG}/>
         <KPI label="Con avance"          value={g?.total_indicadores||0}   sub="indicadores capturados" icon="🎯" color={C.dorado}/>
         <KPI label="Ejes estratégicos"   value={(ejes||[]).length}          sub="MIR 2024–2027"       icon="🏛️" color={C.guinda}/>
@@ -147,7 +152,7 @@ function PantallaDashboard() {
               <Pie data={pieData} cx="50%" cy="50%" innerRadius={25} outerRadius={46} dataKey="value" paddingAngle={2}>
                 {pieData.map((p,i)=><Cell key={i} fill={p.fill}/>)}
               </Pie>
-              <Tooltip contentStyle={{background:C.bgPanel,border:`1px solid ${C.border}`,fontSize:11,borderRadius:6}} formatter={(v,n)=>[`${v} ind.`,n]}/>
+              <Tooltip contentStyle={{background:'#1C1C1C',border:'1px solid #C8A96E',borderRadius:8,color:'#F0EAE0',fontSize:12,fontFamily:'Inter, sans-serif'}} labelStyle={{color:'#C8A96E',fontWeight:600}} itemStyle={{color:'#F0EAE0'}} formatter={(v,n)=>[`${v} ind.`,n]}/>
             </PieChart>
           </ResponsiveContainer>
           <div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:4}}>
@@ -167,7 +172,7 @@ function PantallaDashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08"/>
               <XAxis dataKey="name" tick={{fill:C.txtMuted,fontSize:9}} axisLine={false} tickLine={false}/>
               <YAxis tick={{fill:C.txtMuted,fontSize:8}} domain={[0,100]}/>
-              <Tooltip contentStyle={{background:C.bgPanel,border:`1px solid ${C.border}`,fontSize:11,borderRadius:6}} formatter={v=>[`${v}%`,'Avance']}/>
+              <Tooltip contentStyle={{background:'#1C1C1C',border:'1px solid #C8A96E',borderRadius:8,color:'#F0EAE0',fontSize:12,fontFamily:'Inter, sans-serif'}} labelStyle={{color:'#C8A96E',fontWeight:600}} itemStyle={{color:'#F0EAE0'}} formatter={v=>[`${v}%`,'Avance']}/>
               <Bar dataKey="pct" radius={[3,3,0,0]}>{barData.map((d,i)=><Cell key={i} fill={d.fill}/>)}</Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -184,15 +189,15 @@ function PantallaDashboard() {
           const sel = selEje===eje.codigo
           return (
             <div key={eje.codigo} onClick={()=>setSelEje(sel?null:eje.codigo)}
-              style={{background:sel?C.bgPanel:C.bgCard,border:`1px solid ${sel?eje.color_hex:C.border}`,borderLeft:`4px solid ${eje.color_hex}`,borderRadius:9,padding:'0.85rem 1rem',cursor:'pointer',transition:'all 0.18s',boxShadow:sel?`0 0 10px ${eje.color_hex}33`:'none'}}>
+              style={{background:sel?C.bgPanel:C.bgCard,border:`1px solid ${sel?eje.color_hex:C.border}`,borderLeft:`4px solid ${eje.color_hex}`,borderRadius:12,padding:'1rem 1.2rem',cursor:'pointer',transition:'all 0.18s',boxShadow:sel?`0 0 10px ${eje.color_hex}33`:'none'}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:6}}>
                 <span style={{fontSize:18}}>{eje.icono}</span>
                 <Pill sem={sem}/>
               </div>
               <div style={{fontSize:'0.78rem',fontWeight:600,color:C.txt,lineHeight:1.3,marginBottom:8}}>{eje.eje}</div>
               <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
-                <Barra pct={Math.min(p,1.0)} color={col}/>
-                <span style={{fontSize:'0.82rem',fontWeight:700,color:col,minWidth:44,textAlign:'right'}}>{(Math.min(p,1.0)*100).toFixed(1)}%</span>
+                <Barra pct={Math.min(p,1.0)} color={col} h={8}/>
+                <span style={{fontSize:'1rem',fontWeight:800,color:col,minWidth:44,textAlign:'right'}}>{(Math.min(p,1.0)*100).toFixed(1)}%</span>
               </div>
               <div style={{display:'flex',gap:10,fontSize:'0.63rem',color:C.txtMuted,flexWrap:'wrap'}}>
                 <span>📊 {eje.total_indicadores} ind.</span>
@@ -403,8 +408,13 @@ function PantallaAlertas() {
 }
 
 /* ── CAPTURA ─────────────────────────────────────────────────── */
-function PantallaCaptura() {
-  const {data:lista, loading:loadLista} = useIndicadoresLista()
+function PantallaCaptura({ areaCoordinador }) {
+  const {data:listaCompleta, loading:loadLista} = useIndicadoresLista()
+  const lista = useMemo(() => {
+    if (!listaCompleta) return []
+    if (areaCoordinador) return listaCompleta.filter(i => i.area_nombre === areaCoordinador)
+    return listaCompleta
+  }, [listaCompleta, areaCoordinador])
   const [form,   setForm]   = useState({indicadorId:'', mes:5, anio:2026, resultado:'', observaciones:''})
   const [status, setStatus] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -581,45 +591,87 @@ const NAV = [
 
 export default function App() {
   const [pan, setPan] = useState('dashboard')
+  const { user, profile, loading, rol, area, isEnlace, isAdmin } = useAuth()
+
+  if (loading) {
+    return (
+      <div style={{background:'#0D0D0D', minHeight:'100vh', display:'flex',
+        flexDirection:'column', alignItems:'center', justifyContent:'center',
+        color:'#F0EAE0', fontFamily:'Inter,sans-serif', gap:'1rem'}}>
+        <div style={{fontSize:'1rem', color:'#C8A96E'}}>Cargando SIMA...</div>
+        <div style={{fontSize:'0.8rem', color:'#706050'}}>
+          user: {user ? user.email : 'null'} |
+          profile: {profile ? profile.nombre : 'null'} |
+          loading: {String(loading)}
+        </div>
+        <button
+          onClick={() => window.location.reload()}
+          style={{marginTop:'1rem', background:'#8B0000', border:'none',
+            color:'white', padding:'8px 20px', borderRadius:6, cursor:'pointer'}}>
+          Reintentar
+        </button>
+      </div>
+    )
+  }
+
+  if (!user) return <Login/>
+
+  const nombreUsuario = profile?.nombre || user.email
+  const labelRol = profile?.roles?.nombre || rol
+
   return (
-    <div style={{background:C.bg,minHeight:'100vh',color:C.txt,fontFamily:"Georgia,'Times New Roman',serif"}}>
+    <div style={{background:C.bg,minHeight:'100vh',color:C.txt,fontFamily:"'Inter','Segoe UI',system-ui,sans-serif"}}>
       <style>{`*{box-sizing:border-box}::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#8B000055;border-radius:2px}input,select,textarea{outline:none}select option{padding:6px 10px;background:#1C1C1C;color:#F0EAE0}`}</style>
 
       {/* Header con logo */}
-      <header style={{background:`linear-gradient(90deg,${C.guindaDark} 0%,${C.guinda} 100%)`,borderBottom:`2px solid ${C.dorado}`,padding:'0.5rem 1rem',position:'sticky',top:0,zIndex:100}}>
+      <header style={{background:`linear-gradient(90deg,${C.guindaDark} 0%,${C.guinda} 100%)`,borderBottom:'3px solid #C8A96E',padding:'0.75rem 1.5rem',position:'sticky',top:0,zIndex:100}}>
         <div style={{maxWidth:980,margin:'0 auto',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <div style={{display:'flex',alignItems:'center',gap:'0.75rem'}}>
-            {/* Logo Apizaco */}
-            <div style={{width:44,height:44,borderRadius:'50%',overflow:'hidden',border:`2px solid ${C.dorado}`,flexShrink:0,background:'transparent'}}>
-              <img src={LOGO_BASE64} alt="Escudo Apizaco"
-                style={{width:'100%',height:'100%',objectFit:'cover'}}
-                />
+            <div style={{width:52,height:52,borderRadius:'50%',overflow:'hidden',border:`2px solid ${C.dorado}`,flexShrink:0,background:'transparent'}}>
+              <img src={LOGO_BASE64} alt="Escudo Apizaco" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
             </div>
             <div>
               <div style={{fontSize:'0.5rem',letterSpacing:2,color:C.doradoLight,textTransform:'uppercase'}}>H. Ayuntamiento de Apizaco · 2024–2027</div>
-              <div style={{fontWeight:800,fontSize:'clamp(1rem,3vw,1.2rem)',letterSpacing:3,color:'#fff'}}>SIMA</div>
+              <div style={{fontWeight:900,fontSize:'clamp(1.2rem,3vw,1.5rem)',letterSpacing:4,color:'#fff'}}>SIMA</div>
               <div style={{fontSize:'0.5rem',color:C.doradoLight,letterSpacing:1}}>Sistema de Información Municipal de Avance</div>
             </div>
           </div>
-          <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
             <div style={{background:'#ffffff15',borderRadius:20,padding:'4px 10px',fontSize:'0.6rem',color:C.doradoLight,letterSpacing:1}}>ENE-ABR 2026</div>
             <div style={{width:7,height:7,borderRadius:'50%',background:C.optimoB,boxShadow:`0 0 6px ${C.optimoB}`}} title="Conectado a Supabase"/>
+            {/* Info usuario */}
+            <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:1}}>
+              <span style={{fontSize:'0.62rem',color:'#fff',fontWeight:600}}>{nombreUsuario}</span>
+              <span style={{fontSize:'0.55rem',color:C.doradoLight,letterSpacing:1,textTransform:'uppercase'}}>{labelRol}{area ? ` · ${area}` : ''}</span>
+            </div>
+            <button onClick={()=>signOut()} style={{background:'#ffffff18',border:`1px solid ${C.dorado}55`,borderRadius:6,color:C.doradoLight,padding:'4px 10px',fontSize:'0.6rem',fontFamily:'inherit',cursor:'pointer',letterSpacing:1}}>
+              Salir
+            </button>
           </div>
         </div>
       </header>
 
       {/* Navegación */}
-      <nav style={{background:'#111',borderBottom:`1px solid ${C.border}`,overflowX:'auto',position:'sticky',top:62,zIndex:99}}>
+      <nav style={{background:'#0a0a0a',borderBottom:`1px solid ${C.border}`,overflowX:'auto',position:'sticky',top:62,zIndex:99}}>
         <div style={{display:'flex',maxWidth:980,margin:'0 auto'}}>
           {NAV.map(n=>(
             <button key={n.id} onClick={()=>setPan(n.id)}
-              style={{flex:1,padding:'0.65rem 0.3rem',border:'none',background:'none',cursor:'pointer',fontFamily:'inherit',fontSize:'0.68rem',letterSpacing:1,textTransform:'uppercase',whiteSpace:'nowrap',
+              style={{flex:1,padding:'0.65rem 0.3rem',border:'none',background:pan===n.id?`${C.guinda}33`:'none',cursor:'pointer',fontFamily:'inherit',fontSize:'0.68rem',letterSpacing:2,textTransform:'uppercase',whiteSpace:'nowrap',
                 color:pan===n.id?C.dorado:C.txtMuted,
                 borderBottom:pan===n.id?`2px solid ${C.dorado}`:'2px solid transparent',
                 fontWeight:pan===n.id?700:400}}>
               <span style={{display:'block',fontSize:15,marginBottom:1}}>{n.icon}</span>{n.l}
             </button>
           ))}
+          {isAdmin && (
+            <button onClick={()=>setPan('admin')}
+              style={{flex:1,padding:'0.65rem 0.3rem',border:'none',background:pan==='admin'?`${C.guinda}33`:'none',cursor:'pointer',fontFamily:'inherit',fontSize:'0.68rem',letterSpacing:2,textTransform:'uppercase',whiteSpace:'nowrap',
+                color:pan==='admin'?C.dorado:C.txtMuted,
+                borderBottom:pan==='admin'?`2px solid ${C.dorado}`:'2px solid transparent',
+                fontWeight:pan==='admin'?700:400}}>
+              <span style={{display:'block',fontSize:15,marginBottom:1}}>⚙️</span>Admin
+            </button>
+          )}
         </div>
       </nav>
 
@@ -629,7 +681,8 @@ export default function App() {
         {pan==='indicadores' && <PantallaIndicadores/>}
         {pan==='areas'       && <PantallaAreas/>}
         {pan==='alertas'     && <PantallaAlertas/>}
-        {pan==='captura'     && <PantallaCaptura/>}
+        {pan==='captura'     && <PantallaCaptura areaCoordinador={isEnlace ? area : null}/>}
+        {pan==='admin'       && isAdmin && <AdminUsuarios/>}
       </main>
 
       <footer style={{borderTop:`1px solid ${C.border}`,padding:'0.6rem 1rem',textAlign:'center',fontSize:'0.58rem',color:C.txtMuted,letterSpacing:1}}>
