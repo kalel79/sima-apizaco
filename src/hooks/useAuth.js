@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase'
 
 async function cargarPerfil(userId) {
   try {
-    // 1. Obtener usuario
     const { data: usuario, error } = await supabase
       .from('usuarios')
       .select('id, nombre, email, area_id, rol_id')
@@ -14,14 +13,12 @@ async function cargarPerfil(userId) {
 
     if (!usuario) return null
 
-    // 2. Obtener rol por separado
     const { data: rol } = await supabase
       .from('roles')
       .select('codigo, nombre, nivel')
       .eq('id', usuario.rol_id)
       .maybeSingle()
 
-    // 3. Obtener área por separado (si tiene)
     let area = null
     if (usuario.area_id) {
       const { data: areaData } = await supabase
@@ -41,7 +38,7 @@ async function cargarPerfil(userId) {
     console.log('Perfil construido:', perfil)
     return perfil
 
-  } catch(e) {
+  } catch (e) {
     console.warn('Error cargando perfil:', e.message)
     return null
   }
@@ -54,41 +51,61 @@ export function useAuth() {
 
   useEffect(() => {
     let mounted = true
+    let cargando = false
 
-    // Cargar sesión inicial UNA SOLA VEZ
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!mounted) return
-      const u = session?.user ?? null
-      setUser(u)
-      if (u) {
-        const p = await cargarPerfil(u.id)
-        if (mounted) setProfile(p)
+    async function procesarSesion(u) {
+      if (mounted) setUser(u ?? null)
+
+      if (!u) {
+        if (mounted) { setProfile(null); setLoading(false) }
+        return
       }
-      if (mounted) setLoading(false)
+
+      if (cargando) return
+      cargando = true
+
+      try {
+        const p = await cargarPerfil(u.id)
+        if (mounted) { setProfile(p); setLoading(false) }
+      } finally {
+        cargando = false
+      }
+    }
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (mounted) procesarSesion(session?.user ?? null)
     })
 
-    // Solo escuchar SIGNED_OUT y SIGNED_IN, no otros eventos
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return
+
+        if (event === 'SIGNED_IN') {
+          await procesarSesion(session?.user ?? null)
+        }
+
         if (event === 'SIGNED_OUT') {
+          cargando = false
           setUser(null)
           setProfile(null)
           setLoading(false)
-        } else if (event === 'SIGNED_IN') {
-          const u = session?.user ?? null
-          setUser(u)
-          if (u) {
-            const p = await cargarPerfil(u.id)
-            if (mounted) setProfile(p)
-          }
-          if (mounted) setLoading(false)
         }
-        // Ignorar TOKEN_REFRESHED y otros eventos que causan re-renders
+
+        if (event === 'TOKEN_REFRESHED') {
+          const u = session?.user ?? null
+          if (u && !cargando) {
+            cargando = true
+            try {
+              const p = await cargarPerfil(u.id)
+              if (mounted) setProfile(p)
+            } finally {
+              cargando = false
+            }
+          }
+        }
       }
     )
 
-    // Safety timeout
     const timer = setTimeout(() => {
       if (mounted) setLoading(false)
     }, 8000)
