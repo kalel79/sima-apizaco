@@ -49,31 +49,33 @@ export function useAuth() {
   useEffect(() => {
     console.log('[useAuth] PASO 1: useEffect iniciando')
     let mounted = true
+    let procesando = false
 
-    async function init() {
+    async function procesarUsuario(u, origen) {
+      if (procesando) {
+        console.log('[useAuth] skip: ya procesando (origen ignorado:', origen, ')')
+        return
+      }
+      procesando = true
+
       try {
-        const { data: { session }, error: eSession } = await supabase.auth.getSession()
-        console.log('[useAuth] PASO 2: sesion obtenida ->', { session, error: eSession })
-
-        if (!mounted) return
-
-        const u = session?.user ?? null
-        setUser(u)
+        if (mounted) setUser(u ?? null)
 
         if (!u) {
-          console.log('[useAuth] PASO 2b: sin usuario, terminando')
+          console.log('[useAuth] PASO 2b: sin usuario, terminando (origen:', origen, ')')
           return
         }
 
-        console.log('[useAuth] PASO 3: llamando cargarPerfil con id', u.id)
+        console.log('[useAuth] PASO 3: llamando cargarPerfil con id', u.id, '(origen:', origen, ')')
         const p = await cargarPerfil(u.id)
         console.log('[useAuth] PASO 4: perfil obtenido ->', p)
 
         if (mounted) setProfile(p)
 
       } catch (err) {
-        console.error('[useAuth] ERROR en init:', err)
+        console.error('[useAuth] ERROR en procesarUsuario:', err)
       } finally {
+        procesando = false
         if (mounted) {
           console.log('[useAuth] PASO 5: setLoading(false)')
           setLoading(false)
@@ -81,13 +83,21 @@ export function useAuth() {
       }
     }
 
-    init()
+    supabase.auth.getSession().then(({ data: { session }, error: eSession }) => {
+      console.log('[useAuth] PASO 2: getSession ->', { session, error: eSession })
+      if (mounted) procesarUsuario(session?.user ?? null, 'getSession')
+    })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return
       console.log('[useAuth] onAuthStateChange:', event)
 
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+        procesarUsuario(session?.user ?? null, event)
+      }
+
       if (event === 'SIGNED_OUT') {
+        procesando = false
         setUser(null)
         setProfile(null)
         setLoading(false)
