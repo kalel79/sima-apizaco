@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
 async function cargarPerfil(userId) {
@@ -31,7 +31,7 @@ async function cargarPerfil(userId) {
 
     const perfil = {
       ...usuario,
-      roles: rol || { codigo: 'publico', nombre: 'Público', nivel: 4 },
+      roles: rol || { codigo: 'publico', nombre: 'PÃºblico', nivel: 4 },
       areas: area
     }
 
@@ -110,10 +110,16 @@ export function useAuth() {
       if (mounted) setLoading(false)
     }, 8000)
 
+    const refreshInterval = setInterval(async () => {
+      if (!mounted) return
+      await supabase.auth.refreshSession()
+    }, 55 * 60 * 1000)
+
     return () => {
       mounted = false
       subscription.unsubscribe()
       clearTimeout(timer)
+      clearInterval(refreshInterval)
     }
   }, [])
 
