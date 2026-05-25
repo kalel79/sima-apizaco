@@ -2,45 +2,42 @@
 import { supabase } from '../lib/supabase'
 
 async function cargarPerfil(userId) {
-  try {
-    const { data: usuario, error } = await supabase
-      .from('usuarios')
-      .select('id, nombre, email, area_id, rol_id')
-      .eq('auth_uid', userId)
+  console.log('[useAuth] cargarPerfil: iniciando con userId =', userId)
+
+  const { data: usuario, error: eUser } = await supabase
+    .from('usuarios')
+    .select('id, nombre, email, area_id, rol_id')
+    .eq('auth_uid', userId)
+    .maybeSingle()
+
+  console.log('[useAuth] cargarPerfil: respuesta usuarios ->', { usuario, error: eUser })
+
+  if (eUser) throw eUser
+  if (!usuario) return null
+
+  const { data: rol, error: eRol } = await supabase
+    .from('roles')
+    .select('codigo, nombre, nivel')
+    .eq('id', usuario.rol_id)
+    .maybeSingle()
+
+  console.log('[useAuth] cargarPerfil: respuesta roles ->', { rol, error: eRol })
+
+  let area = null
+  if (usuario.area_id) {
+    const { data: areaData, error: eArea } = await supabase
+      .from('areas')
+      .select('nombre')
+      .eq('id', usuario.area_id)
       .maybeSingle()
+    console.log('[useAuth] cargarPerfil: respuesta areas ->', { areaData, error: eArea })
+    area = areaData
+  }
 
-    console.log('Usuario encontrado:', usuario, 'Error:', error)
-
-    if (!usuario) return null
-
-    const { data: rol } = await supabase
-      .from('roles')
-      .select('codigo, nombre, nivel')
-      .eq('id', usuario.rol_id)
-      .maybeSingle()
-
-    let area = null
-    if (usuario.area_id) {
-      const { data: areaData } = await supabase
-        .from('areas')
-        .select('nombre')
-        .eq('id', usuario.area_id)
-        .single()
-      area = areaData
-    }
-
-    const perfil = {
-      ...usuario,
-      roles: rol || { codigo: 'publico', nombre: 'PÃºblico', nivel: 4 },
-      areas: area
-    }
-
-    console.log('Perfil construido:', perfil)
-    return perfil
-
-  } catch (e) {
-    console.warn('Error cargando perfil:', e.message)
-    return null
+  return {
+    ...usuario,
+    roles: rol || { codigo: 'publico', nombre: 'Publico', nivel: 4 },
+    areas: area,
   }
 }
 
@@ -50,76 +47,56 @@ export function useAuth() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    console.log('[useAuth] PASO 1: useEffect iniciando')
     let mounted = true
-    let cargando = false
 
-    async function procesarSesion(u) {
-      if (mounted) setUser(u ?? null)
-
-      if (!u) {
-        if (mounted) { setProfile(null); setLoading(false) }
-        return
-      }
-
-      if (cargando) return
-      cargando = true
-
+    async function init() {
       try {
+        const { data: { session }, error: eSession } = await supabase.auth.getSession()
+        console.log('[useAuth] PASO 2: sesion obtenida ->', { session, error: eSession })
+
+        if (!mounted) return
+
+        const u = session?.user ?? null
+        setUser(u)
+
+        if (!u) {
+          console.log('[useAuth] PASO 2b: sin usuario, terminando')
+          return
+        }
+
+        console.log('[useAuth] PASO 3: llamando cargarPerfil con id', u.id)
         const p = await cargarPerfil(u.id)
-        if (mounted) { setProfile(p); setLoading(false) }
+        console.log('[useAuth] PASO 4: perfil obtenido ->', p)
+
+        if (mounted) setProfile(p)
+
+      } catch (err) {
+        console.error('[useAuth] ERROR en init:', err)
       } finally {
-        cargando = false
+        if (mounted) {
+          console.log('[useAuth] PASO 5: setLoading(false)')
+          setLoading(false)
+        }
       }
     }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (mounted) procesarSesion(session?.user ?? null)
-    })
+    init()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted) return
-
-        if (event === 'SIGNED_IN') {
-          await procesarSesion(session?.user ?? null)
-        }
-
-        if (event === 'SIGNED_OUT') {
-          cargando = false
-          setUser(null)
-          setProfile(null)
-          setLoading(false)
-        }
-
-        if (event === 'TOKEN_REFRESHED') {
-          const u = session?.user ?? null
-          if (u && !cargando) {
-            cargando = true
-            try {
-              const p = await cargarPerfil(u.id)
-              if (mounted) setProfile(p)
-            } finally {
-              cargando = false
-            }
-          }
-        }
-      }
-    )
-
-    const timer = setTimeout(() => {
-      if (mounted) setLoading(false)
-    }, 8000)
-
-    const refreshInterval = setInterval(async () => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return
-      await supabase.auth.refreshSession()
-    }, 55 * 60 * 1000)
+      console.log('[useAuth] onAuthStateChange:', event)
+
+      if (event === 'SIGNED_OUT') {
+        setUser(null)
+        setProfile(null)
+        setLoading(false)
+      }
+    })
 
     return () => {
       mounted = false
       subscription.unsubscribe()
-      clearTimeout(timer)
-      clearInterval(refreshInterval)
     }
   }, [])
 
