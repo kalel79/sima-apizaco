@@ -89,13 +89,13 @@ export async function guardarAvance({ indicadorId, mes, anio, resultado, observa
                  'meta_jul','meta_ago','meta_sep','meta_oct','meta_nov','meta_dic']
   const metaVal  = parseFloat(ind[MESES[mes - 1]] || 0)
   const pct      = metaVal > 0 ? resultado / metaVal : 1.0
-  const semaforo = pct > 1.10 ? 'OPTIMO' : pct >= 0.90 ? 'ADECUADO' : pct >= 0.70 ? 'RIESGO' : 'CRITICO'
+  const semaforo = pct >= 1.10 ? 'ÓPTIMO' : pct >= 0.90 ? 'ADECUADO' : pct >= 0.70 ? 'RIESGO' : 'CRÍTICO'
 
   const { data, error } = await supabase
     .from('avances')
     .upsert({
       indicador_id: indicadorId, anio, mes,
-      meta_programada: metaVal, meta_evaluable: metaVal,
+      meta_programada: metaVal,
       resultado, pct_cumplimiento: pct, semaforo,
       observaciones: observaciones || null,
       updated_at: new Date().toISOString()
