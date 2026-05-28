@@ -37,45 +37,16 @@ export async function getAlertasLogros() {
 
 export async function getIndicadores({ ejeId, semaforo, busqueda } = {}) {
   let query = supabase
-    .from('avances')
-    .select('id, meta_evaluable, resultado, pct_cumplimiento, semaforo, tipo_alerta, tendencia, indicador_id')
-    .eq('anio', 2026).eq('mes', 4).range(0, 499)
+    .from('v_indicadores_acum')
+    .select('*')
+    .range(0, 499)
   if (semaforo) query = query.eq('semaforo', semaforo)
-  const { data: avancesData, error: avancesError } = await query
-  if (avancesError) throw avancesError
-  if (!avancesData?.length) return []
 
-  const { data: indsData,  error: e1 } = await supabase.from('indicadores').select('id, nombre, nivel_mir, area_id').range(0, 499)
-  if (e1) throw e1
-  const { data: indsData2, error: e1b } = await supabase.from('indicadores').select('id, nombre, nivel_mir, area_id').range(500, 999)
-  if (e1b) throw e1b
-  const todosInds = [...(indsData || []), ...(indsData2 || [])]
+  const { data, error } = await query
+  if (error) throw error
+  if (!data?.length) return []
 
-  const { data: areasData, error: e2 } = await supabase.from('areas').select('id, nombre, eje_id').range(0, 199)
-  if (e2) throw e2
-  const { data: ejesData,  error: e3 } = await supabase.from('ejes').select('id, codigo, nombre, color_hex, icono')
-  if (e3) throw e3
-
-  const indsMap  = Object.fromEntries(todosInds.map(i => [i.id, i]))
-  const areasMap = Object.fromEntries((areasData || []).map(a => [a.id, a]))
-  const ejesMap  = Object.fromEntries((ejesData  || []).map(e => [e.id, e]))
-
-  let result = (avancesData || []).map(av => {
-    const ind  = indsMap[av.indicador_id] || {}
-    const area = areasMap[ind.area_id]    || {}
-    const eje  = ejesMap[area.eje_id]     || {}
-    return {
-      ...av,
-      indicador: ind.nombre    || '',
-      nivel_mir: ind.nivel_mir || '',
-      area:      area.nombre   || '',
-      eje_codigo:eje.codigo    || '',
-      eje_nombre:eje.nombre    || '',
-      eje_color: eje.color_hex || '#8B0000',
-      eje_icono: eje.icono     || '',
-    }
-  })
-
+  let result = data || []
   if (ejeId)    result = result.filter(r => r.eje_codigo === ejeId)
   if (busqueda) result = result.filter(r =>
     r.indicador.toLowerCase().includes(busqueda.toLowerCase()) ||
