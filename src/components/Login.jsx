@@ -3,7 +3,7 @@ import { LOGO_BASE64 } from '../logo.js'
 import { signIn } from '../lib/auth'
 
 const C = {
-  guinda: '#8B0000', guindaDark: '#5C0000',
+  guinda: '#7B1F2C', guindaDark: '#51141D',
   dorado: '#C8A96E', doradoLight: '#E2C998',
   bg: '#0D0D0D', bgCard: '#161616',
   border: '#2A2A2A', txt: '#F0EAE0', txtMuted: '#706050',

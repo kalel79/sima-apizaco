@@ -13,7 +13,7 @@ import AdminUsuarios from './components/AdminUsuarios'
 
 /* ── PALETA INSTITUCIONAL ───────────────────────────────────── */
 const C = {
-  guinda:'#8B0000', guindaMid:'#A52020', guindaDark:'#5C0000',
+  guinda:'#7B1F2C', guindaMid:'#A52020', guindaDark:'#51141D',
   dorado:'#C8A96E', doradoLight:'#E2C998',
   bg:'#0D0D0D', bgCard:'#161616', bgPanel:'#1C1C1C',
   border:'#2A2A2A', txt:'#F0EAE0', txtMuted:'#706050', txtSub:'#A09080',
@@ -606,7 +606,7 @@ export default function App() {
         </div>
         <button
           onClick={() => window.location.reload()}
-          style={{marginTop:'1rem', background:'#8B0000', border:'none',
+          style={{marginTop:'1rem', background:'#7B1F2C', border:'none',
             color:'white', padding:'8px 20px', borderRadius:6, cursor:'pointer'}}>
           Reintentar
         </button>
@@ -621,7 +621,7 @@ export default function App() {
 
   return (
     <div style={{background:C.bg,minHeight:'100vh',color:C.txt,fontFamily:"'Inter','Segoe UI',system-ui,sans-serif"}}>
-      <style>{`*{box-sizing:border-box}::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#8B000055;border-radius:2px}input,select,textarea{outline:none}select option{padding:6px 10px;background:#1C1C1C;color:#F0EAE0}`}</style>
+      <style>{`*{box-sizing:border-box}::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#7B1F2C55;border-radius:2px}input,select,textarea{outline:none}select option{padding:6px 10px;background:#1C1C1C;color:#F0EAE0}`}</style>
 
       {/* Header con logo */}
       <header style={{background:`linear-gradient(90deg,${C.guindaDark} 0%,${C.guinda} 100%)`,borderBottom:'3px solid #C8A96E',padding:'0.75rem 1.5rem',position:'sticky',top:0,zIndex:100}}>

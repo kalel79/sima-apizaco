@@ -1,16 +1,12 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
 async function cargarPerfil(userId) {
-  console.log('[useAuth] cargarPerfil: iniciando con userId =', userId)
-
   const { data: usuario, error: eUser } = await supabase
     .from('usuarios')
     .select('id, nombre, email, area_id, rol_id')
     .eq('auth_uid', userId)
     .maybeSingle()
-
-  console.log('[useAuth] cargarPerfil: respuesta usuarios ->', { usuario, error: eUser })
 
   if (eUser) throw eUser
   if (!usuario) return null
@@ -21,8 +17,6 @@ async function cargarPerfil(userId) {
     .eq('id', usuario.rol_id)
     .maybeSingle()
 
-  console.log('[useAuth] cargarPerfil: respuesta roles ->', { rol, error: eRol })
-
   let area = null
   if (usuario.area_id) {
     const { data: areaData, error: eArea } = await supabase
@@ -30,7 +24,6 @@ async function cargarPerfil(userId) {
       .select('nombre')
       .eq('id', usuario.area_id)
       .maybeSingle()
-    console.log('[useAuth] cargarPerfil: respuesta areas ->', { areaData, error: eArea })
     area = areaData
   }
 
@@ -47,13 +40,11 @@ export function useAuth() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    console.log('[useAuth] PASO 1: useEffect iniciando')
     let mounted = true
     let procesando = false
 
     async function procesarUsuario(u, origen) {
       if (procesando) {
-        console.log('[useAuth] skip: ya procesando (origen ignorado:', origen, ')')
         return
       }
       procesando = true
@@ -62,13 +53,10 @@ export function useAuth() {
         if (mounted) setUser(u ?? null)
 
         if (!u) {
-          console.log('[useAuth] PASO 2b: sin usuario, terminando (origen:', origen, ')')
           return
         }
 
-        console.log('[useAuth] PASO 3: llamando cargarPerfil con id', u.id, '(origen:', origen, ')')
         const p = await cargarPerfil(u.id)
-        console.log('[useAuth] PASO 4: perfil obtenido ->', p)
 
         if (mounted) setProfile(p)
 
@@ -77,20 +65,17 @@ export function useAuth() {
       } finally {
         procesando = false
         if (mounted) {
-          console.log('[useAuth] PASO 5: setLoading(false)')
           setLoading(false)
         }
       }
     }
 
     supabase.auth.getSession().then(({ data: { session }, error: eSession }) => {
-      console.log('[useAuth] PASO 2: getSession ->', { session, error: eSession })
       if (mounted) procesarUsuario(session?.user ?? null, 'getSession')
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return
-      console.log('[useAuth] onAuthStateChange:', event)
 
       if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
         procesarUsuario(session?.user ?? null, event)

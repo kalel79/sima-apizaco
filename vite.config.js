@@ -12,13 +12,13 @@ export default defineConfig({
         name: 'SIMA – Apizaco',
         short_name: 'SIMA',
         description: 'Sistema de Información Municipal de Avance',
-        theme_color: '#8B0000',
-        background_color: '#0D0D0D',
+        theme_color: '#7B1F2C',
+        background_color: '#7B1F2C',
         display: 'standalone',
         orientation: 'portrait-primary',
         icons: [
-          { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icon-512.png', sizes: '512x512', type: 'image/png' }
+          { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
         ]
       },
       workbox: {
