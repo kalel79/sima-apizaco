@@ -7,6 +7,8 @@ import {
 } from './hooks/useSupabase'
 import { guardarAvance } from './lib/supabase'
 import { useAuth } from './hooks/useAuth'
+import { useConfiguracion } from './hooks/useConfiguracion'
+import { formatPeriodoLabel } from './utils/periodo'
 import { signOut } from './lib/auth'
 import Login from './components/Login'
 import AdminUsuarios from './components/AdminUsuarios'
@@ -96,6 +98,8 @@ function PantallaDashboard() {
   const {data:g,    loading:lg, error:eg, refetch:rg} = useDashboardGlobal()
   const {data:ejes, loading:le, error:ee, refetch:re} = useResumenEjes()
   const [selEje, setSelEje] = useState(null)
+  const { mesActual, anioActual } = useConfiguracion()
+  const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
 
   if (lg||le) return <Spinner/>
   if (eg) return <ErrMsg msg={eg} onRetry={rg}/>
@@ -122,7 +126,7 @@ function PantallaDashboard() {
     <div>
       {/* KPIs */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'0.65rem',marginBottom:'1.2rem'}}>
-        <KPI label="Cumplimiento global" value={`${pctPct}%`}              sub="ENE–ABR 2026"        icon="📊" color={colG}/>
+        <KPI label="Cumplimiento global" value={`${pctPct}%`}              sub={periodoLabel}         icon="📊" color={colG}/>
         <KPI label="Con avance"          value={g?.total_indicadores||0}   sub="indicadores capturados" icon="🎯" color={C.dorado}/>
         <KPI label="Ejes estratégicos"   value={(ejes||[]).length}          sub="MIR 2024–2027"       icon="🏛️" color={C.guinda}/>
         <KPI label="Riesgo / Crítico"    value={(g?.riesgo||0)+(g?.critico||0)} sub="requieren atención" icon="🔴" color={C.criticoB}/>
@@ -253,6 +257,8 @@ function PantallaIndicadores() {
   const [semaforo, setSemaforo] = useState('')
   const filtros = useMemo(()=>({busqueda,semaforo}),[busqueda,semaforo])
   const {data, loading, error, refetch} = useIndicadores(filtros)
+  const { mesActual, anioActual } = useConfiguracion()
+  const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
 
   const inp = {background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:6,color:C.txt,padding:'0.45rem 0.7rem',fontSize:'0.78rem',fontFamily:'inherit',outline:'none'}
 
@@ -274,7 +280,7 @@ function PantallaIndicadores() {
       {!loading && !error && (
         <>
           <div style={{fontSize:'0.68rem',color:C.txtMuted,marginBottom:'0.7rem'}}>
-            {(data||[]).length} indicadores con avance · ENE-ABR 2026
+            {(data||[]).length} indicadores con avance · {periodoLabel}
           </div>
           {(data||[]).map(row=>{
             const col = semColor(row.semaforo)
@@ -316,12 +322,14 @@ function PantallaIndicadores() {
 /* ── ÁREAS ───────────────────────────────────────────────────── */
 function PantallaAreas() {
   const {data, loading, error, refetch} = useResumenAreas()
+  const { mesActual, anioActual } = useConfiguracion()
+  const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
   if (loading) return <Spinner/>
   if (error)   return <ErrMsg msg={error} onRetry={refetch}/>
   return (
     <div>
       <div style={{fontSize:'0.62rem',letterSpacing:3,color:C.txtMuted,textTransform:'uppercase',marginBottom:'0.8rem'}}>
-        Áreas responsables · Ranking ENE-ABR 2026
+        Áreas responsables · Ranking {periodoLabel}
       </div>
       {(data||[]).map((area,i)=>{
         const p   = Math.min(area.pct_promedio||0, 1.0)
@@ -410,15 +418,21 @@ function PantallaAlertas() {
 /* ── CAPTURA ─────────────────────────────────────────────────── */
 function PantallaCaptura({ areaCoordinador }) {
   const {data:listaCompleta, loading:loadLista} = useIndicadoresLista()
+  const { mesActual, anioActual, loading: cfgLoading } = useConfiguracion()
   const lista = useMemo(() => {
     if (!listaCompleta) return []
     if (areaCoordinador) return listaCompleta.filter(i => i.area_nombre === areaCoordinador)
     return listaCompleta
   }, [listaCompleta, areaCoordinador])
-  const [form,   setForm]   = useState({indicadorId:'', mes:5, anio:2026, resultado:'', observaciones:''})
+  const [form,   setForm]   = useState({indicadorId:'', mes: mesActual ?? 5, anio: anioActual ?? 2026, resultado:'', observaciones:''})
   const [status, setStatus] = useState(null)
   const [saving, setSaving] = useState(false)
   const [busq,   setBusq]   = useState('')
+
+  // Sincroniza mes/anio cuando la config carga (useState solo toma el valor inicial una vez)
+  useEffect(() => {
+    if (!cfgLoading) setForm(f => ({ ...f, mes: mesActual, anio: anioActual }))
+  }, [cfgLoading]) // eslint-disable-line
 
   const MESES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC']
 
@@ -592,6 +606,8 @@ const NAV = [
 export default function App() {
   const [pan, setPan] = useState('dashboard')
   const { user, profile, loading, rol, area, isEnlace, isAdmin } = useAuth()
+  const { mesActual, anioActual } = useConfiguracion()
+  const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
 
   if (loading) {
     return (
@@ -637,7 +653,7 @@ export default function App() {
             </div>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:10}}>
-            <div style={{background:'#ffffff15',borderRadius:20,padding:'4px 10px',fontSize:'0.6rem',color:C.doradoLight,letterSpacing:1}}>ENE-ABR 2026</div>
+            <div style={{background:'#ffffff15',borderRadius:20,padding:'4px 10px',fontSize:'0.6rem',color:C.doradoLight,letterSpacing:1}}>{periodoLabel}</div>
             <div style={{width:7,height:7,borderRadius:'50%',background:C.optimoB,boxShadow:`0 0 6px ${C.optimoB}`}} title="Conectado a Supabase"/>
             {/* Info usuario */}
             <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:1}}>
