@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 async function cargarPerfil(userId) {
   const { data: usuario, error: eUser } = await supabase
     .from('usuarios')
-    .select('id, nombre, email, area_id, rol_id')
+    .select('id, nombre, email, cargo, area_id, rol_id')
     .eq('auth_uid', userId)
     .maybeSingle()
 

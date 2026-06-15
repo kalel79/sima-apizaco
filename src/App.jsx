@@ -633,7 +633,7 @@ export default function App() {
   if (!user) return <Login/>
 
   const nombreUsuario = profile?.nombre || user.email
-  const labelRol = profile?.roles?.nombre || rol
+  const labelRol = profile?.cargo || profile?.roles?.nombre || rol
 
   return (
     <div style={{background:C.bg,minHeight:'100vh',color:C.txt,fontFamily:"'Inter','Segoe UI',system-ui,sans-serif"}}>
