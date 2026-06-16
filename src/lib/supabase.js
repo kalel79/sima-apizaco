@@ -96,6 +96,7 @@ export async function guardarAvance({ indicadorId, mes, anio, resultado, observa
     .upsert({
       indicador_id: indicadorId, anio, mes,
       meta_programada: metaVal,
+      meta_evaluable: metaVal,
       resultado, pct_cumplimiento: pct, semaforo,
       observaciones: observaciones || null,
       updated_at: new Date().toISOString()
