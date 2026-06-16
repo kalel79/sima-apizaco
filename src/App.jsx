@@ -201,7 +201,7 @@ function PantallaDashboard() {
               <div style={{fontSize:'0.78rem',fontWeight:600,color:C.txt,lineHeight:1.3,marginBottom:8}}>{eje.eje}</div>
               <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
                 <Barra pct={Math.min(p,1.0)} color={col} h={8}/>
-                <span style={{fontSize:'1rem',fontWeight:800,color:col,minWidth:44,textAlign:'right'}}>{(Math.min(p,1.0)*100).toFixed(1)}%</span>
+                <span style={{fontSize:'1rem',fontWeight:800,color:col,minWidth:44,textAlign:'right'}}>{(p*100).toFixed(1)}%</span>
               </div>
               <div style={{display:'flex',gap:10,fontSize:'0.63rem',color:C.txtMuted,flexWrap:'wrap'}}>
                 <span>📊 {eje.total_indicadores} ind.</span>
