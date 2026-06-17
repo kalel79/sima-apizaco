@@ -818,3 +818,157 @@ export async function generarExcel({ global: g, ejes, indicadoresPorEje, periodo
 export function generarExcelPiloto(datos) {
   return generarExcel({ ...datos, piloto: true })
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TABLA COMPLETA: METAS MES A MES + RESULTADOS (todos los indicadores)
+// ══════════════════════════════════════════════════════════════════════════════
+export async function generarExcelMetas({ indicadores, periodoLabel }) {
+  const MESES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC']
+  const META_KEYS = ['meta_ene','meta_feb','meta_mar','meta_abr','meta_may','meta_jun',
+                     'meta_jul','meta_ago','meta_sep','meta_oct','meta_nov','meta_dic']
+
+  const wb = new ExcelJS.Workbook()
+  wb.creator = 'SIMA · Dirección de Planeación y Evaluación'
+  wb.created = new Date()
+
+  const ws = wb.addWorksheet('Metas y Resultados 2026')
+  ws.properties.defaultRowHeight = 14.4
+
+  // ── Encabezados de fila 1: info + meses ──────────────────────────────────
+  const thinB  = { style: 'thin', color: { argb: 'FFD0D0D0' } }
+  const borders = { top: thinB, left: thinB, bottom: thinB, right: thinB }
+
+  const HDR_INFO = ['#', 'Eje', 'Área', 'Indicador', 'Nivel MIR']
+  // Columnas E en adelante: par META/REAL por mes → 24 columnas de datos
+  const hdrRow1 = ws.addRow([
+    ...HDR_INFO,
+    ...MESES.flatMap(m => [m, '']),  // ENE, '', FEB, '', ...
+  ])
+
+  // Fusionar las celdas de mes en fila 1 (col 6-7=ENE, 8-9=FEB, ...)
+  MESES.forEach((m, i) => {
+    const c1 = 6 + i * 2   // col 1-indexed
+    const c2 = c1 + 1
+    ws.mergeCells(1, c1, 1, c2)
+    const cell = ws.getCell(1, c1)
+    cell.value = m
+    cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3A3A3A' } }
+    cell.font      = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
+    cell.alignment = { horizontal: 'center', vertical: 'middle' }
+    cell.border    = borders
+  })
+  // Estilo celdas de info en fila 1
+  HDR_INFO.forEach((_, i) => {
+    const cell = ws.getCell(1, i + 1)
+    cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.guinda } }
+    cell.font      = { bold: true, color: { argb: XL.blanco }, size: 9 }
+    cell.alignment = { horizontal: 'center', vertical: 'middle' }
+    cell.border    = borders
+  })
+  ws.getRow(1).height = 18
+
+  // ── Fila 2: subencabezados META / REAL ────────────────────────────────────
+  const hdrRow2 = ws.addRow([
+    '', '', '', '', '',
+    ...MESES.flatMap(() => ['Meta', 'Real']),
+  ])
+  hdrRow2.eachCell((cell, col) => {
+    if (col <= 5) {
+      cell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.guinda } }
+      cell.font   = { bold: true, color: { argb: XL.blanco }, size: 9 }
+    } else {
+      const isMeta = (col - 6) % 2 === 0
+      cell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: isMeta ? 'FFFFF8E8' : 'FFF0F0F0' } }
+      cell.font   = { bold: true, color: { argb: isMeta ? XL.guinda : XL.gris }, size: 8.5 }
+    }
+    cell.alignment = { horizontal: 'center', vertical: 'middle' }
+    cell.border    = borders
+  })
+  ws.getRow(2).height = 16
+
+  // ── Filas de datos ────────────────────────────────────────────────────────
+  indicadores.forEach((ind, idx) => {
+    const isAlt = idx % 2 === 1
+    const rowVals = [
+      idx + 1,
+      ind.eje_codigo,
+      ind.area_nombre,
+      ind.nombre,
+      ind.nivel_mir || '',
+      ...MESES.flatMap((_, mi) => {
+        const meta = parseFloat(ind[META_KEYS[mi]] || 0)
+        const av   = ind.avances?.[mi + 1]
+        const real = av ? parseFloat(av.resultado) : null
+        return [meta === 0 ? '' : meta, real ?? '']
+      }),
+    ]
+
+    const row = ws.addRow(rowVals)
+    row.height = 14.4
+
+    // Celdas de info (cols 1-5)
+    const infoBg = isAlt ? XL.crema : XL.blanco
+    for (let c = 1; c <= 5; c++) {
+      const cell = row.getCell(c)
+      cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: infoBg } }
+      cell.font      = { size: 9 }
+      cell.alignment = { horizontal: c <= 2 ? 'center' : (c === 4 ? 'left' : 'center'), vertical: 'middle', wrapText: c === 4 }
+      cell.border    = borders
+    }
+
+    // Celdas de meses (cols 6 en adelante)
+    MESES.forEach((_, mi) => {
+      const colMeta = 6 + mi * 2
+      const colReal = colMeta + 1
+      const meta = parseFloat(ind[META_KEYS[mi]] || 0)
+      const av   = ind.avances?.[mi + 1]
+      const real = av ? parseFloat(av.resultado) : null
+      const sem  = av?.semaforo || null
+
+      const cMeta = row.getCell(colMeta)
+      cMeta.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: meta > 0 ? 'FFFFF8E8' : (isAlt ? 'FFFAFAFA' : XL.blanco) } }
+      cMeta.font      = { size: 9, color: { argb: meta > 0 ? XL.guinda : 'FFCCCCCC' } }
+      cMeta.alignment = { horizontal: 'center', vertical: 'middle' }
+      cMeta.border    = borders
+
+      const cReal = row.getCell(colReal)
+      if (real !== null) {
+        const semBgs = { 'ÓPTIMO': 'FFE8F5E9', 'ADECUADO': 'FFFFF9E6', 'RIESGO': 'FFFFF3E0', 'CRÍTICO': 'FFFFEBEE' }
+        const semFgs = { 'ÓPTIMO': XL.optimo, 'ADECUADO': XL.adecuado, 'RIESGO': XL.riesgo, 'CRÍTICO': XL.critico }
+        cReal.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: semBgs[sem] || (isAlt ? XL.crema : XL.blanco) } }
+        cReal.font = { size: 9, bold: !!sem, color: { argb: semFgs[sem] || XL.gris } }
+      } else {
+        cReal.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isAlt ? 'FFF5F5F5' : XL.blanco } }
+        cReal.font = { size: 9, color: { argb: 'FFCCCCCC' } }
+      }
+      cReal.alignment = { horizontal: 'center', vertical: 'middle' }
+      cReal.border    = borders
+    })
+  })
+
+  // ── Anchos de columna ─────────────────────────────────────────────────────
+  ws.getColumn(1).width = 4    // #
+  ws.getColumn(2).width = 5    // Eje
+  ws.getColumn(3).width = 22   // Área
+  ws.getColumn(4).width = 52   // Indicador
+  ws.getColumn(5).width = 14   // Nivel MIR
+  MESES.forEach((_, i) => {
+    ws.getColumn(6 + i * 2).width     = 7   // Meta
+    ws.getColumn(6 + i * 2 + 1).width = 7   // Real
+  })
+
+  // Congelar primeras 2 filas + primeras 5 columnas
+  ws.views = [{ state: 'frozen', xSplit: 5, ySplit: 2 }]
+
+  // ── Descargar ─────────────────────────────────────────────────────────────
+  const buffer = await wb.xlsx.writeBuffer()
+  const blob   = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const url    = URL.createObjectURL(blob)
+  const a      = document.createElement('a')
+  a.href       = url
+  a.download   = `SIMA_MetasResultados_2026_${periodoLabel.replace(/[^A-Z0-9]/g, '_')}.xlsx`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}

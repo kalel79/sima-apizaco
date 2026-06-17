@@ -4,7 +4,8 @@ import { invitarUsuario } from '../lib/auth'
 import { useConfiguracion } from '../hooks/useConfiguracion'
 import { formatPeriodoLabel } from '../utils/periodo'
 import { useDatosReporte } from '../hooks/useDatosReporte'
-import { generarPDF, generarExcel, generarPDFPiloto, generarExcelPiloto } from '../utils/reportes'
+import { generarPDF, generarExcel, generarPDFPiloto, generarExcelPiloto, generarExcelMetas } from '../utils/reportes'
+import { getMetasResultados } from '../lib/supabase'
 
 const C = {
   guinda: '#7B1F2C', guindaDark: '#51141D',
@@ -84,6 +85,17 @@ export default function AdminUsuarios() {
     try {
       if (!global) await cargar()
       generarPDFPiloto({ global, ejes, indicadoresPorEje, periodoLabel })
+      setGenStatus('ok')
+    } catch (e) {
+      setGenStatus('error:' + e.message)
+    }
+  }
+
+  async function handleExcelMetas() {
+    setGenStatus('cargando')
+    try {
+      const indicadores = await getMetasResultados()
+      await generarExcelMetas({ indicadores, periodoLabel })
       setGenStatus('ok')
     } catch (e) {
       setGenStatus('error:' + e.message)
@@ -254,6 +266,26 @@ export default function AdminUsuarios() {
             ❌ {genStatus.replace('error:', '')}
           </div>
         )}
+
+        {/* Tabla metas vs resultados */}
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.62rem', color: C.txtMuted, marginBottom: '0.5rem', letterSpacing: 1 }}>
+            TABLA COMPLETA — 170 indicadores, metas mes a mes + resultados:
+          </div>
+          <button
+            onClick={handleExcelMetas}
+            disabled={rLoading || genStatus === 'cargando'}
+            style={{
+              background: rLoading || genStatus === 'cargando' ? '#444' : `linear-gradient(135deg,#1a2e3a,#1e4d6b)`,
+              border: 'none', borderRadius: 8, color: C.txt,
+              padding: '0.75rem 1.2rem', fontSize: '0.82rem', fontWeight: 700,
+              fontFamily: 'inherit', cursor: rLoading || genStatus === 'cargando' ? 'not-allowed' : 'pointer',
+              letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 8,
+            }}
+          >
+            📋 Descargar Tabla Metas y Resultados
+          </button>
+        </div>
 
         {/* Botones piloto (validación antes del reporte completo) */}
         <div style={{ marginBottom: '0.75rem' }}>

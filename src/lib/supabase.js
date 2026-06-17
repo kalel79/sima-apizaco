@@ -78,6 +78,42 @@ export async function getIndicadoresLista() {
   }))
 }
 
+export async function getMetasResultados() {
+  const MESES_COLS = 'id,nombre,nivel_mir,area_id,meta_ene,meta_feb,meta_mar,meta_abr,meta_may,meta_jun,meta_jul,meta_ago,meta_sep,meta_oct,meta_nov,meta_dic'
+  const [pages, { data: areas, error: eAreas }, { data: ejes, error: eEjes }, { data: avances, error: eAv }] = await Promise.all([
+    Promise.all([
+      supabase.from('indicadores').select(MESES_COLS).order('id').range(0,   59),
+      supabase.from('indicadores').select(MESES_COLS).order('id').range(60,  119),
+      supabase.from('indicadores').select(MESES_COLS).order('id').range(120, 179),
+      supabase.from('indicadores').select(MESES_COLS).order('id').range(180, 239),
+    ]),
+    supabase.from('areas').select('id,nombre,eje_id'),
+    supabase.from('ejes').select('id,codigo,nombre,orden').order('orden'),
+    supabase.from('avances').select('indicador_id,mes,resultado,pct_cumplimiento,semaforo').eq('anio', 2026),
+  ])
+  pages.forEach(p => { if (p.error) throw p.error })
+  if (eAreas || eEjes || eAv) throw eAreas || eEjes || eAv
+
+  const areasMap  = Object.fromEntries((areas  || []).map(a => [a.id, a]))
+  const ejesMap   = Object.fromEntries((ejes   || []).map(e => [e.id, e]))
+  const avMap     = {}
+  ;(avances || []).forEach(av => {
+    if (!avMap[av.indicador_id]) avMap[av.indicador_id] = {}
+    avMap[av.indicador_id][av.mes] = { resultado: av.resultado, pct: av.pct_cumplimiento, semaforo: av.semaforo }
+  })
+
+  const todos = pages.flatMap(p => p.data || [])
+  return todos.map(ind => {
+    const area = areasMap[ind.area_id] || {}
+    const eje  = ejesMap[area.eje_id]  || {}
+    return { ...ind, area_nombre: area.nombre || '', eje_codigo: eje.codigo || '', eje_orden: eje.orden ?? 99, avances: avMap[ind.id] || {} }
+  }).sort((a, b) => {
+    if (a.eje_orden !== b.eje_orden) return a.eje_orden - b.eje_orden
+    if (a.area_nombre !== b.area_nombre) return a.area_nombre.localeCompare(b.area_nombre, 'es')
+    return a.nombre.localeCompare(b.nombre, 'es')
+  })
+}
+
 export async function guardarAvance({ indicadorId, mes, anio, resultado, observaciones }) {
   const { data: ind, error: indError } = await supabase
     .from('indicadores')
