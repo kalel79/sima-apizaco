@@ -9,6 +9,20 @@ const DORADO = [201, 169, 97]
 const GRIS   = [89,  89,  89]
 const BLANCO = [255, 255, 255]
 
+// Paleta oficial de semáforo (RGB) — usada en todo el PDF
+const SEM_COLORS = {
+  'ÓPTIMO':   { txt: [4,   98,   5], bg: [209, 235, 209] },
+  'ADECUADO': { txt: [0,  176,  80], bg: [200, 243, 220] },
+  'RIESGO':   { txt: [180, 135,  0], bg: [255, 248, 200] },
+  'CRÍTICO':  { txt: [192,   0,  0], bg: [255, 215, 215] },
+}
+const SEM_SEG = {
+  'ÓPTIMO':   '#046205',
+  'ADECUADO': '#00B050',
+  'RIESGO':   '#FFC000',
+  'CRÍTICO':  '#C00000',
+}
+
 // ── Paleta Excel (ARGB) ───────────────────────────────────────────────────────
 const XL = {
   guinda:   'FF7B1F2C',
@@ -40,17 +54,42 @@ const FIRMAS_RESP = {
   AJ: { nombre: 'Lic. Omar Muñoz Torres',           cargo: 'Director Jurídico' },
 }
 
+const MESES_NOMBRES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC']
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function semLabel(sem) { return sem || 'SIN DATO' }
 
+// Semáforo derivado del % de avance del eje (pct_promedio)
 function semaforoEje(eje) {
-  const vals = [
-    { sem: 'CRÍTICO',  n: eje.critico  || 0 },
-    { sem: 'RIESGO',   n: eje.riesgo   || 0 },
-    { sem: 'ADECUADO', n: eje.adecuado || 0 },
-    { sem: 'ÓPTIMO',   n: eje.optimo   || 0 },
-  ]
-  return vals.reduce((best, cur) => cur.n > best.n ? cur : best).sem
+  const p = eje.pct_promedio || 0
+  if (p >= 1.10) return 'ÓPTIMO'
+  if (p >= 0.90) return 'ADECUADO'
+  if (p >= 0.70) return 'RIESGO'
+  return 'CRÍTICO'
+}
+
+// MIR sort: Fin=0 · Propósito/Proposito=1 · Componente N=2 · Actividad N.M=3
+function mirSortKey(nivel) {
+  const n = (nivel || '').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  if (n === 'FIN' || n.startsWith('FIN ')) return [0, 0, 0]
+  if (n.startsWith('PROPOSITO') || n.startsWith('PROP')) return [1, 0, 0]
+  if (n.startsWith('COMPONENTE')) {
+    const m = n.match(/(\d+)/); return [2, m ? +m[1] : 99, 0]
+  }
+  if (n.startsWith('ACTIVIDAD')) {
+    const m = n.match(/(\d+)[.,](\d+)/)
+    if (m) return [3, +m[1], +m[2]]
+    const m2 = n.match(/(\d+)/); return [3, m2 ? +m2[1] : 99, 0]
+  }
+  return [4, 0, 0]
+}
+
+function sortByMIR(inds) {
+  return [...inds].sort((a, b) => {
+    const ka = mirSortKey(a.nivel_mir), kb = mirSortKey(b.nivel_mir)
+    for (let i = 0; i < 3; i++) if (ka[i] !== kb[i]) return ka[i] - kb[i]
+    return 0
+  })
 }
 
 function pctStr(val) {
@@ -74,29 +113,23 @@ function setFill(doc, rgb)  { doc.setFillColor(rgb[0], rgb[1], rgb[2]) }
 function setDraw(doc, rgb)  { doc.setDrawColor(rgb[0], rgb[1], rgb[2]) }
 
 // ── Canvas: dona de semáforo ─────────────────────────────────────────────────
-// totalLabel = eje.total_indicadores (se muestra en el centro)
-// size = dimensión del canvas en px (160 para inline, 280 para página exclusiva)
 function donaDataURL(optimo, adecuado, riesgo, critico, totalLabel, size = 160) {
   const canvas = document.createElement('canvas')
   canvas.width = canvas.height = size
   const ctx = canvas.getContext('2d')
-  const cx = size / 2, cy = size / 2
-  const r  = size * 0.44
-  const ri = size * 0.27
+  const cx = size / 2, cy = size / 2, r = size * 0.44, ri = size * 0.27
 
   const slices = [
-    { n: optimo,   color: '#2E7D32' },
-    { n: adecuado, color: '#C9A961' },
-    { n: riesgo,   color: '#EF6C00' },
-    { n: critico,  color: '#C62828' },
+    { n: optimo,   color: SEM_SEG['ÓPTIMO']   },
+    { n: adecuado, color: SEM_SEG['ADECUADO'] },
+    { n: riesgo,   color: SEM_SEG['RIESGO']   },
+    { n: critico,  color: SEM_SEG['CRÍTICO']  },
   ]
   const segTotal = slices.reduce((s, sl) => s + sl.n, 0)
 
   if (segTotal === 0) {
-    ctx.beginPath()
-    ctx.arc(cx, cy, r, 0, 2 * Math.PI)
-    ctx.fillStyle = '#DDD'
-    ctx.fill()
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, 2 * Math.PI)
+    ctx.fillStyle = '#DDDDDD'; ctx.fill()
   } else {
     let a = -Math.PI / 2
     slices.forEach(sl => {
@@ -107,73 +140,127 @@ function donaDataURL(optimo, adecuado, riesgo, critico, totalLabel, size = 160) 
       ctx.arc(cx, cy, r, a, a + sw)
       ctx.arc(cx, cy, ri, a + sw, a, true)
       ctx.closePath()
-      ctx.fillStyle = sl.color
-      ctx.fill()
+      ctx.fillStyle = sl.color; ctx.fill()
       a += sw
     })
   }
 
-  // Agujero blanco
-  ctx.beginPath()
-  ctx.arc(cx, cy, ri - 1, 0, 2 * Math.PI)
-  ctx.fillStyle = '#FFFFFF'
-  ctx.fill()
+  ctx.beginPath(); ctx.arc(cx, cy, ri - 1, 0, 2 * Math.PI)
+  ctx.fillStyle = '#FFFFFF'; ctx.fill()
 
-  // Texto central: total del eje (no la suma de segmentos)
-  const fs  = Math.round(size * 0.13)
-  const sfs = Math.round(size * 0.07)
-  ctx.textAlign    = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillStyle = '#222'
-  ctx.font = `bold ${fs}px Arial`
+  const fs = Math.round(size * 0.13), sfs = Math.round(size * 0.07)
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+  ctx.fillStyle = '#222'; ctx.font = `bold ${fs}px Arial`
   ctx.fillText(String(totalLabel), cx, cy - fs * 0.4)
-  ctx.font = `${sfs}px Arial`
-  ctx.fillStyle = '#777'
+  ctx.font = `${sfs}px Arial`; ctx.fillStyle = '#777'
   ctx.fillText('indicadores', cx, cy + fs * 0.65)
 
   return canvas.toDataURL('image/png')
 }
 
 // ── Canvas: barra de avance ──────────────────────────────────────────────────
-function barraDataURL(pct, width = 250, height = 64) {
+function barraDataURL(pct, width = 250, height = 64, sem = 'ADECUADO') {
   const canvas = document.createElement('canvas')
-  canvas.width  = width
-  canvas.height = height
+  canvas.width = width; canvas.height = height
   const ctx = canvas.getContext('2d')
 
   const bX = 6, bY = Math.round(height * 0.44), bH = Math.round(height * 0.30), bW = width - 12
-  const fill  = Math.min(pct || 0, 1.0)
-  const isOpt = (pct || 0) > 1.10
+  const fill = Math.min(pct || 0, 1.0)
+  const barColor = SEM_SEG[sem] || '#7B1F2C'
 
-  // Porcentaje encima
   ctx.font = `bold ${Math.round(height * 0.26)}px Arial`
-  ctx.fillStyle  = '#222'
-  ctx.textAlign  = 'center'
-  ctx.textBaseline = 'alphabetic'
+  ctx.fillStyle = '#222'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'
   ctx.fillText(pctStr(pct), width / 2, Math.round(height * 0.33))
 
-  // Fondo gris
-  ctx.fillStyle = '#E0E0E0'
-  ctx.beginPath()
+  ctx.fillStyle = '#E0E0E0'; ctx.beginPath()
   if (ctx.roundRect) ctx.roundRect(bX, bY, bW, bH, 5)
   else ctx.rect(bX, bY, bW, bH)
   ctx.fill()
 
-  // Barra de progreso
   const fillW = fill * bW
   if (fillW > 0) {
-    ctx.fillStyle = isOpt ? '#2E7D32' : '#7B1F2C'
-    ctx.beginPath()
+    ctx.fillStyle = barColor; ctx.beginPath()
     if (ctx.roundRect) ctx.roundRect(bX, bY, fillW, bH, 5)
     else ctx.rect(bX, bY, fillW, bH)
     ctx.fill()
   }
 
-  // Sub-etiqueta
   ctx.font = `${Math.round(height * 0.16)}px Arial`
-  ctx.fillStyle = '#888'
-  ctx.textBaseline = 'alphabetic'
+  ctx.fillStyle = '#888'; ctx.textBaseline = 'alphabetic'
   ctx.fillText('avance acumulado del eje', width / 2, height - 4)
+
+  return canvas.toDataURL('image/png')
+}
+
+// ── Canvas: línea acumulada meta vs resultado ─────────────────────────────────
+// lineData: [{ mesLabel, metaAcum, resAcum }]
+function lineaDataURL(lineData, width = 460, height = 175) {
+  const canvas = document.createElement('canvas')
+  canvas.width = width; canvas.height = height
+  const ctx = canvas.getContext('2d')
+  ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, width, height)
+
+  if (!lineData || lineData.length === 0) return canvas.toDataURL('image/png')
+
+  const PAD_L = 52, PAD_R = 14, PAD_T = 26, PAD_B = 30
+  const W = width - PAD_L - PAD_R, H = height - PAD_T - PAD_B
+  const n = lineData.length
+
+  const maxVal = Math.max(...lineData.map(d => Math.max(d.metaAcum || 0, d.resAcum || 0))) * 1.12 || 1
+  const toY = v => PAD_T + H - ((Math.min(v, maxVal) / maxVal) * H)
+  const toX = i => n === 1 ? PAD_L + W / 2 : PAD_L + (i / (n - 1)) * W
+
+  // Grid lines + Y labels
+  for (let g = 0; g <= 4; g++) {
+    const y = PAD_T + (g / 4) * H
+    ctx.strokeStyle = '#EBEBEB'; ctx.lineWidth = 0.8
+    ctx.beginPath(); ctx.moveTo(PAD_L, y); ctx.lineTo(PAD_L + W, y); ctx.stroke()
+    const val = maxVal * (1 - g / 4)
+    ctx.fillStyle = '#999'; ctx.font = '10px Arial'; ctx.textAlign = 'right'
+    ctx.fillText(val >= 1000 ? `${(val / 1000).toFixed(1)}k` : val.toFixed(val < 10 ? 1 : 0), PAD_L - 4, y + 4)
+  }
+
+  // X labels
+  lineData.forEach((d, i) => {
+    ctx.fillStyle = '#555'; ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center'
+    ctx.fillText(d.mesLabel, toX(i), height - 7)
+  })
+
+  // Series: meta (guinda dashed) y resultado (verde sólido)
+  const series = [
+    { key: 'metaAcum', color: '#7B1F2C', dash: [5, 4], label: 'Meta acum.' },
+    { key: 'resAcum',  color: '#046205', dash: [],      label: 'Resultado acum.' },
+  ]
+  series.forEach(s => {
+    ctx.save()
+    ctx.strokeStyle = s.color; ctx.lineWidth = 2.2
+    ctx.setLineDash(s.dash)
+    ctx.beginPath()
+    lineData.forEach((d, i) => {
+      const x = toX(i), y = toY(d[s.key] || 0)
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
+    })
+    ctx.stroke(); ctx.restore()
+    // Markers
+    lineData.forEach((d, i) => {
+      ctx.beginPath(); ctx.arc(toX(i), toY(d[s.key] || 0), 4.5, 0, 2 * Math.PI)
+      ctx.fillStyle = s.color; ctx.fill()
+      ctx.strokeStyle = '#FFF'; ctx.lineWidth = 1.2
+      ctx.beginPath(); ctx.arc(toX(i), toY(d[s.key] || 0), 2, 0, 2 * Math.PI)
+      ctx.stroke()
+    })
+  })
+
+  // Legend (top)
+  series.forEach((s, i) => {
+    const lx = PAD_L + i * 155, ly = 13
+    ctx.save(); ctx.strokeStyle = s.color; ctx.lineWidth = 2; ctx.setLineDash(s.dash)
+    ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx + 18, ly); ctx.stroke(); ctx.restore()
+    ctx.beginPath(); ctx.arc(lx + 9, ly, 3.5, 0, 2 * Math.PI)
+    ctx.fillStyle = s.color; ctx.fill()
+    ctx.fillStyle = '#333'; ctx.font = '11px Arial'; ctx.textAlign = 'left'
+    ctx.fillText(s.label, lx + 22, ly + 4)
+  })
 
   return canvas.toDataURL('image/png')
 }
@@ -182,16 +269,10 @@ function barraDataURL(pct, width = 250, height = 64) {
 function drawRunningHeader(doc, ejeNombre) {
   const W = doc.internal.pageSize.width
   try { doc.addImage(LOGO_BASE64, 'PNG', 14, 6, 8, 8) } catch (_) {}
-  doc.setFontSize(7.5)
-  doc.setFont('helvetica', 'bold')
-  setColor(doc, GUINDA)
+  doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
   doc.text(ejeNombre, 24, 12, { maxWidth: W - 42 })
-  setDraw(doc, GUINDA)
-  doc.setLineWidth(0.3)
-  doc.line(14, 16, W - 14, 16)
-  setDraw(doc, DORADO)
-  doc.setLineWidth(0.2)
-  doc.line(14, 16.5, W - 14, 16.5)
+  setDraw(doc, GUINDA); doc.setLineWidth(0.3); doc.line(14, 16, W - 14, 16)
+  setDraw(doc, DORADO); doc.setLineWidth(0.2); doc.line(14, 16.5, W - 14, 16.5)
 }
 
 // ── Bloque de firmas ─────────────────────────────────────────────────────────
@@ -203,179 +284,160 @@ function drawFirmas(doc, ejeCodigo, y) {
     { rol: 'ELABORÓ',     nombre: 'C.p. David Hernandez Montiel',        cargo: 'Tesorero' },
     { rol: 'RESPONSABLE', nombre: resp.nombre,                           cargo: resp.cargo },
   ]
-  const W    = doc.internal.pageSize.width
-  const ML   = 14
-  const colW = (W - ML * 2 - 9) / 4   // 3 separaciones de 3mm entre 4 columnas
+  const W = doc.internal.pageSize.width, ML = 14
+  const colW = (W - ML * 2 - 9) / 4
 
   doc.setFontSize(6.5)
   firmantes.forEach((f, i) => {
-    const xL   = ML + i * (colW + 3)
-    const xC   = xL + colW / 2
-    const lineY = y + 17
-
-    doc.setFont('helvetica', 'bold')
-    setColor(doc, GUINDA)
+    const xL = ML + i * (colW + 3), xC = xL + colW / 2, lineY = y + 17
+    doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
     doc.text(f.rol, xC, y + 4, { align: 'center' })
-
-    setDraw(doc, [150, 150, 150])
-    doc.setLineWidth(0.3)
+    setDraw(doc, [150, 150, 150]); doc.setLineWidth(0.3)
     doc.line(xL + 2, lineY, xL + colW - 2, lineY)
-
-    doc.setFont('helvetica', 'bold')
-    setColor(doc, [30, 30, 30])
+    doc.setFont('helvetica', 'bold'); setColor(doc, [30, 30, 30])
     const nLines = doc.splitTextToSize(f.nombre, colW - 4)
     doc.text(nLines, xC, lineY + 4, { align: 'center' })
-
-    doc.setFont('helvetica', 'normal')
-    setColor(doc, GRIS)
+    doc.setFont('helvetica', 'normal'); setColor(doc, GRIS)
     const cLines = doc.splitTextToSize(f.cargo, colW - 4)
     doc.text(cLines, xC, lineY + 4 + nLines.length * 3.5, { align: 'center' })
   })
 }
 
 // ── Gráficas por eje (página dedicada) ───────────────────────────────────────
-function drawGraficasPage(doc, eje, periodoLabel) {
-  const W = doc.internal.pageSize.width  // 279.4 landscape
+function drawGraficasPage(doc, eje, periodoLabel, indsEje, avancesMensuales, mesActual) {
+  const W = doc.internal.pageSize.width
+  const sem = semaforoEje(eje)
+  const sc  = SEM_COLORS[sem] || { txt: GRIS, bg: [245, 245, 245] }
 
-  // Título de sección
-  doc.setFontSize(11)
-  doc.setFont('helvetica', 'bold')
-  setColor(doc, GUINDA)
+  doc.setFontSize(11); doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
   doc.text('Distribución de Indicadores por Semáforo  ·  Avance del Eje', W / 2, 21, { align: 'center' })
-  setDraw(doc, DORADO)
-  doc.setLineWidth(0.5)
-  doc.line(14, 24.5, W - 14, 24.5)
+  setDraw(doc, DORADO); doc.setLineWidth(0.5); doc.line(14, 24.5, W - 14, 24.5)
 
-  // ── LADO IZQUIERDO: dona (x=14 a x=136) ─────────────────────────────────
-  doc.setFontSize(8.5)
-  doc.setFont('helvetica', 'bold')
-  setColor(doc, GUINDA)
-  doc.text('Semáforo del Eje', 75, 29, { align: 'center' })
+  // ── IZQUIERDO: dona centrada vertical y horizontalmente ──────────────────────
+  // Panel derecho ocupa y=33..146 (centro≈89). Dona (68mm) centrada en y=44..112
+  // para alinearla visualmente con barra+línea del panel derecho.
+  const LEFT_CX = 75.5                   // centro horizontal panel izquierdo (14→137)
+  const DONA_W  = 68
+  const DONA_X  = LEFT_CX - DONA_W / 2  // ≈ 41.5
+  const DONA_Y  = 44                     // alineada visualmente con panel derecho
 
+  doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
+  doc.text('Semáforo del Eje', LEFT_CX, DONA_Y - 3, { align: 'center' })
   try {
-    const donaURL = donaDataURL(
-      eje.optimo  || 0,
-      eje.adecuado || 0,
-      eje.riesgo  || 0,
-      eje.critico  || 0,
-      eje.total_indicadores || 0,  // total real del eje en el centro
-      300
-    )
-    // Centrado en x=14-136: x = (14+136-80)/2 = 35, ancho 80mm, alto 80mm
-    doc.addImage(donaURL, 'PNG', 26, 31, 80, 80)
+    const donaURL = donaDataURL(eje.optimo||0, eje.adecuado||0, eje.riesgo||0, eje.critico||0, eje.total_indicadores||0, 280)
+    doc.addImage(donaURL, 'PNG', DONA_X, DONA_Y, DONA_W, DONA_W)
   } catch (_) {}
 
-  // Leyenda dona
+  // Leyenda en 2 columnas debajo de la dona
   const legItems = [
-    { label: `Óptimo: ${eje.optimo||0}`,    color: [46, 125, 50] },
-    { label: `Adecuado: ${eje.adecuado||0}`, color: [152, 101, 0] },
-    { label: `Riesgo: ${eje.riesgo||0}`,     color: [239, 108, 0] },
-    { label: `Crítico: ${eje.critico||0}`,   color: [198,  40, 40] },
+    { label: `Óptimo: ${eje.optimo||0}`,    color: SEM_COLORS['ÓPTIMO'].txt   },
+    { label: `Adecuado: ${eje.adecuado||0}`, color: SEM_COLORS['ADECUADO'].txt },
+    { label: `Riesgo: ${eje.riesgo||0}`,     color: SEM_COLORS['RIESGO'].txt   },
+    { label: `Crítico: ${eje.critico||0}`,   color: SEM_COLORS['CRÍTICO'].txt  },
   ]
   const sinDato = Math.max(0, (eje.total_indicadores||0) - (eje.optimo||0) - (eje.adecuado||0) - (eje.riesgo||0) - (eje.critico||0))
   if (sinDato > 0) legItems.push({ label: `Sin dato: ${sinDato}`, color: [150, 150, 150] })
 
-  doc.setFontSize(8.5)
+  const legY0     = DONA_Y + DONA_W + 5  // debajo de la dona
+  const LEG_COLS  = 2
+  const LEG_COL_W = 52
+  const LEG_X0    = LEFT_CX - (LEG_COLS * LEG_COL_W) / 2
+
+  doc.setFontSize(8)
   legItems.forEach((item, i) => {
-    const lx = 109
-    const ly = 39 + i * 11
-    setFill(doc, item.color)
-    doc.rect(lx, ly - 3, 4, 4, 'F')
-    doc.setFont('helvetica', 'bold')
-    setColor(doc, item.color)
+    const col = i % LEG_COLS, row = Math.floor(i / LEG_COLS)
+    const lx  = LEG_X0 + col * LEG_COL_W
+    const ly  = legY0 + row * 10
+    setFill(doc, item.color); doc.rect(lx, ly - 3, 4, 4, 'F')
+    doc.setFont('helvetica', 'bold'); setColor(doc, item.color)
     doc.text(item.label, lx + 6, ly)
   })
 
   // Divisor vertical
-  setDraw(doc, [220, 220, 220])
-  doc.setLineWidth(0.2)
-  doc.line(137, 26, 137, 118)
+  setDraw(doc, [220, 220, 220]); doc.setLineWidth(0.2); doc.line(137, 26, 137, 148)
 
-  // ── LADO DERECHO: barra (x=140 a x=265) ──────────────────────────────────
-  doc.setFontSize(8.5)
-  doc.setFont('helvetica', 'bold')
-  setColor(doc, GUINDA)
+  // ── DERECHO: barra ────────────────────────────────────────────────────────
+  doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
   doc.text('Avance Acumulado del Eje', 202, 29, { align: 'center' })
-
   try {
-    const barURL = barraDataURL(eje.pct_promedio || 0, 460, 130)
-    // Centrado en x=140-265: width=125, bar=115mm → x=(140+265-115)/2=145
-    doc.addImage(barURL, 'PNG', 147, 33, 115, 32)
+    const barURL = barraDataURL(eje.pct_promedio || 0, 460, 95, sem)
+    doc.addImage(barURL, 'PNG', 141, 33, 123, 25)
   } catch (_) {}
 
-  // Stats bajo la barra
+  // Stats
+  doc.setFontSize(7.5)
   const statsItems = [
-    { label: `Total indicadores: ${eje.total_indicadores||0}`, color: GRIS },
-    { label: `Período: ${periodoLabel}`, color: GRIS },
-    { label: `Semáforo del eje: ${semaforoEje(eje)}`, color: GUINDA },
+    { txt: `Total indicadores: ${eje.total_indicadores||0}`, font: 'normal', color: GRIS },
+    { txt: `Período: ${periodoLabel}`,                       font: 'normal', color: GRIS },
+    { txt: `Semáforo del eje: ${sem}`,                       font: 'bold',   color: sc.txt },
   ]
-  doc.setFontSize(8)
   statsItems.forEach((s, i) => {
-    doc.setFont('helvetica', i === 2 ? 'bold' : 'normal')
-    setColor(doc, s.color)
-    doc.text(s.label, 202, 73 + i * 8, { align: 'center' })
+    doc.setFont('helvetica', s.font); setColor(doc, s.color)
+    doc.text(s.txt, 202, 62 + i * 7, { align: 'center' })
   })
 
-  // Semáforo badge grande
-  const sem     = semaforoEje(eje)
-  const semColors = {
-    'ÓPTIMO':   { bg: [232,245,233], txt: [46,125,50] },
-    'ADECUADO': { bg: [255,249,230], txt: [152,101,0] },
-    'RIESGO':   { bg: [255,243,224], txt: [239,108,0] },
-    'CRÍTICO':  { bg: [255,235,238], txt: [198,40,40] },
-  }
-  const sc = semColors[sem] || { bg: [245,245,245], txt: GRIS }
-  setFill(doc, sc.bg)
-  doc.roundedRect(168, 97, 68, 10, 2.5, 2.5, 'F')
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'bold')
-  setColor(doc, sc.txt)
-  doc.text(sem, 202, 104, { align: 'center' })
+  // Badge semáforo
+  setFill(doc, sc.bg); doc.roundedRect(166, 82, 72, 10, 2.5, 2.5, 'F')
+  doc.setFontSize(9); doc.setFont('helvetica', 'bold'); setColor(doc, sc.txt)
+  doc.text(sem, 202, 89, { align: 'center' })
+
+  // ── DERECHO: gráfica de línea acumulada ───────────────────────────────────
+  doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
+  doc.text('Tendencia Acumulada Mensual', 202, 97, { align: 'center' })
+
+  try {
+    const mesAct = mesActual || 5
+    const avMap  = avancesMensuales || {}
+    const inds   = indsEje || []
+
+    const lineData = Array.from({ length: mesAct }, (_, mi) => {
+      const targetMes = mi + 1
+      let metaAcum = 0, resAcum = 0
+      inds.forEach(ind => {
+        const avInd = avMap[ind.id] || {}
+        for (let m = 1; m <= targetMes; m++) {
+          metaAcum += avInd[m]?.meta || 0
+          resAcum  += avInd[m]?.res  || 0
+        }
+      })
+      return { mesLabel: MESES_NOMBRES[mi], metaAcum, resAcum }
+    })
+
+    const lineURL = lineaDataURL(lineData, 460, 175)
+    doc.addImage(lineURL, 'PNG', 141, 100, 123, 46)
+  } catch (_) {}
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
 // GENERAR PDF
 // ══════════════════════════════════════════════════════════════════════════════
-export function generarPDF({ global: g, ejes, indicadoresPorEje, periodoLabel, piloto = false }) {
+export function generarPDF({
+  global: g, ejes, indicadoresPorEje,
+  avancesMensuales, mesActual, anioActual,
+  periodoLabel, piloto = false
+}) {
   const ejesToRender = piloto ? ejes.slice(0, 1) : ejes
+  const mesAct = mesActual || 5
   const ML = 14
 
   // ── PORTADA (portrait) ─────────────────────────────────────────────────────
-  const doc  = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
-  const W_P  = doc.internal.pageSize.width   // 215.9
-  const H_P  = doc.internal.pageSize.height  // 279.4
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
+  const W_P = doc.internal.pageSize.width
+  const H_P = doc.internal.pageSize.height
 
-  setFill(doc, GUINDA)
-  doc.rect(0, 0, W_P, 78, 'F')
+  setFill(doc, GUINDA); doc.rect(0, 0, W_P, 78, 'F')
   try { doc.addImage(LOGO_BASE64, 'PNG', (W_P - 50) / 2, 13, 50, 50) } catch (_) {}
 
-  doc.setFontSize(12)
-  doc.setFont('helvetica', 'bold')
-  setColor(doc, GUINDA)
+  doc.setFontSize(12); doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
   doc.text('H. AYUNTAMIENTO DE APIZACO 2024-2027', W_P / 2, 92, { align: 'center' })
-
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'normal')
-  setColor(doc, GRIS)
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal'); setColor(doc, GRIS)
   doc.text('Sistema de Información Municipal de Avance', W_P / 2, 101, { align: 'center' })
-
-  doc.setFontSize(22)
-  doc.setFont('helvetica', 'bold')
-  setColor(doc, GUINDA)
+  doc.setFontSize(22); doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
   doc.text('INFORME DE AVANCE MIR', W_P / 2, 123, { align: 'center' })
-
-  setDraw(doc, DORADO)
-  doc.setLineWidth(0.9)
-  doc.line(ML + 22, 128, W_P - ML - 22, 128)
-
-  doc.setFontSize(13)
-  doc.setFont('helvetica', 'bold')
-  setColor(doc, GUINDA)
+  setDraw(doc, DORADO); doc.setLineWidth(0.9); doc.line(ML + 22, 128, W_P - ML - 22, 128)
+  doc.setFontSize(13); doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
   doc.text(`Periodo: ${periodoLabel}`, W_P / 2, 140, { align: 'center' })
-
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'normal')
-  setColor(doc, GRIS)
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal'); setColor(doc, GRIS)
   doc.text('Generado por: Dirección de Planeación y Evaluación', W_P / 2, 151, { align: 'center' })
   doc.text(`Fecha de generación: ${formatFecha()}`, W_P / 2, 159, { align: 'center' })
 
@@ -388,50 +450,33 @@ export function generarPDF({ global: g, ejes, indicadoresPorEje, periodoLabel, p
   const kpiW = (W_P - ML * 2 - 9) / 4
   kpis.forEach((k, i) => {
     const x = ML + i * (kpiW + 3)
-    setFill(doc, [250, 248, 244])
-    setDraw(doc, DORADO)
-    doc.setLineWidth(0.3)
+    setFill(doc, [250, 248, 244]); setDraw(doc, DORADO); doc.setLineWidth(0.3)
     doc.roundedRect(x, 172, kpiW, 25, 2, 2, 'FD')
-    doc.setFontSize(16)
-    doc.setFont('helvetica', 'bold')
-    setColor(doc, GUINDA)
+    doc.setFontSize(16); doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
     doc.text(k.value, x + kpiW / 2, 185, { align: 'center' })
-    doc.setFontSize(7)
-    doc.setFont('helvetica', 'normal')
-    setColor(doc, GRIS)
+    doc.setFontSize(7); doc.setFont('helvetica', 'normal'); setColor(doc, GRIS)
     doc.text(k.label, x + kpiW / 2, 192, { align: 'center' })
   })
+  setDraw(doc, DORADO); doc.setLineWidth(1); doc.line(ML, H_P - 18, W_P - ML, H_P - 18)
+  doc.setFontSize(7); setColor(doc, GRIS)
+  doc.text('H. Ayuntamiento de Apizaco · Dirección de Planeación y Evaluación · SIMA 2026', W_P / 2, H_P - 10, { align: 'center' })
 
-  setDraw(doc, DORADO)
-  doc.setLineWidth(1)
-  doc.line(ML, H_P - 18, W_P - ML, H_P - 18)
-  doc.setFontSize(7)
-  setColor(doc, GRIS)
-  doc.text(
-    'H. Ayuntamiento de Apizaco · Dirección de Planeación y Evaluación · SIMA 2026',
-    W_P / 2, H_P - 10, { align: 'center' }
-  )
-
-  // ── RESUMEN EJECUTIVO (landscape, tabla centrada) ──────────────────────────
+  // ── RESUMEN EJECUTIVO (landscape) ──────────────────────────────────────────
   doc.addPage('letter', 'landscape')
-  const W_L = doc.internal.pageSize.width   // 279.4
+  const W_L = doc.internal.pageSize.width
 
-  doc.setFontSize(14)
-  doc.setFont('helvetica', 'bold')
-  setColor(doc, GUINDA)
+  doc.setFontSize(14); doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
   doc.text('Resumen Ejecutivo', ML, 22)
-  doc.setFontSize(8)
-  doc.setFont('helvetica', 'normal')
-  setColor(doc, GRIS)
+  doc.setFontSize(8); doc.setFont('helvetica', 'normal'); setColor(doc, GRIS)
   doc.text(periodoLabel, W_L - ML, 22, { align: 'right' })
-  setDraw(doc, DORADO)
-  doc.setLineWidth(0.6)
-  doc.line(ML, 25, W_L - ML, 25)
+  setDraw(doc, DORADO); doc.setLineWidth(0.6); doc.line(ML, 25, W_L - ML, 25)
 
-  // Centrar tabla: sum col widths = 78+18+22+18+20+16+16+28 = 216mm → margin = (279.4-216)/2 = 31.7
-  const resMargin = (W_L - 216) / 2
+  // Anchos: Eje=88 + TotalInd=14 + %Avance=18 + Óptimo=14 + Adecuado=16 + Riesgo=14 + Crítico=14 + Semáforo=24 = 202mm
+  const RES_TOTAL_W = 202
+  const resMargin = (W_L - RES_TOTAL_W) / 2
+
   autoTable(doc, {
-    head: [['Eje', 'Total Ind.', '% Avance', 'Óptimo', 'Adecuado', 'Riesgo', 'Crítico', 'Semáforo']],
+    head: [['Eje Estratégico', 'Total\nInd.', '% Avance', 'Óptimo', 'Adecuado', 'Riesgo', 'Crítico', 'Semáforo']],
     body: ejes.map(e => {
       const sem = semaforoEje(e)
       return [e.eje, e.total_indicadores||0, pctStr(e.pct_promedio),
@@ -440,96 +485,169 @@ export function generarPDF({ global: g, ejes, indicadoresPorEje, periodoLabel, p
     startY: 30,
     margin: { left: resMargin, right: resMargin },
     styles: {
-      fontSize: 9,
-      cellPadding: 3,
-      lineColor: [220, 220, 220],
-      lineWidth: 0.1,
-      halign: 'center',
-      valign: 'middle',
+      fontSize: 8.5, cellPadding: [2.5, 2, 2.5, 2],
+      lineColor: [220, 220, 220], lineWidth: 0.1,
+      halign: 'center', valign: 'middle', overflow: 'linebreak',
     },
-    headStyles: { fillColor: GUINDA, textColor: BLANCO, fontStyle: 'bold', halign: 'center' },
+    headStyles: { fillColor: GUINDA, textColor: BLANCO, fontStyle: 'bold', halign: 'center', fontSize: 8 },
     columnStyles: {
-      0: { cellWidth: 78, halign: 'left' },
-      1: { cellWidth: 18 },
-      2: { cellWidth: 22 },
-      3: { cellWidth: 18 },
-      4: { cellWidth: 20 },
-      5: { cellWidth: 16 },
-      6: { cellWidth: 16 },
-      7: { cellWidth: 28 },
+      0: { cellWidth: 88, halign: 'left' },
+      1: { cellWidth: 14 },
+      2: { cellWidth: 18 },
+      3: { cellWidth: 14 },
+      4: { cellWidth: 16 },
+      5: { cellWidth: 14 },
+      6: { cellWidth: 14 },
+      7: { cellWidth: 24 },
     },
     alternateRowStyles: { fillColor: [249, 244, 232] },
     didParseCell: (data) => {
       if (data.section === 'body' && data.column.index === 7) {
         const sem = data.cell.raw
-        const semTxt = {
-          'ÓPTIMO': [46,125,50], 'ADECUADO': [152,101,0],
-          'RIESGO': [239,108,0], 'CRÍTICO':  [198,40,40],
-        }
-        data.cell.styles.textColor = semTxt[sem] || GRIS
+        const sc = SEM_COLORS[sem] || { txt: GRIS, bg: [245,245,245] }
+        data.cell.styles.textColor = sc.txt
+        data.cell.styles.fillColor = sc.bg
         data.cell.styles.fontStyle = 'bold'
       }
     },
   })
 
   // ── PÁGINAS POR EJE ────────────────────────────────────────────────────────
-  // Anchos columna indicadores: 8+26+114+45+18+18+20 = 249mm → margin = (279.4-249)/2 = 15.2
-  const indColWidths = { 0:8, 1:26, 2:114, 3:45, 4:18, 5:18, 6:20 }
-  const indTableW    = 249
-  const indMargin    = (W_L - indTableW) / 2
+  const H_L  = 215.9
+  const avMap = avancesMensuales || {}
+
+  // Cálculo dinámico de columnas para tabla mensual
+  const NUM_MESES   = mesAct
+  const CW_NUM      = 5
+  const CW_NIVEL    = 22
+  const CW_AREA     = 22
+  const CW_ACUM_MET = 12
+  const CW_ACUM_RES = 12
+  const CW_ACUM_PCT = 17
+  const ACUM_FIXED  = CW_ACUM_MET + CW_ACUM_RES + CW_ACUM_PCT
+  const USABLE_W    = 249
+  const AVAIL_IND   = USABLE_W - CW_NUM - CW_NIVEL - CW_AREA - ACUM_FIXED
+  // Distribuir entre indicador y columnas de mes
+  const CW_MES      = Math.max(5, Math.floor((AVAIL_IND - 55) / (NUM_MESES * 2)))
+  const CW_IND      = Math.max(40, AVAIL_IND - NUM_MESES * 2 * CW_MES)
+  const TABLE_W     = CW_NUM + CW_NIVEL + CW_IND + CW_AREA + NUM_MESES * 2 * CW_MES + ACUM_FIXED
+  const indMargin   = (W_L - TABLE_W) / 2
+  const FONT_SZ     = NUM_MESES <= 5 ? 7 : NUM_MESES <= 8 ? 6.5 : 6
+  const ACUM_START  = 4 + NUM_MESES * 2
 
   ejesToRender.forEach(eje => {
-    const inds = indicadoresPorEje[eje.codigo] || []
-    const H_L  = 215.9  // altura landscape
+    const indsRaw = indicadoresPorEje[eje.codigo] || []
+    const inds    = sortByMIR(indsRaw)
 
-    // ── PASO A: Tabla de indicadores + firmas ──────────────────────────────
+    // ── PASO A: Tabla mensual + firmas ────────────────────────────────────
     doc.addPage('letter', 'landscape')
-    drawRunningHeader(doc, eje.eje)
 
-    const indCols = ['#', 'Nivel MIR', 'Indicador', 'Área', 'Meta', 'Resultado', '% Avance']
-    const indRows = inds.map((ind, i) => [
-      i + 1,
-      ind.nivel_mir || '-',
-      ind.indicador || '-',
-      ind.area      || '-',
-      numStr(ind.meta_evaluable),
-      numStr(ind.resultado),
-      pctStr(ind.pct_cumplimiento),
-    ])
+    // Encabezados dobles
+    const headRow1 = [
+      { content: '#',        rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+      { content: 'Nivel\nMIR', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+      { content: 'Indicador',rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+      { content: 'Área',     rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+      ...MESES_NOMBRES.slice(0, NUM_MESES).map(m => ({
+        content: m, colSpan: 2,
+        styles: { halign: 'center', valign: 'middle', fillColor: [100, 20, 32] },
+      })),
+      { content: 'ACUMULADO', colSpan: 3, styles: { halign: 'center', valign: 'middle', fillColor: [70, 14, 22] } },
+    ]
+    const subStyle = { halign: 'center', valign: 'middle', fontSize: FONT_SZ - 0.5, fontStyle: 'normal' }
+    const headRow2 = [
+      ...MESES_NOMBRES.slice(0, NUM_MESES).flatMap(() => [
+        { content: 'Meta', styles: { ...subStyle, fillColor: [140, 50, 65] } },
+        { content: 'Res',  styles: { ...subStyle, fillColor: [110, 35, 48] } },
+      ]),
+      { content: 'Meta',   styles: { ...subStyle, fillColor: [60, 10, 18] } },
+      { content: 'Res',    styles: { ...subStyle, fillColor: [60, 10, 18] } },
+      { content: '% Av.',  styles: { ...subStyle, fillColor: [60, 10, 18] } },
+    ]
 
-    let firstPage = true
+    // Filas de datos
+    const bodyRows = inds.map((ind, idx) => {
+      const avInd = avMap[ind.id] || {}
+      const monthCells = Array.from({ length: NUM_MESES }, (_, mi) => {
+        const m  = mi + 1
+        const av = avInd[m]
+        return [av ? numStr(av.meta) : '', av ? numStr(av.res) : '']
+      }).flat()
+      const metaAcum = Array.from({ length: NUM_MESES }, (_, mi) => avInd[mi+1]?.meta || 0).reduce((a,b) => a+b, 0)
+      const resAcum  = Array.from({ length: NUM_MESES }, (_, mi) => avInd[mi+1]?.res  || 0).reduce((a,b) => a+b, 0)
+      const pctAcum  = metaAcum > 0 ? resAcum / metaAcum : resAcum > 0 ? resAcum / 1.0 : null
+      return [
+        idx + 1,
+        ind.nivel_mir || '-',
+        ind.indicador || '-',
+        ind.area      || '-',
+        ...monthCells,
+        metaAcum > 0 ? numStr(metaAcum) : (resAcum > 0 ? '1' : '-'),
+        numStr(resAcum),
+        pctAcum,  // raw number → formateado en didParseCell
+      ]
+    })
+
+    // Column styles
+    const colStyles = {
+      0: { cellWidth: CW_NUM,   halign: 'center', valign: 'middle' },
+      1: { cellWidth: CW_NIVEL, halign: 'center', valign: 'middle', overflow: 'linebreak' },
+      2: { cellWidth: CW_IND,   halign: 'center', valign: 'middle', overflow: 'linebreak' },
+      3: { cellWidth: CW_AREA,  halign: 'center', valign: 'middle', overflow: 'linebreak' },
+    }
+    for (let m = 0; m < NUM_MESES * 2; m++) {
+      colStyles[4 + m] = { cellWidth: CW_MES, halign: 'center' }
+    }
+    colStyles[ACUM_START]   = { cellWidth: CW_ACUM_MET, halign: 'center' }
+    colStyles[ACUM_START+1] = { cellWidth: CW_ACUM_RES, halign: 'center' }
+    colStyles[ACUM_START+2] = { cellWidth: CW_ACUM_PCT, halign: 'center' }
+
     autoTable(doc, {
-      head: [indCols],
-      body: indRows,
+      head: [headRow1, headRow2],
+      body: bodyRows,
       startY: 20,
-      margin: { left: indMargin, right: indMargin, bottom: 58 },
+      margin: { left: indMargin, right: indMargin, bottom: 60, top: 20 },
       styles: {
-        fontSize: 7.5,
-        cellPadding: [2.5, 2.5, 2.5, 2.5],
-        lineColor: [220, 220, 220],
-        lineWidth: 0.1,
-        overflow: 'linebreak',
-        textColor: [40, 40, 40],
-        halign: 'center',
-        valign: 'middle',
+        fontSize: FONT_SZ, cellPadding: [1.5, 1.2, 1.5, 1.2],
+        lineColor: [220, 220, 220], lineWidth: 0.1,
+        overflow: 'linebreak', textColor: [40, 40, 40],
+        halign: 'center', valign: 'middle',
+        minCellHeight: 0,
       },
       headStyles: {
-        fillColor: GUINDA,
-        textColor: BLANCO,
-        fontStyle: 'bold',
-        fontSize: 7.5,
-        halign: 'center',
-        valign: 'middle',
+        fillColor: GUINDA, textColor: BLANCO,
+        fontStyle: 'bold', fontSize: FONT_SZ,
+        halign: 'center', valign: 'middle',
+        minCellHeight: 0,
       },
       alternateRowStyles: { fillColor: [250, 250, 250] },
-      columnStyles: indColWidths,
-      didDrawPage: () => {
-        if (!firstPage) drawRunningHeader(doc, eje.eje)
-        firstPage = false
+      columnStyles: colStyles,
+      didParseCell: (data) => {
+        if (data.section === 'body') {
+          // Asegurar wrapping en todas las celdas de texto
+          data.cell.styles.overflow = 'linebreak'
+          data.cell.styles.valign   = 'middle'
+          if (data.column.index === ACUM_START + 2) {
+            const pct = data.cell.raw
+            if (typeof pct === 'number') {
+              data.cell.text = [pctStr(pct)]
+              const sem = pct >= 1.10 ? 'ÓPTIMO' : pct >= 0.90 ? 'ADECUADO' : pct >= 0.70 ? 'RIESGO' : 'CRÍTICO'
+              const sc  = SEM_COLORS[sem]
+              data.cell.styles.textColor = sc.txt
+              data.cell.styles.fillColor = sc.bg
+              data.cell.styles.fontStyle = 'bold'
+            } else {
+              data.cell.text = ['-']
+            }
+          }
+        }
+      },
+      didDrawPage: (data) => {
+        // Siempre redibujar el encabezado en cada página (incluyendo la primera)
+        drawRunningHeader(doc, eje.eje)
       },
     })
 
-    // Firmas al pie de la última página de tabla
     const finalY = doc.lastAutoTable.finalY
     if (finalY + 56 > H_L - 8) {
       doc.addPage('letter', 'landscape')
@@ -542,23 +660,18 @@ export function generarPDF({ global: g, ejes, indicadoresPorEje, periodoLabel, p
     // ── PASO B: Página de gráficas + firmas ────────────────────────────────
     doc.addPage('letter', 'landscape')
     drawRunningHeader(doc, eje.eje)
-    drawGraficasPage(doc, eje, periodoLabel)
-    drawFirmas(doc, eje.codigo, 148)
+    drawGraficasPage(doc, eje, periodoLabel, indsRaw, avMap, mesAct)
+    drawFirmas(doc, eje.codigo, 150)
   })
 
   // Pie de página en todas las páginas
   const totalPages = doc.internal.getNumberOfPages()
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p)
-    const W = doc.internal.pageSize.width
-    const H = doc.internal.pageSize.height
-    doc.setFontSize(6.5)
-    doc.setFont('helvetica', 'normal')
-    setColor(doc, [150, 150, 150])
-    doc.text(
-      `Página ${p} de ${totalPages}  ·  SIMA · H. Ayuntamiento de Apizaco · ${periodoLabel}`,
-      W / 2, H - 6, { align: 'center' }
-    )
+    const W = doc.internal.pageSize.width, H = doc.internal.pageSize.height
+    doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); setColor(doc, [150, 150, 150])
+    doc.text(`Página ${p} de ${totalPages}  ·  SIMA · H. Ayuntamiento de Apizaco · ${periodoLabel}`,
+      W / 2, H - 6, { align: 'center' })
   }
 
   doc.save(`SIMA_InformeAvance${piloto ? '_PILOTO' : ''}_${periodoLabel.replace(/[^A-Z0-9]/g, '_')}.pdf`)
@@ -581,11 +694,9 @@ export async function generarExcel({ global: g, ejes, indicadoresPorEje, periodo
 
   const ejesToRender = piloto ? ejes.slice(0, 1) : ejes
 
-  // ── Bordes finos ──────────────────────────────────────────────────────────
   const thinB  = { style: 'thin', color: { argb: 'FFD0D0D0' } }
   const borders = { top: thinB, left: thinB, bottom: thinB, right: thinB }
 
-  // ── Helpers de estilo ─────────────────────────────────────────────────────
   function semArgb(sem) {
     return { 'ÓPTIMO': XL.optimo, 'ADECUADO': XL.adecuado, 'RIESGO': XL.riesgo, 'CRÍTICO': XL.critico }[sem] || XL.gris
   }
@@ -619,50 +730,36 @@ export async function generarExcel({ global: g, ejes, indicadoresPorEje, periodo
     cell.border    = borders
   }
 
-  // ── Encabezado de hoja (logo + título guinda + subtítulo guinda) ──────────
   function addSheetHeader(ws, title, isEje = false) {
-    // Filas de encabezado
     ws.getRow(1).height = 30
     ws.getRow(2).height = 24
     ws.getRow(3).height = 20
-    ws.getRow(4).height = 8   // spacer
-
-    // Logo
+    ws.getRow(4).height = 8
     ws.addImage(logoId, { tl: { col: 0, row: 0 }, ext: { width: 58, height: 58 } })
-
-    // Fondo guinda en B1:I3 (antes de mergear para que se aplique a todo)
     for (let row = 1; row <= 3; row++) {
-      for (let col = 2; col <= 9; col++) {  // columnas B-I (1-indexed)
+      for (let col = 2; col <= 9; col++) {
         ws.getCell(row, col).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.guinda } }
       }
     }
-
-    // Fusionar B1:I2 para el título
     ws.mergeCells('B1:I2')
     const titleCell     = ws.getCell('B1')
     titleCell.value     = title
     titleCell.font      = { bold: true, size: isEje ? 16 : 15, color: { argb: XL.blanco } }
     titleCell.alignment = { horizontal: 'center', vertical: 'middle' }
-
-    // B3: Periodo
     ws.mergeCells('B3:I3')
     const perCell     = ws.getCell('B3')
     perCell.value     = `Periodo: ${periodoLabel}`
     perCell.font      = { size: isEje ? 12 : 11, color: { argb: XL.blanco } }
     perCell.alignment = { horizontal: 'center', vertical: 'middle' }
-
-    // Spacer row 4
     ws.addRow([])
   }
 
-  // ── HOJA RESUMEN ──────────────────────────────────────────────────────────
   const wsR = wb.addWorksheet('Resumen')
   wsR.properties.defaultRowHeight = 14.4
-
   addSheetHeader(wsR, 'SIMA – Resumen por Eje Estratégico', false)
 
   const resHdr = ['Eje Estratégico', 'Total Ind.', '% Avance', 'Óptimo', 'Adecuado', 'Riesgo', 'Crítico', 'Semáforo']
-  const rhRow  = wsR.addRow(resHdr)         // row 5
+  const rhRow  = wsR.addRow(resHdr)
   rhRow.eachCell(c => styleHeader(c))
   wsR.getRow(rhRow.number).height = 20
 
@@ -678,7 +775,6 @@ export async function generarExcel({ global: g, ejes, indicadoresPorEje, periodo
     for (let c = 2; c <= 7; c++) row.getCell(c).alignment = { horizontal: 'center', vertical: 'middle' }
   })
 
-  // Fila totales
   const totR = wsR.addRow([
     'TOTAL MUNICIPIO',
     ejes.reduce((s, e) => s + (e.total_indicadores||0), 0),
@@ -697,9 +793,7 @@ export async function generarExcel({ global: g, ejes, indicadoresPorEje, periodo
   ]
   wsR.views = [{ state: 'frozen', xSplit: 0, ySplit: 5 }]
 
-  // ── HOJAS POR EJE ─────────────────────────────────────────────────────────
   const IND_HDR = ['#', 'Nivel MIR', 'Indicador', 'Área', 'Meta', 'Resultado', '% Avance', 'Semáforo', 'Observaciones']
-  // Anchos: A=19.2, B=16, C=55, D=30, E=12, F=12, G=12, H=14, I=28
   const IND_W   = [19.2, 16, 55, 30, 12, 12, 12, 14, 28]
 
   ejesToRender.forEach(eje => {
@@ -708,10 +802,8 @@ export async function generarExcel({ global: g, ejes, indicadoresPorEje, periodo
     const wsName = `${eje.codigo} ${eje.eje}`.substring(0, 31)
     const ws    = wb.addWorksheet(wsName)
     ws.properties.defaultRowHeight = 14.4
-
     addSheetHeader(ws, eje.eje, true)
 
-    // Fila de resumen del eje (row 5 / fila 6 en display 1-indexed)
     const statRow = ws.addRow([
       `Semáforo eje: ${sem}`,
       `Total: ${eje.total_indicadores||0}`,
@@ -727,58 +819,45 @@ export async function generarExcel({ global: g, ejes, indicadoresPorEje, periodo
       c.font      = { size: 10, color: { argb: XL.guinda } }
       c.alignment = { horizontal: 'center', vertical: 'middle' }
     })
-    statRow.getCell(1).font = { bold: true, size: 10, color: { argb: semArgb(sem) } }
+    const semArgbVal = { 'ÓPTIMO': XL.optimo, 'ADECUADO': XL.adecuado, 'RIESGO': XL.riesgo, 'CRÍTICO': XL.critico }[sem] || XL.gris
+    statRow.getCell(1).font = { bold: true, size: 10, color: { argb: semArgbVal } }
     ws.getRow(statRow.number).height = 16
 
-    // Encabezado de tabla (row 6)
     const hRow = ws.addRow(IND_HDR)
     hRow.eachCell(c => styleHeader(c))
     ws.getRow(hRow.number).height = 20
 
-    // Datos
     inds.forEach((ind, i) => {
       const semInd = semLabel(ind.semaforo)
       const isAlt  = i % 2 === 1
       const row    = ws.addRow([
-        i + 1,
-        ind.nivel_mir || '',
-        ind.indicador || '',
-        ind.area      || '',
+        i + 1, ind.nivel_mir || '', ind.indicador || '', ind.area || '',
         ind.meta_evaluable != null ? +ind.meta_evaluable : '',
         ind.resultado      != null ? +ind.resultado      : '',
-        pctStr(ind.pct_cumplimiento),
-        semInd,
-        '',
+        pctStr(ind.pct_cumplimiento), semInd, '',
       ])
       row.eachCell((c, col) => styleData(c, isAlt, col === 8 ? semInd : null))
       row.height = 14.4
     })
 
-    // Fila total (dorada)
     const totRow2 = ws.addRow([
       'Total indicadores:', inds.length, pctStr(eje.pct_promedio),
       '', '', '', '', '', '',
     ])
     totRow2.eachCell(c => styleTotal(c))
     totRow2.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' }
-
     ws.columns = IND_W.map(w => ({ width: w }))
-    // Freeze: congelar encabezado de tabla (fila 6 = ySplit 6)
     ws.views = [{ state: 'frozen', xSplit: 0, ySplit: 6 }]
   })
 
-  // ── HOJA "TODOS LOS INDICADORES" ─────────────────────────────────────────
   if (!piloto) {
     const wsA  = wb.addWorksheet('Todos los Indicadores')
     wsA.properties.defaultRowHeight = 14.4
-
     addSheetHeader(wsA, 'Todos los Indicadores – Vista Global', false)
-
     const allHdr = ['#', 'Eje', 'Nivel MIR', 'Indicador', 'Área', 'Meta', 'Resultado', '% Avance', 'Semáforo']
-    const hRowA  = wsA.addRow(allHdr)   // row 5
+    const hRowA  = wsA.addRow(allHdr)
     hRowA.eachCell(c => styleHeader(c))
     wsA.getRow(hRowA.number).height = 20
-
     let idx = 1
     ejes.forEach(eje => {
       ;(indicadoresPorEje[eje.codigo] || []).forEach(ind => {
@@ -795,23 +874,19 @@ export async function generarExcel({ global: g, ejes, indicadoresPorEje, periodo
         row.height = 14.4
       })
     })
-
     wsA.columns = [
       {width:6},{width:35},{width:15},{width:55},{width:28},{width:12},{width:12},{width:12},{width:14},
     ]
     wsA.views = [{ state: 'frozen', xSplit: 0, ySplit: 5 }]
   }
 
-  // Descargar
   const buffer = await wb.xlsx.writeBuffer()
   const blob   = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
   const url    = URL.createObjectURL(blob)
   const a      = document.createElement('a')
   a.href       = url
   a.download   = `SIMA_Detalle${piloto ? '_PILOTO' : ''}_${periodoLabel.replace(/[^A-Z0-9]/g, '_')}.xlsx`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
+  document.body.appendChild(a); a.click(); document.body.removeChild(a)
   URL.revokeObjectURL(url)
 }
 
@@ -834,21 +909,14 @@ export async function generarExcelMetas({ indicadores, periodoLabel }) {
   const ws = wb.addWorksheet('Metas y Resultados 2026')
   ws.properties.defaultRowHeight = 14.4
 
-  // ── Encabezados de fila 1: info + meses ──────────────────────────────────
   const thinB  = { style: 'thin', color: { argb: 'FFD0D0D0' } }
   const borders = { top: thinB, left: thinB, bottom: thinB, right: thinB }
 
   const HDR_INFO = ['#', 'Eje', 'Área', 'Indicador', 'Nivel MIR']
-  // Columnas E en adelante: par META/REAL por mes → 24 columnas de datos
-  const hdrRow1 = ws.addRow([
-    ...HDR_INFO,
-    ...MESES.flatMap(m => [m, '']),  // ENE, '', FEB, '', ...
-  ])
+  ws.addRow([...HDR_INFO, ...MESES.flatMap(m => [m, ''])])
 
-  // Fusionar las celdas de mes en fila 1 (col 6-7=ENE, 8-9=FEB, ...)
   MESES.forEach((m, i) => {
-    const c1 = 6 + i * 2   // col 1-indexed
-    const c2 = c1 + 1
+    const c1 = 6 + i * 2, c2 = c1 + 1
     ws.mergeCells(1, c1, 1, c2)
     const cell = ws.getCell(1, c1)
     cell.value = m
@@ -857,7 +925,6 @@ export async function generarExcelMetas({ indicadores, periodoLabel }) {
     cell.alignment = { horizontal: 'center', vertical: 'middle' }
     cell.border    = borders
   })
-  // Estilo celdas de info en fila 1
   HDR_INFO.forEach((_, i) => {
     const cell = ws.getCell(1, i + 1)
     cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.guinda } }
@@ -867,11 +934,7 @@ export async function generarExcelMetas({ indicadores, periodoLabel }) {
   })
   ws.getRow(1).height = 18
 
-  // ── Fila 2: subencabezados META / REAL ────────────────────────────────────
-  const hdrRow2 = ws.addRow([
-    '', '', '', '', '',
-    ...MESES.flatMap(() => ['Meta', 'Real']),
-  ])
+  const hdrRow2 = ws.addRow(['', '', '', '', '', ...MESES.flatMap(() => ['Meta', 'Real'])])
   hdrRow2.eachCell((cell, col) => {
     if (col <= 5) {
       cell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.guinda } }
@@ -886,15 +949,10 @@ export async function generarExcelMetas({ indicadores, periodoLabel }) {
   })
   ws.getRow(2).height = 16
 
-  // ── Filas de datos ────────────────────────────────────────────────────────
   indicadores.forEach((ind, idx) => {
     const isAlt = idx % 2 === 1
     const rowVals = [
-      idx + 1,
-      ind.eje_codigo,
-      ind.area_nombre,
-      ind.nombre,
-      ind.nivel_mir || '',
+      idx + 1, ind.eje_codigo, ind.area_nombre, ind.nombre, ind.nivel_mir || '',
       ...MESES.flatMap((_, mi) => {
         const meta = parseFloat(ind[META_KEYS[mi]] || 0)
         const av   = ind.avances?.[mi + 1]
@@ -902,11 +960,8 @@ export async function generarExcelMetas({ indicadores, periodoLabel }) {
         return [meta === 0 ? '' : meta, real ?? '']
       }),
     ]
-
     const row = ws.addRow(rowVals)
     row.height = 14.4
-
-    // Celdas de info (cols 1-5)
     const infoBg = isAlt ? XL.crema : XL.blanco
     for (let c = 1; c <= 5; c++) {
       const cell = row.getCell(c)
@@ -915,26 +970,21 @@ export async function generarExcelMetas({ indicadores, periodoLabel }) {
       cell.alignment = { horizontal: c <= 2 ? 'center' : (c === 4 ? 'left' : 'center'), vertical: 'middle', wrapText: c === 4 }
       cell.border    = borders
     }
-
-    // Celdas de meses (cols 6 en adelante)
     MESES.forEach((_, mi) => {
-      const colMeta = 6 + mi * 2
-      const colReal = colMeta + 1
+      const colMeta = 6 + mi * 2, colReal = colMeta + 1
       const meta = parseFloat(ind[META_KEYS[mi]] || 0)
       const av   = ind.avances?.[mi + 1]
       const real = av ? parseFloat(av.resultado) : null
       const sem  = av?.semaforo || null
-
       const cMeta = row.getCell(colMeta)
       cMeta.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: meta > 0 ? 'FFFFF8E8' : (isAlt ? 'FFFAFAFA' : XL.blanco) } }
       cMeta.font      = { size: 9, color: { argb: meta > 0 ? XL.guinda : 'FFCCCCCC' } }
       cMeta.alignment = { horizontal: 'center', vertical: 'middle' }
       cMeta.border    = borders
-
       const cReal = row.getCell(colReal)
       if (real !== null) {
         const semBgs = { 'ÓPTIMO': 'FFE8F5E9', 'ADECUADO': 'FFFFF9E6', 'RIESGO': 'FFFFF3E0', 'CRÍTICO': 'FFFFEBEE' }
-        const semFgs = { 'ÓPTIMO': XL.optimo, 'ADECUADO': XL.adecuado, 'RIESGO': XL.riesgo, 'CRÍTICO': XL.critico }
+        const semFgs = { 'ÓPTIMO': XL.optimo,  'ADECUADO': XL.adecuado,'RIESGO': XL.riesgo,  'CRÍTICO': XL.critico }
         cReal.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: semBgs[sem] || (isAlt ? XL.crema : XL.blanco) } }
         cReal.font = { size: 9, bold: !!sem, color: { argb: semFgs[sem] || XL.gris } }
       } else {
@@ -946,29 +996,20 @@ export async function generarExcelMetas({ indicadores, periodoLabel }) {
     })
   })
 
-  // ── Anchos de columna ─────────────────────────────────────────────────────
-  ws.getColumn(1).width = 4    // #
-  ws.getColumn(2).width = 5    // Eje
-  ws.getColumn(3).width = 22   // Área
-  ws.getColumn(4).width = 52   // Indicador
-  ws.getColumn(5).width = 14   // Nivel MIR
+  ws.getColumn(1).width = 4; ws.getColumn(2).width = 5
+  ws.getColumn(3).width = 22; ws.getColumn(4).width = 52; ws.getColumn(5).width = 14
   MESES.forEach((_, i) => {
-    ws.getColumn(6 + i * 2).width     = 7   // Meta
-    ws.getColumn(6 + i * 2 + 1).width = 7   // Real
+    ws.getColumn(6 + i * 2).width     = 7
+    ws.getColumn(6 + i * 2 + 1).width = 7
   })
-
-  // Congelar primeras 2 filas + primeras 5 columnas
   ws.views = [{ state: 'frozen', xSplit: 5, ySplit: 2 }]
 
-  // ── Descargar ─────────────────────────────────────────────────────────────
   const buffer = await wb.xlsx.writeBuffer()
   const blob   = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
   const url    = URL.createObjectURL(blob)
   const a      = document.createElement('a')
-  a.href       = url
-  a.download   = `SIMA_MetasResultados_2026_${periodoLabel.replace(/[^A-Z0-9]/g, '_')}.xlsx`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
+  a.href = url
+  a.download = `SIMA_MetasResultados_2026_${periodoLabel.replace(/[^A-Z0-9]/g, '_')}.xlsx`
+  document.body.appendChild(a); a.click(); document.body.removeChild(a)
   URL.revokeObjectURL(url)
 }

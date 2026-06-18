@@ -114,6 +114,21 @@ export async function getMetasResultados() {
   })
 }
 
+export async function getAvancesMensualesPDF(anio) {
+  const { data, error } = await supabase
+    .from('avances')
+    .select('indicador_id, mes, meta_programada, resultado')
+    .eq('anio', anio)
+    .order('indicador_id').order('mes')
+  if (error) throw error
+  const map = {}
+  ;(data || []).forEach(av => {
+    if (!map[av.indicador_id]) map[av.indicador_id] = {}
+    map[av.indicador_id][av.mes] = { meta: +(av.meta_programada || 0), res: +(av.resultado || 0) }
+  })
+  return map
+}
+
 export async function guardarAvance({ indicadorId, mes, anio, resultado, observaciones }) {
   const { data: ind, error: indError } = await supabase
     .from('indicadores')

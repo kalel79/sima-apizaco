@@ -5,7 +5,7 @@ import { useConfiguracion } from '../hooks/useConfiguracion'
 import { formatPeriodoLabel } from '../utils/periodo'
 import { useDatosReporte } from '../hooks/useDatosReporte'
 import { generarPDF, generarExcel, generarPDFPiloto, generarExcelPiloto, generarExcelMetas } from '../utils/reportes'
-import { getMetasResultados } from '../lib/supabase'
+import { getMetasResultados, getAvancesMensualesPDF } from '../lib/supabase'
 
 const C = {
   guinda: '#7B1F2C', guindaDark: '#51141D',
@@ -62,7 +62,8 @@ export default function AdminUsuarios() {
     setGenStatus('cargando')
     try {
       if (!global) await cargar()
-      generarPDF({ global, ejes, indicadoresPorEje, periodoLabel })
+      const avancesMensuales = await getAvancesMensualesPDF(anioActual)
+      generarPDF({ global, ejes, indicadoresPorEje, avancesMensuales, mesActual, anioActual, periodoLabel })
       setGenStatus('ok')
     } catch (e) {
       setGenStatus('error:' + e.message)
@@ -84,7 +85,8 @@ export default function AdminUsuarios() {
     setGenStatus('cargando')
     try {
       if (!global) await cargar()
-      generarPDFPiloto({ global, ejes, indicadoresPorEje, periodoLabel })
+      const avancesMensuales = await getAvancesMensualesPDF(anioActual)
+      generarPDFPiloto({ global, ejes, indicadoresPorEje, avancesMensuales, mesActual, anioActual, periodoLabel })
       setGenStatus('ok')
     } catch (e) {
       setGenStatus('error:' + e.message)
