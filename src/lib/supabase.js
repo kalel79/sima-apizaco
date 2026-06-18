@@ -129,6 +129,16 @@ export async function getAvancesMensualesPDF(anio) {
   return map
 }
 
+export async function actualizarPeriodo(mes, anio) {
+  const { error } = await supabase
+    .from('configuracion')
+    .upsert([
+      { clave: 'mes_actual_evaluacion',  valor: String(mes)  },
+      { clave: 'anio_actual_evaluacion', valor: String(anio) },
+    ], { onConflict: 'clave' })
+  if (error) throw error
+}
+
 export async function guardarAvance({ indicadorId, mes, anio, resultado, observaciones }) {
   const { data: ind, error: indError } = await supabase
     .from('indicadores')
