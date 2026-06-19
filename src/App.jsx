@@ -12,6 +12,7 @@ import { formatPeriodoLabel } from './utils/periodo'
 import { signOut } from './lib/auth'
 import Login from './components/Login'
 import AdminUsuarios from './components/AdminUsuarios'
+import SeccionEvidencias from './components/SeccionEvidencias'
 
 /* ── PALETA INSTITUCIONAL ───────────────────────────────────── */
 const C = {
@@ -259,6 +260,7 @@ function PantallaIndicadores() {
   const {data, loading, error, refetch} = useIndicadores(filtros)
   const { mesActual, anioActual } = useConfiguracion()
   const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
+  const [expandido, setExpandido] = useState(null)
 
   const inp = {background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:6,color:C.txt,padding:'0.45rem 0.7rem',fontSize:'0.78rem',fontFamily:'inherit',outline:'none'}
 
@@ -284,8 +286,10 @@ function PantallaIndicadores() {
           </div>
           {(data||[]).map(row=>{
             const col = semColor(row.semaforo)
+            const abierto = expandido === row.id
             return (
-              <div key={row.id} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderLeft:`4px solid ${row.eje_color||C.guinda}`,borderRadius:8,padding:'0.8rem 0.95rem',marginBottom:'0.55rem'}}>
+              <div key={row.id} onClick={()=>setExpandido(abierto ? null : row.id)}
+                style={{background:C.bgCard,border:`1px solid ${abierto?C.dorado:C.border}`,borderLeft:`4px solid ${row.eje_color||C.guinda}`,borderRadius:8,padding:'0.8rem 0.95rem',marginBottom:'0.55rem',cursor:'pointer'}}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexWrap:'wrap',gap:6,marginBottom:7}}>
                   <div style={{flex:1}}>
                     <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:3}}>
@@ -310,6 +314,11 @@ function PantallaIndicadores() {
                   <span>📌 Meta: <strong style={{color:C.doradoLight}}>{row.meta_evaluable}</strong></span>
                   <span>📊 Real: <strong style={{color:col}}>{row.resultado}</strong></span>
                 </div>
+                {abierto && (
+                  <div onClick={e=>e.stopPropagation()}>
+                    <SeccionEvidencias indicadorId={row.indicador_id} mes={mesActual} anio={anioActual}/>
+                  </div>
+                )}
               </div>
             )
           })}
@@ -428,6 +437,7 @@ function PantallaCaptura({ areaCoordinador }) {
   const [status, setStatus] = useState(null)
   const [saving, setSaving] = useState(false)
   const [busq,   setBusq]   = useState('')
+  const [evVersion, setEvVersion] = useState(0)
 
   // Sincroniza mes/anio cuando la config carga (useState solo toma el valor inicial una vez)
   useEffect(() => {
@@ -459,6 +469,7 @@ function PantallaCaptura({ areaCoordinador }) {
       })
       setStatus('ok')
       setForm(f=>({...f, resultado:'', observaciones:''}))
+      setEvVersion(v=>v+1)
     } catch(e) {
       setStatus('error:'+e.message)
     } finally {
@@ -588,6 +599,10 @@ function PantallaCaptura({ areaCoordinador }) {
               </div>
             ))}
           </div>
+          <SeccionEvidencias
+            key={`${selInd.id}-${form.mes}-${form.anio}-${evVersion}`}
+            indicadorId={selInd.id} mes={+form.mes} anio={+form.anio}
+          />
         </div>
       )}
     </div>
