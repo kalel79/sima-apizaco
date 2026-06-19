@@ -5,7 +5,10 @@ import {
   useDashboardGlobal, useResumenEjes, useResumenAreas,
   useAlertasLogros, useIndicadores, useIndicadoresLista
 } from './hooks/useSupabase'
-import { guardarAvance } from './lib/supabase'
+import {
+  guardarAvance, getAvanceActual, getResumenValidacionArea,
+  validarInformacionMes, reautenticar,
+} from './lib/supabase'
 import { useAuth } from './hooks/useAuth'
 import { useConfiguracion } from './hooks/useConfiguracion'
 import { formatPeriodoLabel } from './utils/periodo'
@@ -425,7 +428,10 @@ function PantallaAlertas() {
 }
 
 /* ── CAPTURA ─────────────────────────────────────────────────── */
+const ANIOS_PROGRAMA = [2024, 2025, 2026, 2027]
+
 function PantallaCaptura({ areaCoordinador }) {
+  const { profile, isEnlace, user } = useAuth()
   const {data:listaCompleta, loading:loadLista} = useIndicadoresLista()
   const { mesActual, anioActual, loading: cfgLoading } = useConfiguracion()
   const lista = useMemo(() => {
@@ -438,10 +444,22 @@ function PantallaCaptura({ areaCoordinador }) {
   const [saving, setSaving] = useState(false)
   const [busq,   setBusq]   = useState('')
   const [evVersion, setEvVersion] = useState(0)
+  const [estadoAvance, setEstadoAvance] = useState(null)
+  const [resumenVal, setResumenVal] = useState(null)
+  const [showValidarModal, setShowValidarModal] = useState(false)
+  const [passwordInput, setPasswordInput] = useState('')
+  const [validando, setValidando] = useState(false)
+  const [validarError, setValidarError] = useState(null)
 
-  // Sincroniza mes/anio cuando la config carga (useState solo toma el valor inicial una vez)
+  // El enlace siempre captura en el mes/año actual definido por Planeación;
+  // admin/planeación pueden moverse libremente, por eso solo se sincroniza
+  // de forma forzada para el enlace.
   useEffect(() => {
-    if (!cfgLoading) setForm(f => ({ ...f, mes: mesActual, anio: anioActual }))
+    if (!cfgLoading && isEnlace) setForm(f => ({ ...f, mes: mesActual, anio: anioActual }))
+  }, [cfgLoading, isEnlace, mesActual, anioActual])
+
+  useEffect(() => {
+    if (!cfgLoading && !isEnlace) setForm(f => (f.indicadorId ? f : { ...f, mes: mesActual, anio: anioActual }))
   }, [cfgLoading]) // eslint-disable-line
 
   const MESES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC']
@@ -456,8 +474,30 @@ function PantallaCaptura({ areaCoordinador }) {
     )
   }, [lista, busq])
 
+  // Estado del avance del indicador/periodo seleccionados (para saber si ya está validado)
+  useEffect(() => {
+    if (!form.indicadorId) { setEstadoAvance(null); return }
+    let cancel = false
+    getAvanceActual(+form.indicadorId, +form.mes, +form.anio)
+      .then(d => { if (!cancel) setEstadoAvance(d) })
+      .catch(() => { if (!cancel) setEstadoAvance(null) })
+    return () => { cancel = true }
+  }, [form.indicadorId, form.mes, form.anio, evVersion])
+
+  // Resumen de validación del mes (solo enlace)
+  useEffect(() => {
+    if (!isEnlace || !profile?.area_id || cfgLoading) { setResumenVal(null); return }
+    let cancel = false
+    getResumenValidacionArea(profile.area_id, mesActual, anioActual)
+      .then(r => { if (!cancel) setResumenVal(r) })
+      .catch(() => { if (!cancel) setResumenVal(null) })
+    return () => { cancel = true }
+  }, [isEnlace, profile?.area_id, mesActual, anioActual, cfgLoading, evVersion])
+
+  const bloqueadoPorValidacion = isEnlace && estadoAvance?.validado === true
+
   async function handleGuardar() {
-    if (!form.indicadorId || form.resultado==='') return
+    if (!form.indicadorId || form.resultado==='' || bloqueadoPorValidacion) return
     setSaving(true); setStatus(null)
     try {
       await guardarAvance({
@@ -474,6 +514,22 @@ function PantallaCaptura({ areaCoordinador }) {
       setStatus('error:'+e.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleConfirmarValidar() {
+    if (!passwordInput || !user?.email || !profile?.area_id) return
+    setValidando(true); setValidarError(null)
+    try {
+      await reautenticar(user.email, passwordInput)
+      await validarInformacionMes({ areaId: profile.area_id, mes: mesActual, anio: anioActual, usuarioId: profile.id })
+      setShowValidarModal(false)
+      setPasswordInput('')
+      setEvVersion(v=>v+1)
+    } catch (e) {
+      setValidarError(e.message)
+    } finally {
+      setValidando(false)
     }
   }
 
@@ -536,51 +592,72 @@ function PantallaCaptura({ areaCoordinador }) {
             }
           </div>
 
-          {/* Mes y Trimestre */}
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.6rem'}}>
-            <div>
-              <label style={{fontSize:'0.68rem',color:C.txtSub,textTransform:'uppercase',letterSpacing:1,display:'block',marginBottom:4}}>Mes</label>
-              <select value={form.mes} onChange={e=>setForm(f=>({...f,mes:+e.target.value}))} style={inp}>
-                {MESES.map((m,i)=><option key={m} value={i+1}>{m} 2026</option>)}
-              </select>
+          {/* Mes / Año / Trimestre */}
+          {isEnlace ? (
+            <div style={{background:C.bgPanel,border:`1px solid ${C.border}`,borderRadius:8,padding:'0.65rem 0.85rem'}}>
+              <div style={{fontSize:'0.78rem',color:C.txt}}>
+                🗓 Periodo de captura: <strong style={{color:C.doradoLight}}>{MESES[(form.mes||1)-1]} {form.anio}</strong>
+              </div>
+              <div style={{fontSize:'0.62rem',color:C.txtMuted,marginTop:2}}>Definido por Planeación — no editable.</div>
             </div>
-            <div>
-              <label style={{fontSize:'0.68rem',color:C.txtSub,textTransform:'uppercase',letterSpacing:1,display:'block',marginBottom:4}}>Trimestre rápido</label>
-              <div style={{display:'flex',gap:5}}>
-                {[1,2,3,4].map(t=>{
-                  const meses=[[1,2,3],[4,5,6],[7,8,9],[10,11,12]][t-1]
-                  const activo=meses.includes(+form.mes)
-                  return (
-                    <button key={t} onClick={()=>setForm(f=>({...f,mes:meses[0]}))}
-                      style={{flex:1,padding:'0.45rem 0',background:activo?C.guinda:C.bgPanel,border:`1px solid ${activo?C.guinda:C.border}`,borderRadius:5,color:C.txt,fontSize:'0.72rem',fontFamily:'inherit',cursor:'pointer'}}>
-                      T{t}
-                    </button>
-                  )
-                })}
+          ) : (
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'0.6rem'}}>
+              <div>
+                <label style={{fontSize:'0.68rem',color:C.txtSub,textTransform:'uppercase',letterSpacing:1,display:'block',marginBottom:4}}>Mes</label>
+                <select value={form.mes} onChange={e=>setForm(f=>({...f,mes:+e.target.value}))} style={inp}>
+                  {MESES.map((m,i)=><option key={m} value={i+1}>{m} {form.anio}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{fontSize:'0.68rem',color:C.txtSub,textTransform:'uppercase',letterSpacing:1,display:'block',marginBottom:4}}>Año</label>
+                <select value={form.anio} onChange={e=>setForm(f=>({...f,anio:+e.target.value}))} style={inp}>
+                  {ANIOS_PROGRAMA.map(a=><option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{fontSize:'0.68rem',color:C.txtSub,textTransform:'uppercase',letterSpacing:1,display:'block',marginBottom:4}}>Trimestre rápido</label>
+                <div style={{display:'flex',gap:5}}>
+                  {[1,2,3,4].map(t=>{
+                    const meses=[[1,2,3],[4,5,6],[7,8,9],[10,11,12]][t-1]
+                    const activo=meses.includes(+form.mes)
+                    return (
+                      <button key={t} onClick={()=>setForm(f=>({...f,mes:meses[0]}))}
+                        style={{flex:1,padding:'0.45rem 0',background:activo?C.guinda:C.bgPanel,border:`1px solid ${activo?C.guinda:C.border}`,borderRadius:5,color:C.txt,fontSize:'0.72rem',fontFamily:'inherit',cursor:'pointer'}}>
+                        T{t}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {bloqueadoPorValidacion && (
+            <div style={{background:'#04620522',border:`1px solid ${C.optimoB}`,borderRadius:8,padding:'0.65rem 1rem',fontSize:'0.78rem',color:C.optimoB}}>
+              ✅ Esta información ya fue validada{estadoAvance?.validado_at ? ` el ${new Date(estadoAvance.validado_at).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'})}` : ''}. No se puede editar — si necesitas corregirla, contacta a Planeación.
+            </div>
+          )}
 
           {/* Resultado */}
           <div>
             <label style={{fontSize:'0.68rem',color:C.txtSub,textTransform:'uppercase',letterSpacing:1,display:'block',marginBottom:4}}>Valor real alcanzado</label>
-            <input type="number" value={form.resultado}
+            <input type="number" value={form.resultado} disabled={bloqueadoPorValidacion}
               onChange={e=>setForm(f=>({...f,resultado:e.target.value}))}
-              placeholder="Ingresa el resultado numérico…" style={inp}/>
+              placeholder="Ingresa el resultado numérico…" style={{...inp, opacity:bloqueadoPorValidacion?0.5:1}}/>
           </div>
 
           {/* Observaciones */}
           <div>
             <label style={{fontSize:'0.68rem',color:C.txtSub,textTransform:'uppercase',letterSpacing:1,display:'block',marginBottom:4}}>Observaciones / evidencia</label>
-            <textarea rows={3} value={form.observaciones}
+            <textarea rows={3} value={form.observaciones} disabled={bloqueadoPorValidacion}
               onChange={e=>setForm(f=>({...f,observaciones:e.target.value}))}
               placeholder="Descripción del avance, fuente de verificación, número de oficio…"
-              style={{...inp,resize:'vertical'}}/>
+              style={{...inp,resize:'vertical', opacity:bloqueadoPorValidacion?0.5:1}}/>
           </div>
 
           <button onClick={handleGuardar}
-            disabled={saving||!form.indicadorId||form.resultado===''}
-            style={{background:saving?'#444':`linear-gradient(135deg,${C.guindaDark},${C.guinda})`,border:'none',borderRadius:8,color:C.txt,padding:'0.75rem',fontSize:'0.85rem',fontWeight:700,fontFamily:'inherit',cursor:saving?'not-allowed':'pointer',letterSpacing:1,opacity:(!form.indicadorId||form.resultado==='')?0.5:1}}>
+            disabled={saving||!form.indicadorId||form.resultado===''||bloqueadoPorValidacion}
+            style={{background:saving?'#444':`linear-gradient(135deg,${C.guindaDark},${C.guinda})`,border:'none',borderRadius:8,color:C.txt,padding:'0.75rem',fontSize:'0.85rem',fontWeight:700,fontFamily:'inherit',cursor:saving?'not-allowed':'pointer',letterSpacing:1,opacity:(!form.indicadorId||form.resultado===''||bloqueadoPorValidacion)?0.5:1}}>
             {saving?'⏳ Guardando en Supabase…':'💾 GUARDAR AVANCE EN SIMA'}
           </button>
         </div>
@@ -603,6 +680,52 @@ function PantallaCaptura({ areaCoordinador }) {
             key={`${selInd.id}-${form.mes}-${form.anio}-${evVersion}`}
             indicadorId={selInd.id} mes={+form.mes} anio={+form.anio}
           />
+        </div>
+      )}
+
+      {/* Validación del mes (solo enlace) */}
+      {isEnlace && resumenVal && resumenVal.capturados > 0 && (
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:10,padding:'1rem',marginTop:'1rem'}}>
+          <div style={{fontSize:'0.62rem',letterSpacing:2,color:C.dorado,textTransform:'uppercase',marginBottom:8}}>🔒 Validación del mes</div>
+          <div style={{fontSize:'0.78rem',color:C.txtSub,marginBottom:10}}>
+            {resumenVal.validados} de {resumenVal.capturados} indicadores capturados ya validados
+            {resumenVal.capturados < resumenVal.totalIndicadores ? ` (tu área tiene ${resumenVal.totalIndicadores} en total).` : '.'}
+          </div>
+          {resumenVal.pendientes > 0 ? (
+            <button onClick={()=>{ setValidarError(null); setPasswordInput(''); setShowValidarModal(true) }}
+              style={{background:`linear-gradient(135deg,${C.guindaDark},${C.guinda})`,border:'none',borderRadius:8,color:C.txt,padding:'0.6rem 1rem',fontSize:'0.8rem',fontWeight:700,fontFamily:'inherit',cursor:'pointer'}}>
+              🔒 Validar información del mes
+            </button>
+          ) : (
+            <div style={{fontSize:'0.78rem',color:C.optimoB}}>✅ Toda la información de este mes ya fue validada.</div>
+          )}
+        </div>
+      )}
+
+      {/* Modal de confirmación con contraseña */}
+      {showValidarModal && (
+        <div style={{position:'fixed',inset:0,background:'#000000aa',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200}}
+          onClick={()=>!validando && setShowValidarModal(false)}>
+          <div onClick={e=>e.stopPropagation()} style={{background:C.bgCard,border:`1px solid ${C.dorado}55`,borderRadius:12,padding:'1.3rem',width:320,maxWidth:'90vw'}}>
+            <div style={{fontSize:'0.85rem',fontWeight:700,color:C.txt,marginBottom:8}}>🔒 Confirmar validación</div>
+            <div style={{fontSize:'0.75rem',color:C.txtSub,marginBottom:12,lineHeight:1.4}}>
+              Esto marcará como definitiva la información capturada de tu área para {MESES[(mesActual||1)-1]} {anioActual}. Ya no podrás editarla. Ingresa tu contraseña para confirmar.
+            </div>
+            <input type="password" value={passwordInput} onChange={e=>setPasswordInput(e.target.value)}
+              placeholder="Tu contraseña…" style={{...inp, marginBottom:10}}
+              onKeyDown={e=>{ if(e.key==='Enter') handleConfirmarValidar() }}/>
+            {validarError && <div style={{fontSize:'0.72rem',color:C.criticoB,marginBottom:10}}>❌ {validarError}</div>}
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={()=>setShowValidarModal(false)} disabled={validando}
+                style={{flex:1,background:C.bgPanel,border:`1px solid ${C.border}`,borderRadius:8,color:C.txt,padding:'0.55rem',fontSize:'0.78rem',fontFamily:'inherit',cursor:'pointer'}}>
+                Cancelar
+              </button>
+              <button onClick={handleConfirmarValidar} disabled={validando||!passwordInput}
+                style={{flex:1,background:validando?'#444':`linear-gradient(135deg,${C.guindaDark},${C.guinda})`,border:'none',borderRadius:8,color:C.txt,padding:'0.55rem',fontSize:'0.78rem',fontWeight:700,fontFamily:'inherit',cursor:validando?'not-allowed':'pointer'}}>
+                {validando?'Validando…':'Confirmar'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

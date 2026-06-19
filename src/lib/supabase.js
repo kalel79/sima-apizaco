@@ -129,6 +129,57 @@ export async function getAvancesMensualesPDF(anio) {
   return map
 }
 
+/* ── VALIDACIÓN DE CAPTURA (enlace) ─────────────────────────────── */
+export async function getAvanceActual(indicadorId, mes, anio) {
+  const { data, error } = await supabase
+    .from('avances')
+    .select('id, resultado, observaciones, validado, validado_at')
+    .eq('indicador_id', indicadorId).eq('mes', mes).eq('anio', anio)
+    .maybeSingle()
+  if (error) throw error
+  return data
+}
+
+export async function getResumenValidacionArea(areaId, mes, anio) {
+  const { data: inds, error: eInd } = await supabase
+    .from('indicadores').select('id').eq('area_id', areaId)
+  if (eInd) throw eInd
+  const ids = (inds || []).map(i => i.id)
+  if (!ids.length) return { totalIndicadores: 0, capturados: 0, validados: 0, pendientes: 0 }
+
+  const { data: avs, error: eAv } = await supabase
+    .from('avances').select('validado')
+    .in('indicador_id', ids).eq('mes', mes).eq('anio', anio)
+  if (eAv) throw eAv
+
+  const capturados = (avs || []).length
+  const validados   = (avs || []).filter(a => a.validado === true).length
+  return { totalIndicadores: ids.length, capturados, validados, pendientes: capturados - validados }
+}
+
+export async function validarInformacionMes({ areaId, mes, anio, usuarioId }) {
+  const { data: inds, error: eInd } = await supabase
+    .from('indicadores').select('id').eq('area_id', areaId)
+  if (eInd) throw eInd
+  const ids = (inds || []).map(i => i.id)
+  if (!ids.length) return []
+
+  const { data, error } = await supabase
+    .from('avances')
+    .update({ validado: true, validado_at: new Date().toISOString(), validado_por: usuarioId })
+    .in('indicador_id', ids)
+    .eq('mes', mes).eq('anio', anio)
+    .or('validado.is.null,validado.eq.false')
+    .select()
+  if (error) throw error
+  return data || []
+}
+
+export async function reautenticar(email, password) {
+  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) throw new Error('Contraseña incorrecta.')
+}
+
 /* ── EVIDENCIAS ──────────────────────────────────────────────── */
 export const EVIDENCIAS_BUCKET = 'evidencias'
 export const EVIDENCIAS_MAX_BYTES = 10 * 1024 * 1024
