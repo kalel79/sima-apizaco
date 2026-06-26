@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { invitarUsuario } from '../lib/auth'
-import { useConfiguracion } from '../hooks/useConfiguracion'
+import { useConfiguracionCtx } from '../contexts/ConfiguracionContext'
 import { formatPeriodoLabel } from '../utils/periodo'
 import { useDatosReporte } from '../hooks/useDatosReporte'
 import { generarPDF, generarExcel, generarPDFPiloto, generarExcelPiloto, generarExcelMetas } from '../utils/reportes'
@@ -29,7 +29,7 @@ export default function AdminUsuarios() {
   const [status,  setStatus]  = useState(null)
   const [genStatus, setGenStatus] = useState(null)
 
-  const { mesActual, anioActual, refetch: refetchCfg } = useConfiguracion()
+  const { mesActual, anioActual, refetchCfg } = useConfiguracionCtx()
   const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
   const { global, ejes, indicadoresPorEje, loading: rLoading, error: rError, cargar } = useDatosReporte()
 

@@ -11,6 +11,7 @@ import {
 } from './lib/supabase'
 import { useAuth } from './hooks/useAuth'
 import { useConfiguracion } from './hooks/useConfiguracion'
+import { ConfiguracionContext, useConfiguracionCtx } from './contexts/ConfiguracionContext'
 import { formatPeriodoLabel } from './utils/periodo'
 import { signOut } from './lib/auth'
 import Login from './components/Login'
@@ -102,7 +103,7 @@ function PantallaDashboard() {
   const {data:g,    loading:lg, error:eg, refetch:rg} = useDashboardGlobal()
   const {data:ejes, loading:le, error:ee, refetch:re} = useResumenEjes()
   const [selEje, setSelEje] = useState(null)
-  const { mesActual, anioActual } = useConfiguracion()
+  const { mesActual, anioActual } = useConfiguracionCtx()
   const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
 
   if (lg||le) return <Spinner/>
@@ -261,7 +262,7 @@ function PantallaIndicadores() {
   const [semaforo, setSemaforo] = useState('')
   const filtros = useMemo(()=>({busqueda,semaforo}),[busqueda,semaforo])
   const {data, loading, error, refetch} = useIndicadores(filtros)
-  const { mesActual, anioActual } = useConfiguracion()
+  const { mesActual, anioActual } = useConfiguracionCtx()
   const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
   const [expandido, setExpandido] = useState(null)
 
@@ -334,7 +335,7 @@ function PantallaIndicadores() {
 /* ── ÁREAS ───────────────────────────────────────────────────── */
 function PantallaAreas() {
   const {data, loading, error, refetch} = useResumenAreas()
-  const { mesActual, anioActual } = useConfiguracion()
+  const { mesActual, anioActual } = useConfiguracionCtx()
   const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
   if (loading) return <Spinner/>
   if (error)   return <ErrMsg msg={error} onRetry={refetch}/>
@@ -433,7 +434,7 @@ const ANIOS_PROGRAMA = [2024, 2025, 2026, 2027]
 function PantallaCaptura({ areaCoordinador }) {
   const { profile, isEnlace, user } = useAuth()
   const {data:listaCompleta, loading:loadLista} = useIndicadoresLista()
-  const { mesActual, anioActual, loading: cfgLoading } = useConfiguracion()
+  const { mesActual, anioActual, loading: cfgLoading } = useConfiguracionCtx()
   const lista = useMemo(() => {
     if (!listaCompleta) return []
     if (areaCoordinador) return listaCompleta.filter(i => i.area_nombre === areaCoordinador)
@@ -745,7 +746,7 @@ const NAV = [
 export default function App() {
   const [pan, setPan] = useState('dashboard')
   const { user, profile, loading, rol, area, isEnlace, isAdmin } = useAuth()
-  const { mesActual, anioActual } = useConfiguracion()
+  const { mesActual, anioActual, loading: cfgLoading, refetch: refetchCfg } = useConfiguracion()
   const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
 
   if (loading) {
@@ -775,6 +776,7 @@ export default function App() {
   const labelRol = profile?.cargo || profile?.roles?.nombre || rol
 
   return (
+    <ConfiguracionContext.Provider value={{ mesActual, anioActual, loading: cfgLoading, refetchCfg }}>
     <div style={{background:C.bg,minHeight:'100vh',color:C.txt,fontFamily:"'Inter','Segoe UI',system-ui,sans-serif"}}>
       <style>{`*{box-sizing:border-box}::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#7B1F2C55;border-radius:2px}input,select,textarea{outline:none}select option{padding:6px 10px;background:#1C1C1C;color:#F0EAE0}`}</style>
 
@@ -844,5 +846,6 @@ export default function App() {
         SIMA · H. Ayuntamiento de Apizaco · Dirección de Planeación y Evaluación · Hugo Montiel Robles · 2026 · v3.0
       </footer>
     </div>
+    </ConfiguracionContext.Provider>
   )
 }
