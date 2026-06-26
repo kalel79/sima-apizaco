@@ -24,7 +24,7 @@ const ROLES = [
 
 export default function AdminUsuarios() {
   const [areas,   setAreas]   = useState([])
-  const [form,    setForm]    = useState({ nombre: '', email: '', rol_codigo: 'enlace', area_id: '' })
+  const [form,    setForm]    = useState({ nombre: '', email: '', rol_codigo: 'enlace', area_id: '', password: '' })
   const [saving,  setSaving]  = useState(false)
   const [status,  setStatus]  = useState(null)
   const [genStatus, setGenStatus] = useState(null)
@@ -80,9 +80,10 @@ export default function AdminUsuarios() {
         email:      form.email,
         rol_codigo: form.rol_codigo,
         area_id:    form.area_id || null,
+        password:   form.password,
       })
-      setStatus({ ok: true, msg: `Usuario ${form.nombre} creado. Se envió correo de confirmación a ${form.email}.` })
-      setForm({ nombre: '', email: '', rol_codigo: 'enlace', area_id: '' })
+      setStatus({ ok: true, msg: `Usuario ${form.nombre} creado.`, email: form.email, password: form.password })
+      setForm({ nombre: '', email: '', rol_codigo: 'enlace', area_id: '', password: '' })
     } catch (err) {
       setStatus({ ok: false, msg: err.message || 'Error al crear el usuario.' })
     } finally {
@@ -179,12 +180,20 @@ export default function AdminUsuarios() {
             background: status.ok ? '#04620520' : '#C0000022',
             border: `1px solid ${status.ok ? C.optimoB : C.criticoB}`,
             borderRadius: 8,
-            padding: '0.65rem 1rem',
+            padding: '0.75rem 1rem',
             marginBottom: '1rem',
             fontSize: '0.8rem',
             color: status.ok ? C.optimoB : '#ff6b6b',
           }}>
             {status.ok ? '✅' : '⚠️'} {status.msg}
+            {status.ok && status.password && (
+              <div style={{ marginTop: 8, background: '#000000aa', borderRadius: 6, padding: '0.5rem 0.75rem' }}>
+                <div style={{ fontSize: '0.65rem', color: C.txtMuted, marginBottom: 4, letterSpacing: 1 }}>CREDENCIALES PARA COMPARTIR</div>
+                <div style={{ color: C.txt, fontSize: '0.78rem' }}>📧 <strong>{status.email}</strong></div>
+                <div style={{ color: C.doradoLight, fontSize: '0.78rem', marginTop: 2 }}>🔑 Contraseña: <strong style={{ letterSpacing: 2 }}>{status.password}</strong></div>
+                <div style={{ fontSize: '0.62rem', color: C.txtMuted, marginTop: 4 }}>Comparte estas credenciales con el usuario. Puede cambiar su contraseña desde su perfil.</div>
+              </div>
+            )}
           </div>
         )}
 
@@ -246,9 +255,23 @@ export default function AdminUsuarios() {
             </div>
           </div>
 
+          <div>
+            <label style={{ fontSize: '0.65rem', color: C.txtSub, textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 5 }}>
+              Contraseña temporal
+            </label>
+            <input
+              type="text"
+              value={form.password}
+              onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+              placeholder="Mín. 8 caracteres — la verás tras crear el usuario"
+              required
+              style={inp}
+            />
+          </div>
+
           <button
             type="submit"
-            disabled={saving || !form.nombre || !form.email}
+            disabled={saving || !form.nombre || !form.email || !form.password}
             style={{
               background: saving ? '#444' : `linear-gradient(135deg,${C.guindaDark},${C.guinda})`,
               border: 'none',
@@ -258,10 +281,10 @@ export default function AdminUsuarios() {
               fontSize: '0.82rem',
               fontWeight: 700,
               fontFamily: 'inherit',
-              cursor: saving || !form.nombre || !form.email ? 'not-allowed' : 'pointer',
+              cursor: saving || !form.nombre || !form.email || !form.password ? 'not-allowed' : 'pointer',
               letterSpacing: 1.5,
               textTransform: 'uppercase',
-              opacity: !form.nombre || !form.email ? 0.5 : 1,
+              opacity: !form.nombre || !form.email || !form.password ? 0.5 : 1,
               marginTop: 4,
             }}
           >
