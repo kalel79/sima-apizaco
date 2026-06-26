@@ -506,6 +506,7 @@ function PantallaCaptura({ areaCoordinador }) {
         anio:          +form.anio,
         resultado:     +form.resultado,
         observaciones:  form.observaciones,
+        usuarioId:     profile?.id ?? null,
       })
       setStatus('ok')
       setForm(f=>({...f, resultado:'', observaciones:''}))
