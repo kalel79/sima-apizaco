@@ -16,37 +16,17 @@ export async function getSession() {
   return session
 }
 
-export async function invitarUsuario({ nombre, email, rol_codigo, area_id }) {
-  const tempPassword = Math.random().toString(36).slice(-8) + 'A1!'
+export async function invitarUsuario({ nombre, email, rol_codigo, area_id, password }) {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.access_token) throw new Error('Sesión no encontrada. Vuelve a iniciar sesión.')
 
-  const { data: authData, error: authError } = await supabase.auth.signUp({
-    email,
-    password: tempPassword,
-    options: {
-      data: { nombre },
-      emailRedirectTo: window.location.origin
-    }
+  const { data, error } = await supabase.functions.invoke('invitar-usuario', {
+    body: { nombre, email, rol_codigo, area_id: area_id || null, password, modo: 'password' },
+    headers: { Authorization: `Bearer ${session.access_token}` },
   })
-  if (authError) throw authError
-
-  const { data: rol } = await supabase
-    .from('roles')
-    .select('id')
-    .eq('codigo', rol_codigo)
-    .single()
-
-  const { error: profileError } = await supabase
-    .from('usuarios')
-    .insert({
-      auth_uid: authData.user.id,
-      nombre,
-      email,
-      rol_id: rol.id,
-      area_id: area_id || null
-    })
-  if (profileError) throw profileError
-
-  return authData
+  if (error) throw new Error(error.message || 'Error al contactar la función de servidor.')
+  if (data?.error) throw new Error(data.error)
+  return data
 }
 
 export async function getUserProfile(userId) {
