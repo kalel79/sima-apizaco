@@ -277,19 +277,17 @@ export async function actualizarPeriodo(mes, anio) {
   if (error) throw error
 }
 
-export async function guardarAvance({ indicadorId, mes, anio, resultado, observaciones }) {
+export async function guardarAvance({ indicadorId, mes, anio, resultado, observaciones, usuarioId }) {
   const MESES_COLS = ['meta_ene','meta_feb','meta_mar','meta_abr','meta_may','meta_jun',
                       'meta_jul','meta_ago','meta_sep','meta_oct','meta_nov','meta_dic']
 
   // Leer metas del catálogo y avances previos (meses 1..mes-1) en paralelo
   const [
-    { data: ind,        error: indError },
+    { data: ind,         error: indError },
     { data: prevAvances, error: avError  },
-    { data: { user } },
   ] = await Promise.all([
     supabase.from('indicadores').select(MESES_COLS.join(',')).eq('id', indicadorId).single(),
     supabase.from('avances').select('mes,resultado').eq('indicador_id', indicadorId).eq('anio', anio).lt('mes', mes),
-    supabase.auth.getUser(),
   ])
   if (indError) throw indError
   if (avError)  throw avError
@@ -331,7 +329,7 @@ export async function guardarAvance({ indicadorId, mes, anio, resultado, observa
       pct_cumplimiento: pct,
       semaforo,
       observaciones:   observaciones || null,
-      capturado_por:   user?.id ?? null,
+      capturado_por:   usuarioId ?? null,
       updated_at:      new Date().toISOString()
     }, { onConflict: 'indicador_id,anio,mes' })
     .select().single()
