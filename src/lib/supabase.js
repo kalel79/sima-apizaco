@@ -278,27 +278,61 @@ export async function actualizarPeriodo(mes, anio) {
 }
 
 export async function guardarAvance({ indicadorId, mes, anio, resultado, observaciones }) {
-  const { data: ind, error: indError } = await supabase
-    .from('indicadores')
-    .select('meta_ene,meta_feb,meta_mar,meta_abr,meta_may,meta_jun,meta_jul,meta_ago,meta_sep,meta_oct,meta_nov,meta_dic')
-    .eq('id', indicadorId).single()
-  if (indError) throw indError
+  const MESES_COLS = ['meta_ene','meta_feb','meta_mar','meta_abr','meta_may','meta_jun',
+                      'meta_jul','meta_ago','meta_sep','meta_oct','meta_nov','meta_dic']
 
-  const MESES = ['meta_ene','meta_feb','meta_mar','meta_abr','meta_may','meta_jun',
-                 'meta_jul','meta_ago','meta_sep','meta_oct','meta_nov','meta_dic']
-  const metaVal  = parseFloat(ind[MESES[mes - 1]] || 0)
-  const pct      = metaVal > 0 ? resultado / metaVal : 1.0
-  const semaforo = pct >= 1.10 ? 'ÓPTIMO' : pct >= 0.90 ? 'ADECUADO' : pct >= 0.70 ? 'RIESGO' : 'CRÍTICO'
+  // Leer metas del catálogo y avances previos (meses 1..mes-1) en paralelo
+  const [
+    { data: ind,        error: indError },
+    { data: prevAvances, error: avError  },
+    { data: { user } },
+  ] = await Promise.all([
+    supabase.from('indicadores').select(MESES_COLS.join(',')).eq('id', indicadorId).single(),
+    supabase.from('avances').select('mes,resultado').eq('indicador_id', indicadorId).eq('anio', anio).lt('mes', mes),
+    supabase.auth.getUser(),
+  ])
+  if (indError) throw indError
+  if (avError)  throw avError
+
+  // meta del mes actual (del catálogo)
+  const metaMes = parseFloat(ind[MESES_COLS[mes - 1]] ?? 0)
+
+  // meta_evaluable: meta del mes; si meta_mes=0 pero hay resultado, usar 1 (regla meta=1)
+  const metaEvaluable = (metaMes === 0 && resultado > 0) ? 1 : metaMes
+
+  // Acumulado ene→M: suma de metas del catálogo
+  let metaAcum = 0
+  for (let m = 1; m <= mes; m++) metaAcum += parseFloat(ind[MESES_COLS[m - 1]] ?? 0)
+
+  // Acumulado ene→M: resultados previos + resultado actual
+  const prevMap = Object.fromEntries((prevAvances || []).map(av => [av.mes, parseFloat(av.resultado ?? 0)]))
+  let resultAcum = resultado
+  for (let m = 1; m < mes; m++) resultAcum += prevMap[m] ?? 0
+
+  // pct sobre acumulado; null si ambos acumulados son 0
+  let pct
+  if      (metaAcum  > 0) pct = resultAcum / metaAcum
+  else if (resultAcum > 0) pct = resultAcum          // regla meta=1: denominador implícito = 1
+  else                     pct = null
+
+  const semaforo = pct === null ? null
+    : pct >= 1.10 ? 'ÓPTIMO'
+    : pct >= 0.90 ? 'ADECUADO'
+    : pct >= 0.70 ? 'RIESGO'
+    : 'CRÍTICO'
 
   const { data, error } = await supabase
     .from('avances')
     .upsert({
-      indicador_id: indicadorId, anio, mes,
-      meta_programada: metaVal,
-      meta_evaluable: metaVal,
-      resultado, pct_cumplimiento: pct, semaforo,
-      observaciones: observaciones || null,
-      updated_at: new Date().toISOString()
+      indicador_id:    indicadorId, anio, mes,
+      meta_programada: metaMes,
+      meta_evaluable:  metaEvaluable,
+      resultado,
+      pct_cumplimiento: pct,
+      semaforo,
+      observaciones:   observaciones || null,
+      capturado_por:   user?.id ?? null,
+      updated_at:      new Date().toISOString()
     }, { onConflict: 'indicador_id,anio,mes' })
     .select().single()
   if (error) throw error
