@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 async function cargarPerfil(userId) {
   const { data: usuario, error: eUser } = await supabase
     .from('usuarios')
-    .select('id, nombre, email, cargo, area_id, rol_id')
+    .select('id, nombre, email, cargo, area_id, rol_id, primer_login')
     .eq('auth_uid', userId)
     .maybeSingle()
 
@@ -98,11 +98,22 @@ export function useAuth() {
   const rol  = profile?.roles?.codigo || 'publico'
   const area = profile?.areas?.nombre  || null
 
+  async function refetchProfile() {
+    if (!user) return
+    try {
+      const p = await cargarPerfil(user.id)
+      setProfile(p)
+    } catch (err) {
+      console.error('[useAuth] refetchProfile:', err)
+    }
+  }
+
   return {
     user, profile, loading, rol, area,
     isAdmin:      rol === 'admin',
     isPlaneacion: rol === 'planeacion',
     isEnlace:     rol === 'enlace',
     isDirectivo:  rol === 'directivo',
+    refetchProfile,
   }
 }
