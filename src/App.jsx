@@ -15,6 +15,7 @@ import { ConfiguracionContext, useConfiguracionCtx } from './contexts/Configurac
 import { formatPeriodoLabel } from './utils/periodo'
 import { signOut } from './lib/auth'
 import Login from './components/Login'
+import CambiarContrasena from './components/CambiarContrasena'
 import AdminUsuarios from './components/AdminUsuarios'
 import SeccionEvidencias from './components/SeccionEvidencias'
 
@@ -745,7 +746,7 @@ const NAV = [
 
 export default function App() {
   const [pan, setPan] = useState('dashboard')
-  const { user, profile, loading, rol, area, isEnlace, isAdmin } = useAuth()
+  const { user, profile, loading, rol, area, isEnlace, isAdmin, refetchProfile } = useAuth()
   const { mesActual, anioActual, loading: cfgLoading, refetch: refetchCfg } = useConfiguracion()
   const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
 
@@ -771,6 +772,8 @@ export default function App() {
   }
 
   if (!user) return <Login/>
+
+  if (profile?.primer_login) return <CambiarContrasena user={user} onDone={refetchProfile}/>
 
   const nombreUsuario = profile?.nombre || user.email
   const labelRol = profile?.cargo || profile?.roles?.nombre || rol
