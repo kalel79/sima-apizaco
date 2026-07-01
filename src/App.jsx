@@ -746,7 +746,7 @@ const NAV = [
 
 export default function App() {
   const [pan, setPan] = useState('dashboard')
-  const { user, profile, loading, rol, area, isEnlace, isAdmin, refetchProfile } = useAuth()
+  const { user, profile, loading, error: authError, rol, area, isEnlace, isAdmin, refetchProfile } = useAuth()
   const { mesActual, anioActual, loading: cfgLoading, refetch: refetchCfg } = useConfiguracion()
   const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
 
@@ -767,6 +767,16 @@ export default function App() {
             color:'white', padding:'8px 20px', borderRadius:6, cursor:'pointer'}}>
           Reintentar
         </button>
+      </div>
+    )
+  }
+
+  if (authError) {
+    return (
+      <div style={{background:'#0D0D0D', minHeight:'100vh', display:'flex',
+        flexDirection:'column', alignItems:'center', justifyContent:'center',
+        color:'#F0EAE0', fontFamily:'Inter,sans-serif', gap:'1rem', padding:'1rem', textAlign:'center'}}>
+        <ErrMsg msg={authError} onRetry={()=>window.location.reload()}/>
       </div>
     )
   }
