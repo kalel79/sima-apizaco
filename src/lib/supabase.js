@@ -180,6 +180,37 @@ export async function reautenticar(email, password) {
   if (error) throw new Error('Contraseña incorrecta.')
 }
 
+// Indicadores validados de un área/mes/año, con datos completos para el acuse de captura.
+export async function getAvancesValidadosMes(areaId, mes, anio) {
+  const { data: inds, error: eInd } = await supabase
+    .from('indicadores').select('id, clave, nombre, nivel_mir').eq('area_id', areaId)
+  if (eInd) throw eInd
+  const ids = (inds || []).map(i => i.id)
+  if (!ids.length) return []
+
+  const { data: avs, error: eAv } = await supabase
+    .from('avances')
+    .select('indicador_id, meta_programada, resultado, pct_cumplimiento, semaforo')
+    .in('indicador_id', ids).eq('mes', mes).eq('anio', anio).eq('validado', true)
+  if (eAv) throw eAv
+
+  const indMap = Object.fromEntries((inds || []).map(i => [i.id, i]))
+  return (avs || [])
+    .map(av => {
+      const ind = indMap[av.indicador_id] || {}
+      return {
+        clave:             ind.clave || '-',
+        nombre:            ind.nombre || '',
+        nivel_mir:         ind.nivel_mir || '-',
+        meta_programada:   av.meta_programada,
+        resultado:         av.resultado,
+        pct_cumplimiento:  av.pct_cumplimiento,
+        semaforo:          av.semaforo,
+      }
+    })
+    .sort((a, b) => (a.clave || '').localeCompare(b.clave || '', 'es'))
+}
+
 /* ── EVIDENCIAS ──────────────────────────────────────────────── */
 export const EVIDENCIAS_BUCKET = 'evidencias'
 export const EVIDENCIAS_MAX_BYTES = 10 * 1024 * 1024
