@@ -7,8 +7,9 @@ import {
 } from './hooks/useSupabase'
 import {
   guardarAvance, getAvanceActual, getResumenValidacionArea,
-  validarInformacionMes, reautenticar,
+  validarInformacionMes, reautenticar, getAvancesValidadosMes,
 } from './lib/supabase'
+import { generarAcusePDF, generarFolioAcuse } from './utils/reportes'
 import { useAuth } from './hooks/useAuth'
 import { useConfiguracion } from './hooks/useConfiguracion'
 import { ConfiguracionContext, useConfiguracionCtx } from './contexts/ConfiguracionContext'
@@ -433,7 +434,7 @@ function PantallaAlertas() {
 const ANIOS_PROGRAMA = [2024, 2025, 2026, 2027]
 
 function PantallaCaptura({ areaCoordinador }) {
-  const { profile, isEnlace, user } = useAuth()
+  const { profile, isEnlace, user, area } = useAuth()
   const {data:listaCompleta, loading:loadLista} = useIndicadoresLista()
   const { mesActual, anioActual, loading: cfgLoading } = useConfiguracionCtx()
   const lista = useMemo(() => {
@@ -452,6 +453,7 @@ function PantallaCaptura({ areaCoordinador }) {
   const [passwordInput, setPasswordInput] = useState('')
   const [validando, setValidando] = useState(false)
   const [validarError, setValidarError] = useState(null)
+  const [acuseGenerado, setAcuseGenerado] = useState(false)
 
   // El enlace siempre captura en el mes/año actual definido por Planeación;
   // admin/planeación pueden moverse libremente, por eso solo se sincroniza
@@ -529,6 +531,22 @@ function PantallaCaptura({ areaCoordinador }) {
       setShowValidarModal(false)
       setPasswordInput('')
       setEvVersion(v=>v+1)
+
+      // Si con esta validación quedó el 100% del mes validado, generar el acuse.
+      const resumen = await getResumenValidacionArea(profile.area_id, mesActual, anioActual)
+      if (resumen.totalIndicadores > 0 && resumen.validados === resumen.totalIndicadores) {
+        const avancesValidados = await getAvancesValidadosMes(profile.area_id, mesActual, anioActual)
+        generarAcusePDF({
+          area,
+          enlaceNombre: profile?.nombre || 'Enlace de Área',
+          mes: mesActual, anio: anioActual,
+          periodoLabel: formatPeriodoLabel(mesActual, anioActual),
+          indicadores: avancesValidados,
+          folio: generarFolioAcuse(profile.area_id, mesActual, anioActual),
+          validadoAt: new Date(),
+        })
+        setAcuseGenerado(true)
+      }
     } catch (e) {
       setValidarError(e.message)
     } finally {
@@ -699,6 +717,8 @@ function PantallaCaptura({ areaCoordinador }) {
               style={{background:`linear-gradient(135deg,${C.guindaDark},${C.guinda})`,border:'none',borderRadius:8,color:C.txt,padding:'0.6rem 1rem',fontSize:'0.8rem',fontWeight:700,fontFamily:'inherit',cursor:'pointer'}}>
               🔒 Validar información del mes
             </button>
+          ) : acuseGenerado ? (
+            <div style={{fontSize:'0.78rem',color:C.optimoB,fontWeight:700}}>✅ Has completado la captura del mes. Tu acuse se descargó automáticamente.</div>
           ) : (
             <div style={{fontSize:'0.78rem',color:C.optimoB}}>✅ Toda la información de este mes ya fue validada.</div>
           )}
