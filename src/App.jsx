@@ -454,6 +454,8 @@ function PantallaCaptura({ areaCoordinador }) {
   const [validando, setValidando] = useState(false)
   const [validarError, setValidarError] = useState(null)
   const [acuseGenerado, setAcuseGenerado] = useState(false)
+  const [acuseDescargando, setAcuseDescargando] = useState(false)
+  const [acuseError, setAcuseError] = useState(null)
 
   // El enlace siempre captura en el mes/año actual definido por Planeación;
   // admin/planeación pueden moverse libremente, por eso solo se sincroniza
@@ -522,6 +524,31 @@ function PantallaCaptura({ areaCoordinador }) {
     }
   }
 
+  // Genera y descarga el acuse. Se usa tanto automáticamente al completar la
+  // validación como manualmente (botón), para poder reintentar si algo falla
+  // o si el usuario recarga la página y perdió el estado de la descarga.
+  async function generarYDescargarAcuse() {
+    if (!profile?.area_id) return
+    setAcuseDescargando(true); setAcuseError(null)
+    try {
+      const avancesValidados = await getAvancesValidadosMes(profile.area_id, mesActual, anioActual)
+      generarAcusePDF({
+        area,
+        enlaceNombre: profile?.nombre || 'Enlace de Área',
+        mes: mesActual, anio: anioActual,
+        periodoLabel: formatPeriodoLabel(mesActual, anioActual),
+        indicadores: avancesValidados,
+        folio: generarFolioAcuse(profile.area_id, mesActual, anioActual),
+        validadoAt: new Date(),
+      })
+      setAcuseGenerado(true)
+    } catch (e) {
+      setAcuseError(e.message)
+    } finally {
+      setAcuseDescargando(false)
+    }
+  }
+
   async function handleConfirmarValidar() {
     if (!passwordInput || !user?.email || !profile?.area_id) return
     setValidando(true); setValidarError(null)
@@ -531,26 +558,24 @@ function PantallaCaptura({ areaCoordinador }) {
       setShowValidarModal(false)
       setPasswordInput('')
       setEvVersion(v=>v+1)
-
-      // Si con esta validación quedó el 100% del mes validado, generar el acuse.
-      const resumen = await getResumenValidacionArea(profile.area_id, mesActual, anioActual)
-      if (resumen.totalIndicadores > 0 && resumen.validados === resumen.totalIndicadores) {
-        const avancesValidados = await getAvancesValidadosMes(profile.area_id, mesActual, anioActual)
-        generarAcusePDF({
-          area,
-          enlaceNombre: profile?.nombre || 'Enlace de Área',
-          mes: mesActual, anio: anioActual,
-          periodoLabel: formatPeriodoLabel(mesActual, anioActual),
-          indicadores: avancesValidados,
-          folio: generarFolioAcuse(profile.area_id, mesActual, anioActual),
-          validadoAt: new Date(),
-        })
-        setAcuseGenerado(true)
-      }
     } catch (e) {
       setValidarError(e.message)
-    } finally {
       setValidando(false)
+      return
+    }
+    setValidando(false)
+
+    // Si con esta validación quedó el 100% del mes validado, generar el acuse.
+    // Aparte del try/catch de arriba: el modal ya se cerró, así que cualquier
+    // error de aquí en adelante se reporta vía acuseError (visible fuera del modal),
+    // nunca vía validarError (que solo se renderiza dentro del modal ya cerrado).
+    try {
+      const resumen = await getResumenValidacionArea(profile.area_id, mesActual, anioActual)
+      if (resumen.totalIndicadores > 0 && resumen.validados === resumen.totalIndicadores) {
+        await generarYDescargarAcuse()
+      }
+    } catch (e) {
+      setAcuseError(e.message)
     }
   }
 
@@ -717,10 +742,23 @@ function PantallaCaptura({ areaCoordinador }) {
               style={{background:`linear-gradient(135deg,${C.guindaDark},${C.guinda})`,border:'none',borderRadius:8,color:C.txt,padding:'0.6rem 1rem',fontSize:'0.8rem',fontWeight:700,fontFamily:'inherit',cursor:'pointer'}}>
               🔒 Validar información del mes
             </button>
-          ) : acuseGenerado ? (
-            <div style={{fontSize:'0.78rem',color:C.optimoB,fontWeight:700}}>✅ Has completado la captura del mes. Tu acuse se descargó automáticamente.</div>
           ) : (
-            <div style={{fontSize:'0.78rem',color:C.optimoB}}>✅ Toda la información de este mes ya fue validada.</div>
+            <div>
+              <div style={{fontSize:'0.78rem',color:C.optimoB,fontWeight:acuseGenerado?700:400,marginBottom:10}}>
+                {acuseGenerado
+                  ? '✅ Has completado la captura del mes. Tu acuse se descargó automáticamente.'
+                  : '✅ Toda la información de este mes ya fue validada.'}
+              </div>
+              {resumenVal.totalIndicadores > 0 && resumenVal.validados === resumenVal.totalIndicadores && (
+                <button onClick={generarYDescargarAcuse} disabled={acuseDescargando}
+                  style={{background:acuseDescargando?'#444':`linear-gradient(135deg,${C.guindaDark},${C.guinda})`,border:'none',borderRadius:8,color:C.txt,padding:'0.6rem 1rem',fontSize:'0.8rem',fontWeight:700,fontFamily:'inherit',cursor:acuseDescargando?'not-allowed':'pointer'}}>
+                  {acuseDescargando ? '⏳ Generando acuse…' : '📄 Descargar acuse PDF'}
+                </button>
+              )}
+              {acuseError && (
+                <div style={{fontSize:'0.72rem',color:C.criticoB,marginTop:8}}>❌ {acuseError}</div>
+              )}
+            </div>
           )}
         </div>
       )}
