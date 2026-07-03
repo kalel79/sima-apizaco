@@ -1,7 +1,9 @@
 import { useState, useMemo, useEffect, Fragment } from 'react'
 import { useComparativoPMD } from '../hooks/useSupabase'
-import { getIndicadoresPorPrograma } from '../lib/supabase'
+import { getIndicadoresPorPrograma, getDetalleIndicadoresPMD } from '../lib/supabase'
 import { useConfiguracionCtx } from '../contexts/ConfiguracionContext'
+import { formatPeriodoLabel } from '../utils/periodo'
+import { generarReportePMD } from '../utils/reportesPMD'
 
 const C = {
   guinda: '#7B1F2C', guindaDark: '#51141D',
@@ -19,11 +21,13 @@ const SEM = {
 
 function semColor(sem) { return SEM[sem] || C.txtMuted }
 
+// v_comparativo_pmd devuelve pct_promedio ya en escala de porcentaje (ej. 101.45),
+// no como fracción — mismos umbrales que usa la vista para clasificar cada indicador.
 function getSemaforo(pct) {
   if (pct == null) return null
-  if (pct > 1.10)  return 'ÓPTIMO'
-  if (pct >= 0.90) return 'ADECUADO'
-  if (pct >= 0.70) return 'RIESGO'
+  if (pct >= 110) return 'ÓPTIMO'
+  if (pct >= 90)  return 'ADECUADO'
+  if (pct >= 70)  return 'RIESGO'
   return 'CRÍTICO'
 }
 
@@ -110,6 +114,30 @@ export default function PantallaPMD() {
   const [eje, setEje] = useState('')
   const [busq, setBusq] = useState('')
   const [expandido, setExpandido] = useState(null)
+  const [incluirDetalle, setIncluirDetalle] = useState(false)
+  const [generandoPDF, setGenerandoPDF] = useState(false)
+  const [pdfError, setPdfError] = useState(null)
+
+  const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
+
+  async function handleDescargarReporte() {
+    if (!data?.length) return
+    setGenerandoPDF(true); setPdfError(null)
+    try {
+      const detallePorPrograma = incluirDetalle
+        ? await getDetalleIndicadoresPMD(mesActual, anioActual)
+        : {}
+      generarReportePMD({
+        programas: data,
+        mesActual, anioActual, periodoLabel,
+        incluirDetalle, detallePorPrograma,
+      })
+    } catch (e) {
+      setPdfError(e.message)
+    } finally {
+      setGenerandoPDF(false)
+    }
+  }
 
   const ejesDisponibles = useMemo(() => {
     if (!data) return []
@@ -160,16 +188,31 @@ export default function PantallaPMD() {
 
   return (
     <div>
-      <div style={{ fontSize: '0.62rem', letterSpacing: 3, color: C.dorado, textTransform: 'uppercase', marginBottom: '1rem' }}>
-        🗺️ Plan Municipal de Desarrollo · Comparativo vs. avance MIR
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+        <div style={{ fontSize: '0.62rem', letterSpacing: 3, color: C.dorado, textTransform: 'uppercase' }}>
+          🗺️ Plan Municipal de Desarrollo · Comparativo vs. avance MIR
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.68rem', color: C.txtSub, cursor: 'pointer' }}>
+            <input type="checkbox" checked={incluirDetalle} onChange={e => setIncluirDetalle(e.target.checked)}/>
+            Incluir detalle por indicador
+          </label>
+          <button onClick={handleDescargarReporte} disabled={generandoPDF || !data?.length}
+            style={{ background: generandoPDF ? '#444' : `linear-gradient(135deg,${C.guindaDark},${C.guinda})`, border: 'none', borderRadius: 8, color: C.txt, padding: '0.5rem 0.9rem', fontSize: '0.75rem', fontWeight: 700, fontFamily: 'inherit', cursor: generandoPDF || !data?.length ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
+            {generandoPDF ? '⏳ Generando…' : '📄 Descargar Reporte PDF'}
+          </button>
+        </div>
       </div>
+      {pdfError && (
+        <div style={{ fontSize: '0.72rem', color: '#C00000', marginBottom: '1rem' }}>⚠️ {pdfError}</div>
+      )}
 
       {/* Resumen ejecutivo */}
       {resumen && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.75rem', marginBottom: '1.2rem' }}>
           <KPI label="Programas PMD" value={resumen.total} icon="📋" color={C.dorado}/>
           <KPI label="Con avance registrado" value={resumen.conAvance} sub={`${resumen.sinAvance} sin datos`} icon="📈" color="#00B050"/>
-          <KPI label="% Promedio global" value={resumen.pctGlobal != null ? `${(resumen.pctGlobal * 100).toFixed(1)}%` : '—'} icon="🎯" color={C.doradoLight}/>
+          <KPI label="% Promedio global" value={resumen.pctGlobal != null ? `${resumen.pctGlobal.toFixed(1)}%` : '—'} icon="🎯" color={C.doradoLight}/>
           <KPI label="Óptimo / Adecuado" value={`${resumen.optimo} / ${resumen.adecuado}`} sub={`Riesgo: ${resumen.riesgo} · Crítico: ${resumen.critico}`} icon="🚦" color="#046205"/>
         </div>
       )}
@@ -215,7 +258,7 @@ export default function PantallaPMD() {
                       <td style={{ padding: '0.55rem 0.7rem', color: C.txt, fontWeight: 600, maxWidth: 260 }}>{p.programa_nombre}</td>
                       <td style={{ padding: '0.55rem 0.7rem', color: C.txtSub }}>{p.eje}</td>
                       <td style={{ padding: '0.55rem 0.7rem', color: C.txtSub }}>{p.indicadores_con_avance}/{p.total_indicadores}</td>
-                      <td style={{ padding: '0.55rem 0.7rem', color: C.txtSub }}>{pct != null ? `${(pct * 100).toFixed(1)}%` : '—'}</td>
+                      <td style={{ padding: '0.55rem 0.7rem', color: C.txtSub }}>{pct != null ? `${pct.toFixed(1)}%` : '—'}</td>
                       <td style={{ padding: '0.55rem 0.7rem' }}><Pill sem={sem}/></td>
                       <td style={{ padding: '0.55rem 0.7rem' }}>
                         <button onClick={() => setExpandido(abierto ? null : p.programa_id)}
