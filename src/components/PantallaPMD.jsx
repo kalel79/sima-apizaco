@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, Fragment } from 'react'
 import { useComparativoPMD } from '../hooks/useSupabase'
-import { getIndicadoresPorPrograma, getDetalleIndicadoresPMD } from '../lib/supabase'
+import { getIndicadoresPorPrograma, getDetalleIndicadoresPMD, getNombresEjes } from '../lib/supabase'
 import { useConfiguracionCtx } from '../contexts/ConfiguracionContext'
 import { formatPeriodoLabel } from '../utils/periodo'
 import { generarReportePMD } from '../utils/reportesPMD'
@@ -124,13 +124,14 @@ export default function PantallaPMD() {
     if (!data?.length) return
     setGenerandoPDF(true); setPdfError(null)
     try {
-      const detallePorPrograma = incluirDetalle
-        ? await getDetalleIndicadoresPMD(mesActual, anioActual)
-        : {}
+      const [detallePorPrograma, ejes] = await Promise.all([
+        incluirDetalle ? getDetalleIndicadoresPMD(mesActual, anioActual) : Promise.resolve({}),
+        getNombresEjes(),
+      ])
       generarReportePMD({
         programas: data,
         mesActual, anioActual, periodoLabel,
-        incluirDetalle, detallePorPrograma,
+        incluirDetalle, detallePorPrograma, ejes,
       })
     } catch (e) {
       setPdfError(e.message)

@@ -56,6 +56,12 @@ export async function getIndicadores({ ejeId, semaforo, busqueda } = {}) {
   return result
 }
 
+export async function getNombresEjes() {
+  const { data, error } = await supabase.from('ejes').select('codigo, nombre').order('orden')
+  if (error) throw error
+  return data
+}
+
 export async function getComparativoPMD() {
   const { data, error } = await supabase.from('v_comparativo_pmd').select('*').order('numero', { ascending: true })
   if (error) throw error
