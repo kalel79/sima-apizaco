@@ -28,16 +28,44 @@ function formatFecha(d) {
   return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`
 }
 
+// Las fuentes estándar de jsPDF (helvetica) no incluyen glifos fuera de
+// WinAnsi/Latin-1 — un símbolo como "≥" no se dibuja y descuadra el cálculo
+// de ancho de esa celda en autoTable, produciendo texto cortado o mal
+// distribuido. Se sanea todo texto dinámico (de la BD) y estático antes de
+// pasarlo a jsPDF.
+function sanitizarPDF(str) {
+  if (str == null) return str
+  return String(str)
+    .replace(/≥/g, '>=')
+    .replace(/≤/g, '<=')
+    .replace(/[–—]/g, '-')
+    .replace(/…/g, '...')
+    .replace(/•/g, '-')
+}
+
+// programas_pmd.eje guarda una etiqueta corta ("Eje 1", "Transversal A");
+// el nombre descriptivo completo vive en la tabla ejes (codigo "E1", "TA").
+function codigoCortoEje(etiqueta) {
+  const m = /^Eje (\d+)$/.exec(etiqueta || '')
+  if (m) return 'E' + m[1]
+  const m2 = /^Transversal ([A-Z])$/.exec(etiqueta || '')
+  if (m2) return 'T' + m2[1]
+  return null
+}
+
+function nombreCompletoEje(etiquetaCorta, ejes) {
+  const codigo = codigoCortoEje(etiquetaCorta)
+  const eje = (ejes || []).find(e => e.codigo === codigo)
+  if (!eje?.nombre) return etiquetaCorta
+  // "Transversal A – ..." ya empieza con la etiqueta corta, no la dupliques
+  if (/^Transversal /.test(etiquetaCorta)) return eje.nombre
+  return `${etiquetaCorta} — ${eje.nombre}`
+}
+
 // pct_promedio de v_comparativo_pmd ya viene en escala de porcentaje (ej. 101.45)
 function pctStrPMD(val) {
   if (val == null) return '-'
   return (+val).toFixed(1) + '%'
-}
-
-// pct_cumplimiento de avances es una fracción (ej. 0.78 = 78%)
-function pctStrFraccion(val) {
-  if (val == null) return '-'
-  return ((+val) * 100).toFixed(1) + '%'
 }
 
 // Mismos umbrales que usa v_comparativo_pmd para clasificar cada indicador
@@ -62,11 +90,12 @@ function generarFolioPMD(mes, anio) {
  * @param {number} params.anioActual
  * @param {string} params.periodoLabel
  * @param {boolean} [params.incluirDetalle]
- * @param {Object}  [params.detallePorPrograma] { [programa_id]: [{clave,nombre,area_nombre,pct_cumplimiento,semaforo}] }
+ * @param {Object}  [params.detallePorPrograma] { [programa_id]: [{clave,nombre,area_nombre,pct_pmd,semaforo}] } — pct_pmd acumulado, escala de porcentaje
+ * @param {Array}   [params.ejes] filas de la tabla ejes ({codigo, nombre}) para mostrar el nombre completo en el encabezado
  */
 export function generarReportePMD({
   programas, mesActual, anioActual, periodoLabel,
-  incluirDetalle = false, detallePorPrograma = {},
+  incluirDetalle = false, detallePorPrograma = {}, ejes = [],
 }) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
   const W = doc.internal.pageSize.width
@@ -141,7 +170,7 @@ export function generarReportePMD({
   doc.setFontSize(10); doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
   doc.text('Distribución de indicadores por semáforo', ML, 68)
 
-  const SEM_LABELS = ['ÓPTIMO (≥110%)', 'ADECUADO (90-109%)', 'RIESGO (70-89%)', 'CRÍTICO (<70%)', 'SIN DATOS']
+  const SEM_LABELS = ['ÓPTIMO (>=110%)', 'ADECUADO (90-109%)', 'RIESGO (70-89%)', 'CRÍTICO (<70%)', 'SIN DATOS']
   const SEM_KEYS   = ['ÓPTIMO', 'ADECUADO', 'RIESGO', 'CRÍTICO', 'SIN DATOS']
   autoTable(doc, {
     head: [SEM_LABELS],
@@ -169,17 +198,21 @@ export function generarReportePMD({
     const progsEje = programas.filter(p => p.eje === eje).sort((a, b) => a.numero - b.numero)
 
     doc.addPage('letter', 'portrait')
-    setFill(doc, GUINDA); doc.rect(0, 0, W, 15, 'F')
-    doc.setFontSize(11); doc.setFont('helvetica', 'bold'); setColor(doc, DORADO)
-    doc.text(eje, ML, 10)
+    const tituloEje = sanitizarPDF(nombreCompletoEje(eje, ejes))
+    doc.setFontSize(10.5); doc.setFont('helvetica', 'bold')
+    const lineasEje = doc.splitTextToSize(tituloEje, W - ML * 2)
+    const barH = Math.max(15, 7 + lineasEje.length * 5)
+    setFill(doc, GUINDA); doc.rect(0, 0, W, barH, 'F')
+    setColor(doc, DORADO)
+    doc.text(lineasEje, ML, 10)
 
     autoTable(doc, {
       head: [['#', 'Programa PMD', 'Indicadores', '% Avance', 'Semáforo']],
       body: progsEje.map(p => {
         const pct = p.pct_promedio != null ? Number(p.pct_promedio) : null
-        return [p.numero, p.programa_nombre, `${p.indicadores_con_avance}/${p.total_indicadores}`, pctStrPMD(pct), semaforoPrograma(pct)]
+        return [p.numero, sanitizarPDF(p.programa_nombre), `${p.indicadores_con_avance}/${p.total_indicadores}`, pctStrPMD(pct), semaforoPrograma(pct)]
       }),
-      startY: 20,
+      startY: barH + 5,
       margin: { left: ML, right: ML },
       styles: { fontSize: 8.5, cellPadding: 2.5, halign: 'center', valign: 'middle', overflow: 'linebreak' },
       headStyles: { fillColor: GUINDA, textColor: BLANCO, fontStyle: 'bold', fontSize: 8 },
@@ -208,20 +241,26 @@ export function generarReportePMD({
 
         doc.addPage('letter', 'portrait')
         doc.setFontSize(9.5); doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
-        doc.text(`${eje} · ${p.numero}. ${p.programa_nombre}`, ML, 18, { maxWidth: W - ML * 2 })
-        setDraw(doc, DORADO); doc.setLineWidth(0.4); doc.line(ML, 23, W - ML, 23)
+        const tituloPrograma = sanitizarPDF(`${eje} · ${p.numero}. ${p.programa_nombre}`)
+        const lineasPrograma = doc.splitTextToSize(tituloPrograma, W - ML * 2)
+        doc.text(lineasPrograma, ML, 18)
+        const yTitulo = 18 + (lineasPrograma.length - 1) * 4.5
+        setDraw(doc, DORADO); doc.setLineWidth(0.4); doc.line(ML, yTitulo + 5, W - ML, yTitulo + 5)
 
         autoTable(doc, {
           head: [['Clave', 'Indicador', 'Área', '% Avance', 'Semáforo']],
-          body: inds.map(i => [i.clave, i.nombre, i.area_nombre, pctStrFraccion(i.pct_cumplimiento), i.semaforo || 'SIN DATO']),
-          startY: 27,
+          body: inds.map(i => [
+            sanitizarPDF(i.clave), sanitizarPDF(i.nombre), sanitizarPDF(i.area_nombre),
+            pctStrPMD(i.pct_pmd), i.semaforo || 'SIN DATO',
+          ]),
+          startY: yTitulo + 10,
           margin: { left: ML, right: ML },
           styles: { fontSize: 7.5, cellPadding: 2, halign: 'center', valign: 'middle', overflow: 'linebreak' },
           headStyles: { fillColor: GUINDA, textColor: BLANCO, fontStyle: 'bold', fontSize: 7.5 },
           columnStyles: {
-            0: { cellWidth: 20 },
+            0: { cellWidth: 18 },
             1: { cellWidth: 'auto', halign: 'left' },
-            2: { cellWidth: 28 },
+            2: { cellWidth: 26 },
             3: { cellWidth: 20 },
             4: { cellWidth: 22 },
           },

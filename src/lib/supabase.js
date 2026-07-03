@@ -56,14 +56,48 @@ export async function getIndicadores({ ejeId, semaforo, busqueda } = {}) {
   return result
 }
 
+export async function getNombresEjes() {
+  const { data, error } = await supabase.from('ejes').select('codigo, nombre').order('orden')
+  if (error) throw error
+  return data
+}
+
 export async function getComparativoPMD() {
   const { data, error } = await supabase.from('v_comparativo_pmd').select('*').order('numero', { ascending: true })
   if (error) throw error
   return data
 }
 
-// Indicadores de un programa PMD con su avance del mes/año dados, para el
-// panel de detalle de v_comparativo_pmd.
+// Acumula resultado/meta_programada por indicador (mes 1 → mes dado) y deriva
+// pct/semaforo con la misma metodología y umbrales que v_comparativo_pmd.
+// pct queda en escala de porcentaje (ej. 101.45), no como fracción.
+function acumularAvancesPorIndicador(avances) {
+  const acc = {}
+  ;(avances || []).forEach(a => {
+    if (!acc[a.indicador_id]) acc[a.indicador_id] = { resultado: 0, meta: 0 }
+    acc[a.indicador_id].resultado += Number(a.resultado) || 0
+    acc[a.indicador_id].meta      += Number(a.meta_programada) || 0
+  })
+  const out = {}
+  Object.entries(acc).forEach(([id, { resultado, meta }]) => {
+    let pct = null, semaforo = null
+    if (meta > 0) {
+      pct = Math.round((resultado / meta) * 10000) / 100
+      semaforo = pct >= 110 ? 'ÓPTIMO' : pct >= 90 ? 'ADECUADO' : pct >= 70 ? 'RIESGO' : 'CRÍTICO'
+    } else if (resultado > 0) {
+      pct = 100
+      semaforo = 'ÓPTIMO'
+    }
+    out[id] = { pct, semaforo, resultado, meta }
+  })
+  return out
+}
+
+// Indicadores de un programa PMD con su avance ACUMULADO (mes 1 → mes dado),
+// para el panel de detalle de v_comparativo_pmd. Usa la misma metodología
+// acumulada que la vista, en vez de una sola captura mensual — si el mes
+// actual todavía no tiene captura (caso normal a inicio de periodo), esto
+// evita mostrar "sin datos" cuando en realidad sí hay avance acumulado.
 export async function getIndicadoresPorPrograma(programaId, mes, anio) {
   const [{ data: inds, error: eInd }, { data: areas, error: eAreas }] = await Promise.all([
     supabase.from('indicadores').select('id, clave, nombre, area_id').eq('programa_pmd_id', programaId).order('nombre'),
@@ -78,52 +112,52 @@ export async function getIndicadoresPorPrograma(programaId, mes, anio) {
 
   const { data: avs, error: eAv } = await supabase
     .from('avances')
-    .select('indicador_id, meta_programada, resultado, pct_cumplimiento, semaforo')
-    .in('indicador_id', ids).eq('mes', mes).eq('anio', anio)
+    .select('indicador_id, meta_programada, resultado')
+    .in('indicador_id', ids).eq('anio', anio).gte('mes', 1).lte('mes', mes)
   if (eAv) throw eAv
 
-  const avMap = Object.fromEntries((avs || []).map(a => [a.indicador_id, a]))
+  const acumulados = acumularAvancesPorIndicador(avs)
   return (inds || []).map(i => {
-    const av = avMap[i.id] || {}
+    const ac = acumulados[i.id] || {}
     return {
-      clave:             i.clave || '-',
-      nombre:            i.nombre,
-      area_nombre:       areasMap[i.area_id] || '-',
-      meta_mes:          av.meta_programada ?? null,
-      resultado:         av.resultado ?? null,
-      pct_cumplimiento:  av.pct_cumplimiento ?? null,
-      semaforo:          av.semaforo ?? null,
+      clave:               i.clave || '-',
+      nombre:              i.nombre,
+      area_nombre:         areasMap[i.area_id] || '-',
+      meta_acumulada:      ac.meta ?? null,
+      resultado_acumulado: ac.resultado ?? null,
+      pct_pmd:             ac.pct ?? null,
+      semaforo:            ac.semaforo ?? null,
     }
   })
 }
 
-// Indicadores de TODOS los programas PMD con su avance del mes/año dados,
-// agrupados por programa_pmd_id — usado por el reporte PDF cuando se activa
-// "incluir detalle" (evita 43 consultas individuales, una sola pasada).
+// Indicadores de TODOS los programas PMD con su avance acumulado (mes 1 →
+// mes dado), agrupados por programa_pmd_id — usado por el reporte PDF
+// cuando se activa "incluir detalle" (evita 43 consultas individuales).
 export async function getDetalleIndicadoresPMD(mes, anio) {
   const [{ data: inds, error: eInd }, { data: areas, error: eAreas }, { data: avs, error: eAv }] = await Promise.all([
     supabase.from('indicadores').select('id, clave, nombre, area_id, programa_pmd_id').order('nombre'),
     supabase.from('areas').select('id, nombre'),
-    supabase.from('avances').select('indicador_id, pct_cumplimiento, semaforo').eq('mes', mes).eq('anio', anio),
+    supabase.from('avances').select('indicador_id, meta_programada, resultado').eq('anio', anio).gte('mes', 1).lte('mes', mes),
   ])
   if (eInd) throw eInd
   if (eAreas) throw eAreas
   if (eAv) throw eAv
 
   const areasMap = Object.fromEntries((areas || []).map(a => [a.id, a.nombre]))
-  const avMap = Object.fromEntries((avs || []).map(a => [a.indicador_id, a]))
+  const acumulados = acumularAvancesPorIndicador(avs)
 
   const porPrograma = {}
   ;(inds || []).forEach(i => {
     if (i.programa_pmd_id == null) return
-    const av = avMap[i.id] || {}
+    const ac = acumulados[i.id] || {}
     if (!porPrograma[i.programa_pmd_id]) porPrograma[i.programa_pmd_id] = []
     porPrograma[i.programa_pmd_id].push({
-      clave:             i.clave || '-',
-      nombre:            i.nombre,
-      area_nombre:       areasMap[i.area_id] || '-',
-      pct_cumplimiento:  av.pct_cumplimiento ?? null,
-      semaforo:          av.semaforo ?? null,
+      clave:       i.clave || '-',
+      nombre:      i.nombre,
+      area_nombre: areasMap[i.area_id] || '-',
+      pct_pmd:     ac.pct ?? null,
+      semaforo:    ac.semaforo ?? null,
     })
   })
   return porPrograma
