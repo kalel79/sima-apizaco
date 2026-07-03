@@ -34,12 +34,6 @@ function pctStrPMD(val) {
   return (+val).toFixed(1) + '%'
 }
 
-// pct_cumplimiento de avances es una fracción (ej. 0.78 = 78%)
-function pctStrFraccion(val) {
-  if (val == null) return '-'
-  return ((+val) * 100).toFixed(1) + '%'
-}
-
 // Mismos umbrales que usa v_comparativo_pmd para clasificar cada indicador
 function semaforoPrograma(pct) {
   if (pct == null) return 'SIN DATOS'
@@ -62,7 +56,7 @@ function generarFolioPMD(mes, anio) {
  * @param {number} params.anioActual
  * @param {string} params.periodoLabel
  * @param {boolean} [params.incluirDetalle]
- * @param {Object}  [params.detallePorPrograma] { [programa_id]: [{clave,nombre,area_nombre,pct_cumplimiento,semaforo}] }
+ * @param {Object}  [params.detallePorPrograma] { [programa_id]: [{clave,nombre,area_nombre,pct_pmd,semaforo}] } — pct_pmd acumulado, escala de porcentaje
  */
 export function generarReportePMD({
   programas, mesActual, anioActual, periodoLabel,
@@ -213,7 +207,7 @@ export function generarReportePMD({
 
         autoTable(doc, {
           head: [['Clave', 'Indicador', 'Área', '% Avance', 'Semáforo']],
-          body: inds.map(i => [i.clave, i.nombre, i.area_nombre, pctStrFraccion(i.pct_cumplimiento), i.semaforo || 'SIN DATO']),
+          body: inds.map(i => [i.clave, i.nombre, i.area_nombre, pctStrPMD(i.pct_pmd), i.semaforo || 'SIN DATO']),
           startY: 27,
           margin: { left: ML, right: ML },
           styles: { fontSize: 7.5, cellPadding: 2, halign: 'center', valign: 'middle', overflow: 'linebreak' },

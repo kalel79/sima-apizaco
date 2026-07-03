@@ -85,7 +85,7 @@ function DetalleIndicadores({ programaId, mes, anio }) {
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem' }}>
         <thead>
           <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-            {['Clave', 'Indicador', 'Área', 'Meta mes', 'Resultado', '%', 'Semáforo'].map(h => (
+            {['Clave', 'Indicador', 'Área', 'Meta acum.', 'Resultado acum.', '%', 'Semáforo'].map(h => (
               <th key={h} style={{ textAlign: 'left', padding: '0.4rem 0.5rem', color: C.txtSub, textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.62rem' }}>{h}</th>
             ))}
           </tr>
@@ -96,9 +96,9 @@ function DetalleIndicadores({ programaId, mes, anio }) {
               <td style={{ padding: '0.4rem 0.5rem', color: C.txtMuted }}>{i.clave}</td>
               <td style={{ padding: '0.4rem 0.5rem', color: C.txt }}>{i.nombre}</td>
               <td style={{ padding: '0.4rem 0.5rem', color: C.txtSub }}>{i.area_nombre}</td>
-              <td style={{ padding: '0.4rem 0.5rem', color: C.txtSub }}>{i.meta_mes ?? '—'}</td>
-              <td style={{ padding: '0.4rem 0.5rem', color: C.txtSub }}>{i.resultado ?? '—'}</td>
-              <td style={{ padding: '0.4rem 0.5rem', color: C.txtSub }}>{i.pct_cumplimiento != null ? `${(i.pct_cumplimiento * 100).toFixed(1)}%` : '—'}</td>
+              <td style={{ padding: '0.4rem 0.5rem', color: C.txtSub }}>{i.meta_acumulada ?? '—'}</td>
+              <td style={{ padding: '0.4rem 0.5rem', color: C.txtSub }}>{i.resultado_acumulado ?? '—'}</td>
+              <td style={{ padding: '0.4rem 0.5rem', color: C.txtSub }}>{i.pct_pmd != null ? `${i.pct_pmd.toFixed(1)}%` : '—'}</td>
               <td style={{ padding: '0.4rem 0.5rem' }}><Pill sem={i.semaforo}/></td>
             </tr>
           ))}
