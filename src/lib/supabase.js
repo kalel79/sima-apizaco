@@ -56,6 +56,12 @@ export async function getIndicadores({ ejeId, semaforo, busqueda } = {}) {
   return result
 }
 
+export async function getAvanceCapturaAreas() {
+  const { data, error } = await supabase.from('v_avance_captura_areas').select('*')
+  if (error) throw error
+  return data
+}
+
 export async function getNombresEjes() {
   const { data, error } = await supabase.from('ejes').select('codigo, nombre').order('orden')
   if (error) throw error

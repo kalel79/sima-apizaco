@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { invitarUsuario, resetearPassword } from '../lib/auth'
+import { useAuth } from '../hooks/useAuth'
 import { useConfiguracionCtx } from '../contexts/ConfiguracionContext'
 import { formatPeriodoLabel } from '../utils/periodo'
 import { useDatosReporte } from '../hooks/useDatosReporte'
 import { generarPDF, generarExcel, generarPDFPiloto, generarExcelPiloto, generarExcelMetas } from '../utils/reportes'
 import { getMetasResultados, getAvancesMensualesPDF, actualizarPeriodo } from '../lib/supabase'
+import AvanceCaptura from './AvanceCaptura'
 
 const C = {
   guinda: '#7B1F2C', guindaDark: '#51141D',
@@ -23,6 +25,13 @@ const ROLES = [
 ]
 
 export default function AdminUsuarios() {
+  const { isAdmin, isPlaneacion } = useAuth()
+  const TABS = [
+    ...(isAdmin ? [{ id: 'usuarios', label: '👥 Gestión de Usuarios' }] : []),
+    ...((isAdmin || isPlaneacion) ? [{ id: 'captura', label: '📊 Avance de Captura' }] : []),
+  ]
+  const [adminTab, setAdminTab] = useState(isAdmin ? 'usuarios' : 'captura')
+
   const [areas,   setAreas]   = useState([])
   const [form,    setForm]    = useState({ nombre: '', email: '', rol_codigo: 'enlace', area_id: '', password: '' })
   const [saving,  setSaving]  = useState(false)
@@ -193,6 +202,27 @@ export default function AdminUsuarios() {
   }
 
   return (
+    <div>
+      {TABS.length > 1 && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: '1.2rem', flexWrap: 'wrap' }}>
+          {TABS.map(t => (
+            <button key={t.id} onClick={() => setAdminTab(t.id)}
+              style={{
+                background: adminTab === t.id ? `linear-gradient(135deg,${C.guindaDark},${C.guinda})` : C.bgPanel,
+                border: `1px solid ${adminTab === t.id ? C.guinda : C.border}`,
+                borderRadius: 8, color: adminTab === t.id ? C.txt : C.txtSub,
+                padding: '0.55rem 1rem', fontSize: '0.75rem', fontWeight: 700,
+                fontFamily: 'inherit', cursor: 'pointer', letterSpacing: 1,
+              }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {adminTab === 'captura' && (isAdmin || isPlaneacion) && <AvanceCaptura/>}
+
+      {adminTab === 'usuarios' && isAdmin && (
     <div style={{ maxWidth: 560 }}>
       <div style={{ fontSize: '0.62rem', letterSpacing: 3, color: C.dorado, textTransform: 'uppercase', marginBottom: '1.2rem' }}>
         ⚙️ Administración de Usuarios · Solo Administrador
@@ -630,6 +660,8 @@ export default function AdminUsuarios() {
           </button>
         </div>
       </div>
+    </div>
+      )}
     </div>
   )
 }
