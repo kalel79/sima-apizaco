@@ -19,6 +19,7 @@ import Login from './components/Login'
 import CambiarContrasena from './components/CambiarContrasena'
 import AdminUsuarios from './components/AdminUsuarios'
 import SeccionEvidencias from './components/SeccionEvidencias'
+import PantallaPMD from './components/PantallaPMD'
 
 /* ── PALETA INSTITUCIONAL ───────────────────────────────────── */
 const C = {
@@ -827,17 +828,24 @@ function PantallaCaptura({ areaCoordinador }) {
 }
 
 /* ── APP PRINCIPAL ───────────────────────────────────────────── */
-const NAV = [
+const NAV_ANTES_PMD = [
   {id:'dashboard',  l:'Dashboard',  icon:'📊'},
   {id:'indicadores',l:'Indicadores',icon:'🎯'},
   {id:'areas',      l:'Áreas',      icon:'🏢'},
+]
+const NAV_PMD = {id:'pmd', l:'PMD', icon:'🗺️'}
+const NAV_DESPUES_PMD = [
   {id:'alertas',    l:'Alertas',    icon:'🔔'},
   {id:'captura',    l:'Captura',    icon:'✍️'},
 ]
 
 export default function App() {
   const [pan, setPan] = useState('dashboard')
-  const { user, profile, loading, error: authError, rol, area, isEnlace, isAdmin, refetchProfile } = useAuth()
+  const { user, profile, loading, error: authError, rol, area, isEnlace, isAdmin, isPlaneacion, isDirectivo, refetchProfile } = useAuth()
+
+  // PMD: visible para admin/planeación/directivo — el enlace solo captura sus indicadores
+  const puedeVerPMD = isAdmin || isPlaneacion || isDirectivo
+  const NAV = [...NAV_ANTES_PMD, ...(puedeVerPMD ? [NAV_PMD] : []), ...NAV_DESPUES_PMD]
   const { mesActual, anioActual, loading: cfgLoading, refetch: refetchCfg } = useConfiguracion()
   const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
 
@@ -950,6 +958,7 @@ export default function App() {
         {pan==='dashboard'   && <PantallaDashboard/>}
         {pan==='indicadores' && <PantallaIndicadores/>}
         {pan==='areas'       && <PantallaAreas/>}
+        {pan==='pmd'         && puedeVerPMD && <PantallaPMD/>}
         {pan==='alertas'     && <PantallaAlertas/>}
         {pan==='captura'     && <PantallaCaptura areaCoordinador={isEnlace ? area : null}/>}
         {pan==='admin'       && isAdmin && <AdminUsuarios/>}

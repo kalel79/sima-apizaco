@@ -56,6 +56,47 @@ export async function getIndicadores({ ejeId, semaforo, busqueda } = {}) {
   return result
 }
 
+export async function getComparativoPMD() {
+  const { data, error } = await supabase.from('v_comparativo_pmd').select('*').order('numero', { ascending: true })
+  if (error) throw error
+  return data
+}
+
+// Indicadores de un programa PMD con su avance del mes/año dados, para el
+// panel de detalle de v_comparativo_pmd.
+export async function getIndicadoresPorPrograma(programaId, mes, anio) {
+  const [{ data: inds, error: eInd }, { data: areas, error: eAreas }] = await Promise.all([
+    supabase.from('indicadores').select('id, clave, nombre, area_id').eq('programa_pmd_id', programaId).order('nombre'),
+    supabase.from('areas').select('id, nombre'),
+  ])
+  if (eInd) throw eInd
+  if (eAreas) throw eAreas
+
+  const areasMap = Object.fromEntries((areas || []).map(a => [a.id, a.nombre]))
+  const ids = (inds || []).map(i => i.id)
+  if (!ids.length) return []
+
+  const { data: avs, error: eAv } = await supabase
+    .from('avances')
+    .select('indicador_id, meta_programada, resultado, pct_cumplimiento, semaforo')
+    .in('indicador_id', ids).eq('mes', mes).eq('anio', anio)
+  if (eAv) throw eAv
+
+  const avMap = Object.fromEntries((avs || []).map(a => [a.indicador_id, a]))
+  return (inds || []).map(i => {
+    const av = avMap[i.id] || {}
+    return {
+      clave:             i.clave || '-',
+      nombre:            i.nombre,
+      area_nombre:       areasMap[i.area_id] || '-',
+      meta_mes:          av.meta_programada ?? null,
+      resultado:         av.resultado ?? null,
+      pct_cumplimiento:  av.pct_cumplimiento ?? null,
+      semaforo:          av.semaforo ?? null,
+    }
+  })
+}
+
 export async function getIndicadoresLista() {
   const [pages, { data: areas, error: eAreas }] = await Promise.all([
     Promise.all([
