@@ -941,7 +941,7 @@ export default function App() {
               <span style={{display:'block',fontSize:15,marginBottom:1}}>{n.icon}</span>{n.l}
             </button>
           ))}
-          {isAdmin && (
+          {(isAdmin || isPlaneacion) && (
             <button onClick={()=>setPan('admin')}
               style={{flex:1,padding:'0.65rem 0.3rem',border:'none',background:pan==='admin'?`${C.guinda}33`:'none',cursor:'pointer',fontFamily:'inherit',fontSize:'0.68rem',letterSpacing:2,textTransform:'uppercase',whiteSpace:'nowrap',
                 color:pan==='admin'?C.dorado:C.txtMuted,
@@ -961,7 +961,7 @@ export default function App() {
         {pan==='pmd'         && puedeVerPMD && <PantallaPMD/>}
         {pan==='alertas'     && <PantallaAlertas/>}
         {pan==='captura'     && <PantallaCaptura areaCoordinador={isEnlace ? area : null}/>}
-        {pan==='admin'       && isAdmin && <AdminUsuarios/>}
+        {pan==='admin'       && (isAdmin || isPlaneacion) && <AdminUsuarios/>}
       </main>
 
       <footer style={{borderTop:`1px solid ${C.border}`,padding:'0.6rem 1rem',textAlign:'center',fontSize:'0.58rem',color:C.txtMuted,letterSpacing:1}}>

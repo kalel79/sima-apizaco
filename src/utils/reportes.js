@@ -895,6 +895,84 @@ export function generarExcelPiloto(datos) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// AVANCE DE CAPTURA DEL MES POR ÁREA (panel Admin)
+// ══════════════════════════════════════════════════════════════════════════════
+export async function generarExcelAvanceCaptura({ areas, periodoLabel }) {
+  const wb = new ExcelJS.Workbook()
+  wb.creator = 'SIMA · Dirección de Planeación y Evaluación'
+  wb.created = new Date()
+
+  const ws = wb.addWorksheet('Avance de Captura')
+  ws.properties.defaultRowHeight = 14.4
+
+  const thinB   = { style: 'thin', color: { argb: 'FFD0D0D0' } }
+  const borders = { top: thinB, left: thinB, bottom: thinB, right: thinB }
+  const ESTADO_BG = {
+    COMPLETO:          'FFE8F5E9',
+    'EN PROGRESO':     'FFFFF3E0',
+    PENDIENTE:         'FFFFEBEE',
+    'SIN INDICADORES': 'FFF5F5F5',
+  }
+  const ESTADO_FG = {
+    COMPLETO:          'FF007830',
+    'EN PROGRESO':     'FFEF6C00',
+    PENDIENTE:         'FFC62828',
+    'SIN INDICADORES': XL.gris,
+  }
+
+  ws.mergeCells('A1:G1')
+  const title = ws.getCell('A1')
+  title.value     = `SIMA – Avance de Captura del Mes por Área · ${periodoLabel}`
+  title.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.guinda } }
+  title.font      = { bold: true, size: 12, color: { argb: XL.blanco } }
+  title.alignment = { horizontal: 'center', vertical: 'middle' }
+  ws.getRow(1).height = 24
+
+  const HDR = ['Área', 'Total Indicadores', 'Capturados', 'Validados', '% Captura', '% Validación', 'Estado']
+  const hRow = ws.addRow(HDR)
+  hRow.eachCell(c => {
+    c.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.guinda } }
+    c.font      = { bold: true, color: { argb: XL.blanco }, size: 10 }
+    c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+    c.border    = borders
+  })
+  ws.getRow(hRow.number).height = 22
+
+  areas.forEach((a, i) => {
+    const isAlt = i % 2 === 1
+    const row = ws.addRow([
+      a.area, a.total_indicadores, a.capturados, a.validados,
+      a.pct_captura   != null ? `${a.pct_captura}%`   : '-',
+      a.pct_validacion != null ? `${a.pct_validacion}%` : '-',
+      a.estado_captura,
+    ])
+    row.eachCell((c, col) => {
+      c.border    = borders
+      c.alignment = { horizontal: col === 1 ? 'left' : 'center', vertical: 'middle' }
+      if (col === 7) {
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ESTADO_BG[a.estado_captura] || 'FFFFFFFF' } }
+        c.font = { bold: true, size: 9.5, color: { argb: ESTADO_FG[a.estado_captura] || XL.gris } }
+      } else {
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isAlt ? XL.crema : XL.blanco } }
+        c.font = { size: 9.5 }
+      }
+    })
+  })
+
+  ws.columns = [{ width: 34 }, { width: 16 }, { width: 12 }, { width: 12 }, { width: 12 }, { width: 13 }, { width: 16 }]
+  ws.views = [{ state: 'frozen', xSplit: 0, ySplit: 2 }]
+
+  const buffer = await wb.xlsx.writeBuffer()
+  const blob   = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const url    = URL.createObjectURL(blob)
+  const a      = document.createElement('a')
+  a.href       = url
+  a.download   = `SIMA_AvanceCaptura_${periodoLabel.replace(/[^A-Z0-9]/g, '_')}.xlsx`
+  document.body.appendChild(a); a.click(); document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // TABLA COMPLETA: METAS MES A MES + RESULTADOS (todos los indicadores)
 // ══════════════════════════════════════════════════════════════════════════════
 export async function generarExcelMetas({ indicadores, periodoLabel }) {
