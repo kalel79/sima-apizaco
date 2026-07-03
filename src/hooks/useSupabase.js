@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   getDashboardGlobal, getResumenEjes, getResumenAreas,
-  getAlertasLogros, getIndicadores, getIndicadoresLista
+  getAlertasLogros, getIndicadores, getIndicadoresLista, getComparativoPMD
 } from '../lib/supabase'
 
 function useQuery(fn, deps = []) {
@@ -51,4 +51,8 @@ export function useIndicadores(filtros = {}) {
 
 export function useIndicadoresLista() {
   return useQuery(getIndicadoresLista)
+}
+
+export function useComparativoPMD() {
+  return useQuery(getComparativoPMD)
 }
