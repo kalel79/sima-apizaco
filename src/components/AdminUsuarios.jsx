@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { invitarUsuario } from '../lib/auth'
+import { invitarUsuario, resetearPassword } from '../lib/auth'
 import { useConfiguracionCtx } from '../contexts/ConfiguracionContext'
 import { formatPeriodoLabel } from '../utils/periodo'
 import { useDatosReporte } from '../hooks/useDatosReporte'
@@ -28,6 +28,11 @@ export default function AdminUsuarios() {
   const [saving,  setSaving]  = useState(false)
   const [status,  setStatus]  = useState(null)
   const [genStatus, setGenStatus] = useState(null)
+
+  const [usuarios,   setUsuarios]   = useState([])
+  const [resetForm,  setResetForm]  = useState({ usuario_id: '', password: '' })
+  const [resetSaving, setResetSaving] = useState(false)
+  const [resetStatus, setResetStatus] = useState(null)
 
   const { mesActual, anioActual, refetchCfg } = useConfiguracionCtx()
   const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
@@ -68,6 +73,29 @@ export default function AdminUsuarios() {
   useEffect(() => {
     supabase.from('areas').select('id, nombre').order('nombre').then(({ data }) => setAreas(data || []))
   }, [])
+
+  useEffect(() => {
+    supabase.from('usuarios').select('id, nombre, email').order('nombre').then(({ data }) => setUsuarios(data || []))
+  }, [])
+
+  async function handleResetPassword(e) {
+    e.preventDefault()
+    if (!resetForm.usuario_id) return
+    setResetSaving(true)
+    setResetStatus(null)
+    try {
+      const data = await resetearPassword({
+        usuario_id: resetForm.usuario_id,
+        password:   resetForm.password || null,
+      })
+      setResetStatus({ ok: true, msg: `Contraseña actualizada para ${data.user.nombre}.`, email: data.user.email, password: data.password })
+      setResetForm({ usuario_id: '', password: '' })
+    } catch (err) {
+      setResetStatus({ ok: false, msg: err.message || 'Error al resetear la contraseña.' })
+    } finally {
+      setResetSaving(false)
+    }
+  }
 
   async function handleCrear(e) {
     e.preventDefault()
@@ -296,6 +324,87 @@ export default function AdminUsuarios() {
       <div style={{ marginTop: '1rem', fontSize: '0.65rem', color: C.txtMuted, lineHeight: 1.6 }}>
         El usuario recibirá un correo de confirmación para activar su cuenta.<br/>
         La contraseña temporal es generada automáticamente y debe cambiarse al primer acceso.
+      </div>
+
+      {/* ── Sección Resetear Contraseña ── */}
+      <div style={{ marginTop: '2rem', background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '1.5rem' }}>
+        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: C.doradoLight, marginBottom: '1.2rem', letterSpacing: 1 }}>
+          Resetear contraseña de un usuario
+        </div>
+
+        {resetStatus && (
+          <div style={{
+            background: resetStatus.ok ? '#04620520' : '#C0000022',
+            border: `1px solid ${resetStatus.ok ? C.optimoB : C.criticoB}`,
+            borderRadius: 8,
+            padding: '0.75rem 1rem',
+            marginBottom: '1rem',
+            fontSize: '0.8rem',
+            color: resetStatus.ok ? C.optimoB : '#ff6b6b',
+          }}>
+            {resetStatus.ok ? '✅' : '⚠️'} {resetStatus.msg}
+            {resetStatus.ok && resetStatus.password && (
+              <div style={{ marginTop: 8, background: '#000000aa', borderRadius: 6, padding: '0.5rem 0.75rem' }}>
+                <div style={{ fontSize: '0.65rem', color: C.txtMuted, marginBottom: 4, letterSpacing: 1 }}>NUEVAS CREDENCIALES PARA COMPARTIR</div>
+                <div style={{ color: C.txt, fontSize: '0.78rem' }}>📧 <strong>{resetStatus.email}</strong></div>
+                <div style={{ color: C.doradoLight, fontSize: '0.78rem', marginTop: 2 }}>🔑 Contraseña: <strong style={{ letterSpacing: 2 }}>{resetStatus.password}</strong></div>
+                <div style={{ fontSize: '0.62rem', color: C.txtMuted, marginTop: 4 }}>El usuario deberá cambiarla en su próximo inicio de sesión.</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <form onSubmit={handleResetPassword} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+          <div>
+            <label style={{ fontSize: '0.65rem', color: C.txtSub, textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 5 }}>
+              Usuario
+            </label>
+            <select
+              value={resetForm.usuario_id}
+              onChange={e => setResetForm(f => ({ ...f, usuario_id: e.target.value }))}
+              required
+              style={inp}
+            >
+              <option value="">— Selecciona un usuario —</option>
+              {usuarios.map(u => <option key={u.id} value={u.id}>{u.nombre} ({u.email})</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label style={{ fontSize: '0.65rem', color: C.txtSub, textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 5 }}>
+              Nueva contraseña (opcional)
+            </label>
+            <input
+              type="text"
+              value={resetForm.password}
+              onChange={e => setResetForm(f => ({ ...f, password: e.target.value }))}
+              placeholder="Déjalo vacío para generar una automáticamente"
+              style={inp}
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={resetSaving || !resetForm.usuario_id}
+            style={{
+              background: resetSaving ? '#444' : `linear-gradient(135deg,${C.guindaDark},${C.guinda})`,
+              border: 'none',
+              borderRadius: 8,
+              color: C.txt,
+              padding: '0.75rem',
+              fontSize: '0.82rem',
+              fontWeight: 700,
+              fontFamily: 'inherit',
+              cursor: resetSaving || !resetForm.usuario_id ? 'not-allowed' : 'pointer',
+              letterSpacing: 1.5,
+              textTransform: 'uppercase',
+              opacity: !resetForm.usuario_id ? 0.5 : 1,
+              marginTop: 4,
+            }}
+          >
+            {resetSaving ? '⏳ Actualizando…' : '🔑 RESETEAR CONTRASEÑA'}
+          </button>
+        </form>
       </div>
 
       {/* ── Sección Periodo de Evaluación ── */}

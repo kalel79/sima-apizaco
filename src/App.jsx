@@ -434,7 +434,7 @@ function PantallaAlertas() {
 const ANIOS_PROGRAMA = [2024, 2025, 2026, 2027]
 
 function PantallaCaptura({ areaCoordinador }) {
-  const { profile, isEnlace, user, area } = useAuth()
+  const { profile, isEnlace, isAdmin, isPlaneacion, user, area } = useAuth()
   const {data:listaCompleta, loading:loadLista} = useIndicadoresLista()
   const { mesActual, anioActual, loading: cfgLoading } = useConfiguracionCtx()
   const lista = useMemo(() => {
@@ -442,6 +442,21 @@ function PantallaCaptura({ areaCoordinador }) {
     if (areaCoordinador) return listaCompleta.filter(i => i.area_nombre === areaCoordinador)
     return listaCompleta
   }, [listaCompleta, areaCoordinador])
+
+  // Admin/planeación no tienen un área propia: pueden elegir cuál área
+  // quieren validar y para cuál descargar el acuse, sin perder su alcance
+  // de captura sobre todas las áreas.
+  const puedeElegirArea = isAdmin || isPlaneacion
+  const [areaValidacion, setAreaValidacion] = useState(null) // {id, nombre} | null
+  const areasDisponibles = useMemo(() => {
+    if (!listaCompleta) return []
+    const map = new Map()
+    listaCompleta.forEach(i => { if (i.area_id != null) map.set(i.area_id, i.area_nombre) })
+    return Array.from(map, ([id, nombre]) => ({ id, nombre })).sort((a, b) => a.nombre.localeCompare(b.nombre))
+  }, [listaCompleta])
+  const areaIdActivo     = isEnlace ? profile?.area_id : areaValidacion?.id ?? null
+  const areaNombreActivo = isEnlace ? area : areaValidacion?.nombre ?? null
+
   const [form,   setForm]   = useState({indicadorId:'', mes: mesActual ?? 5, anio: anioActual ?? 2026, resultado:'', observaciones:''})
   const [status, setStatus] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -490,15 +505,15 @@ function PantallaCaptura({ areaCoordinador }) {
     return () => { cancel = true }
   }, [form.indicadorId, form.mes, form.anio, evVersion])
 
-  // Resumen de validación del mes (solo enlace)
+  // Resumen de validación del mes (enlace de su propia área, o admin/planeación del área que elijan)
   useEffect(() => {
-    if (!isEnlace || !profile?.area_id || cfgLoading) { setResumenVal(null); return }
+    if (!areaIdActivo || cfgLoading) { setResumenVal(null); return }
     let cancel = false
-    getResumenValidacionArea(profile.area_id, mesActual, anioActual)
+    getResumenValidacionArea(areaIdActivo, mesActual, anioActual)
       .then(r => { if (!cancel) setResumenVal(r) })
       .catch(() => { if (!cancel) setResumenVal(null) })
     return () => { cancel = true }
-  }, [isEnlace, profile?.area_id, mesActual, anioActual, cfgLoading, evVersion])
+  }, [areaIdActivo, mesActual, anioActual, cfgLoading, evVersion])
 
   const bloqueadoPorValidacion = isEnlace && estadoAvance?.validado === true
 
@@ -528,17 +543,17 @@ function PantallaCaptura({ areaCoordinador }) {
   // validación como manualmente (botón), para poder reintentar si algo falla
   // o si el usuario recarga la página y perdió el estado de la descarga.
   async function generarYDescargarAcuse() {
-    if (!profile?.area_id) return
+    if (!areaIdActivo) return
     setAcuseDescargando(true); setAcuseError(null)
     try {
-      const avancesValidados = await getAvancesValidadosMes(profile.area_id, mesActual, anioActual)
+      const avancesValidados = await getAvancesValidadosMes(areaIdActivo, mesActual, anioActual)
       generarAcusePDF({
-        area,
+        area: areaNombreActivo,
         enlaceNombre: profile?.nombre || 'Enlace de Área',
         mes: mesActual, anio: anioActual,
         periodoLabel: formatPeriodoLabel(mesActual, anioActual),
         indicadores: avancesValidados,
-        folio: generarFolioAcuse(profile.area_id, mesActual, anioActual),
+        folio: generarFolioAcuse(areaIdActivo, mesActual, anioActual),
         validadoAt: new Date(),
       })
       setAcuseGenerado(true)
@@ -550,11 +565,11 @@ function PantallaCaptura({ areaCoordinador }) {
   }
 
   async function handleConfirmarValidar() {
-    if (!passwordInput || !user?.email || !profile?.area_id) return
+    if (!passwordInput || !user?.email || !areaIdActivo) return
     setValidando(true); setValidarError(null)
     try {
       await reautenticar(user.email, passwordInput)
-      await validarInformacionMes({ areaId: profile.area_id, mes: mesActual, anio: anioActual, usuarioId: profile.id })
+      await validarInformacionMes({ areaId: areaIdActivo, mes: mesActual, anio: anioActual, usuarioId: profile.id })
       setShowValidarModal(false)
       setPasswordInput('')
       setEvVersion(v=>v+1)
@@ -570,7 +585,7 @@ function PantallaCaptura({ areaCoordinador }) {
     // error de aquí en adelante se reporta vía acuseError (visible fuera del modal),
     // nunca vía validarError (que solo se renderiza dentro del modal ya cerrado).
     try {
-      const resumen = await getResumenValidacionArea(profile.area_id, mesActual, anioActual)
+      const resumen = await getResumenValidacionArea(areaIdActivo, mesActual, anioActual)
       if (resumen.totalIndicadores > 0 && resumen.validados === resumen.totalIndicadores) {
         await generarYDescargarAcuse()
       }
@@ -729,13 +744,31 @@ function PantallaCaptura({ areaCoordinador }) {
         </div>
       )}
 
-      {/* Validación del mes (solo enlace) */}
-      {isEnlace && resumenVal && resumenVal.capturados > 0 && (
+      {/* Selector de área para validar/generar acuse (solo admin/planeación, que no tienen área propia) */}
+      {puedeElegirArea && (
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:10,padding:'1rem',marginTop:'1rem'}}>
+          <div style={{fontSize:'0.62rem',letterSpacing:2,color:C.dorado,textTransform:'uppercase',marginBottom:8}}>🗂 Validar acuse por área</div>
+          <select
+            value={areaValidacion?.id || ''}
+            onChange={e=>{
+              const id = e.target.value ? +e.target.value : null
+              setAreaValidacion(areasDisponibles.find(a=>a.id===id) || null)
+            }}
+            style={inp}
+          >
+            <option value="">— Selecciona un área para ver su validación —</option>
+            {areasDisponibles.map(a=><option key={a.id} value={a.id}>{a.nombre}</option>)}
+          </select>
+        </div>
+      )}
+
+      {/* Validación del mes (enlace de su área, o admin/planeación del área elegida arriba) */}
+      {(isEnlace || (puedeElegirArea && areaIdActivo)) && resumenVal && resumenVal.capturados > 0 && (
         <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:10,padding:'1rem',marginTop:'1rem'}}>
           <div style={{fontSize:'0.62rem',letterSpacing:2,color:C.dorado,textTransform:'uppercase',marginBottom:8}}>🔒 Validación del mes</div>
           <div style={{fontSize:'0.78rem',color:C.txtSub,marginBottom:10}}>
             {resumenVal.validados} de {resumenVal.capturados} indicadores capturados ya validados
-            {resumenVal.capturados < resumenVal.totalIndicadores ? ` (tu área tiene ${resumenVal.totalIndicadores} en total).` : '.'}
+            {resumenVal.capturados < resumenVal.totalIndicadores ? ` (${isEnlace ? 'tu área tiene' : `${areaNombreActivo} tiene`} ${resumenVal.totalIndicadores} en total).` : '.'}
           </div>
           {resumenVal.pendientes > 0 ? (
             <button onClick={()=>{ setValidarError(null); setPasswordInput(''); setShowValidarModal(true) }}
@@ -770,7 +803,7 @@ function PantallaCaptura({ areaCoordinador }) {
           <div onClick={e=>e.stopPropagation()} style={{background:C.bgCard,border:`1px solid ${C.dorado}55`,borderRadius:12,padding:'1.3rem',width:320,maxWidth:'90vw'}}>
             <div style={{fontSize:'0.85rem',fontWeight:700,color:C.txt,marginBottom:8}}>🔒 Confirmar validación</div>
             <div style={{fontSize:'0.75rem',color:C.txtSub,marginBottom:12,lineHeight:1.4}}>
-              Esto marcará como definitiva la información capturada de tu área para {MESES[(mesActual||1)-1]} {anioActual}. Ya no podrás editarla. Ingresa tu contraseña para confirmar.
+              Esto marcará como definitiva la información capturada {isEnlace ? 'de tu área' : `del área ${areaNombreActivo || ''}`} para {MESES[(mesActual||1)-1]} {anioActual}. Ya no podrás editarla. Ingresa tu contraseña para confirmar.
             </div>
             <input type="password" value={passwordInput} onChange={e=>setPasswordInput(e.target.value)}
               placeholder="Tu contraseña…" style={{...inp, marginBottom:10}}

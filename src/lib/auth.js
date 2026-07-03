@@ -29,6 +29,19 @@ export async function invitarUsuario({ nombre, email, rol_codigo, area_id, passw
   return data
 }
 
+export async function resetearPassword({ usuario_id, email, password }) {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.access_token) throw new Error('Sesión no encontrada. Vuelve a iniciar sesión.')
+
+  const { data, error } = await supabase.functions.invoke('reset-password', {
+    body: { usuario_id: usuario_id || null, email: email || null, password: password || null },
+    headers: { Authorization: `Bearer ${session.access_token}` },
+  })
+  if (error) throw new Error(error.message || 'Error al contactar la función de servidor.')
+  if (data?.error) throw new Error(data.error)
+  return data
+}
+
 export async function getUserProfile(userId) {
   try {
     const { data, error } = await supabase
