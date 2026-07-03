@@ -97,6 +97,38 @@ export async function getIndicadoresPorPrograma(programaId, mes, anio) {
   })
 }
 
+// Indicadores de TODOS los programas PMD con su avance del mes/año dados,
+// agrupados por programa_pmd_id — usado por el reporte PDF cuando se activa
+// "incluir detalle" (evita 43 consultas individuales, una sola pasada).
+export async function getDetalleIndicadoresPMD(mes, anio) {
+  const [{ data: inds, error: eInd }, { data: areas, error: eAreas }, { data: avs, error: eAv }] = await Promise.all([
+    supabase.from('indicadores').select('id, clave, nombre, area_id, programa_pmd_id').order('nombre'),
+    supabase.from('areas').select('id, nombre'),
+    supabase.from('avances').select('indicador_id, pct_cumplimiento, semaforo').eq('mes', mes).eq('anio', anio),
+  ])
+  if (eInd) throw eInd
+  if (eAreas) throw eAreas
+  if (eAv) throw eAv
+
+  const areasMap = Object.fromEntries((areas || []).map(a => [a.id, a.nombre]))
+  const avMap = Object.fromEntries((avs || []).map(a => [a.indicador_id, a]))
+
+  const porPrograma = {}
+  ;(inds || []).forEach(i => {
+    if (i.programa_pmd_id == null) return
+    const av = avMap[i.id] || {}
+    if (!porPrograma[i.programa_pmd_id]) porPrograma[i.programa_pmd_id] = []
+    porPrograma[i.programa_pmd_id].push({
+      clave:             i.clave || '-',
+      nombre:            i.nombre,
+      area_nombre:       areasMap[i.area_id] || '-',
+      pct_cumplimiento:  av.pct_cumplimiento ?? null,
+      semaforo:          av.semaforo ?? null,
+    })
+  })
+  return porPrograma
+}
+
 export async function getIndicadoresLista() {
   const [pages, { data: areas, error: eAreas }] = await Promise.all([
     Promise.all([
