@@ -808,6 +808,15 @@ export default function App() {
   const { mesActual, anioActual, loading: cfgLoading, refetch: refetchCfg } = useConfiguracion()
   const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
 
+  // useConfiguracion() dispara su primer fetch al montar App, que ocurre
+  // antes de que termine el login. Sin sesión todavía, RLS filtra en
+  // silencio todas las filas de `configuracion` (0 filas, sin error) y el
+  // hook se queda pegado en sus valores por defecto. Se repite el fetch en
+  // cuanto hay un usuario autenticado para traer el valor real.
+  useEffect(() => {
+    if (user?.id) refetchCfg()
+  }, [user?.id]) // eslint-disable-line
+
   if (loading) {
     return (
       <div style={{background:'#0D0D0D', minHeight:'100vh', display:'flex',
