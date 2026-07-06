@@ -7,7 +7,7 @@ import {
 } from './hooks/useSupabase'
 import {
   guardarAvance, getAvanceActual, getResumenValidacionArea,
-  validarInformacionMes, reautenticar, getAvancesValidadosMes,
+  validarInformacionMes, reautenticar, getAvancesValidadosMes, getEnlaceDeArea,
 } from './lib/supabase'
 import { generarAcusePDF, generarFolioAcuse } from './utils/reportes'
 import { useAuth } from './hooks/useAuth'
@@ -548,9 +548,14 @@ function PantallaCaptura({ areaCoordinador }) {
     setAcuseDescargando(true); setAcuseError(null)
     try {
       const avancesValidados = await getAvancesValidadosMes(areaIdActivo, mesActual, anioActual)
+      // El enlace genera su propio acuse con su nombre; admin/planeación regenerando
+      // el de otra área deben usar el nombre del enlace real asignado a esa área.
+      const enlaceNombre = isEnlace
+        ? (profile?.nombre || 'Enlace de Área')
+        : ((await getEnlaceDeArea(areaIdActivo)) || 'Enlace de Área')
       generarAcusePDF({
         area: areaNombreActivo,
-        enlaceNombre: profile?.nombre || 'Enlace de Área',
+        enlaceNombre,
         mes: mesActual, anio: anioActual,
         periodoLabel: formatPeriodoLabel(mesActual, anioActual),
         indicadores: avancesValidados,

@@ -270,6 +270,20 @@ export async function getResumenValidacionArea(areaId, mes, anio) {
   return { totalIndicadores: ids.length, capturados, validados, pendientes: capturados - validados }
 }
 
+// Enlace de Área asignado a una área (rol_id=3), para regenerar el acuse
+// con el nombre correcto cuando quien lo genera es admin/planeación.
+export async function getEnlaceDeArea(areaId) {
+  const { data, error } = await supabase
+    .from('usuarios')
+    .select('nombre')
+    .eq('area_id', areaId)
+    .eq('rol_id', 3)
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  return data?.nombre ?? null
+}
+
 export async function validarInformacionMes({ areaId, mes, anio, usuarioId }) {
   const { data: inds, error: eInd } = await supabase
     .from('indicadores').select('id').eq('area_id', areaId)
