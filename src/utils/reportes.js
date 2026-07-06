@@ -312,24 +312,25 @@ function drawGraficasPage(doc, eje, periodoLabel, indsEje, avancesMensuales, mes
   setDraw(doc, DORADO); doc.setLineWidth(0.5); doc.line(ML, 24.5, W - ML, 24.5)
 
   // ── Barra de avance acumulado del eje (color institucional uniforme) ────────
+  // Caja proporcional al canvas (460×95, ratio ≈4.84) para no distorsionar el render.
   doc.setFontSize(9.5); doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
   doc.text('Avance Acumulado del Eje', W / 2, 32, { align: 'center' })
-  const BAR_W = 220, BAR_X = (W - BAR_W) / 2
+  const BAR_W = 170, BAR_H = 35, BAR_X = (W - BAR_W) / 2
   try {
     const barURL = barraDataURL(eje.pct_promedio || 0, 460, 95)
-    doc.addImage(barURL, 'PNG', BAR_X, 36, BAR_W, 30)
+    doc.addImage(barURL, 'PNG', BAR_X, 36, BAR_W, BAR_H)
   } catch (_) {}
 
   // Stats
   doc.setFontSize(8.5); doc.setFont('helvetica', 'normal'); setColor(doc, GRIS)
-  doc.text(`Total indicadores: ${eje.total_indicadores||0}`, W / 2, 75, { align: 'center' })
-  doc.text(`Período: ${periodoLabel}`, W / 2, 81, { align: 'center' })
+  doc.text(`Total indicadores: ${eje.total_indicadores||0}`, W / 2, 80, { align: 'center' })
+  doc.text(`Período: ${periodoLabel}`, W / 2, 86, { align: 'center' })
 
-  setDraw(doc, [220, 220, 220]); doc.setLineWidth(0.2); doc.line(ML, 88, W - ML, 88)
+  setDraw(doc, [220, 220, 220]); doc.setLineWidth(0.2); doc.line(ML, 93, W - ML, 93)
 
   // ── Gráfica de línea acumulada meta vs resultado ────────────────────────────
   doc.setFontSize(9.5); doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
-  doc.text('Tendencia Acumulada Mensual', W / 2, 97, { align: 'center' })
+  doc.text('Tendencia Acumulada Mensual', W / 2, 102, { align: 'center' })
 
   try {
     const mesAct = mesActual || 5
@@ -349,9 +350,10 @@ function drawGraficasPage(doc, eje, periodoLabel, indsEje, avancesMensuales, mes
       return { mesLabel: MESES_NOMBRES[mi], metaAcum, resAcum }
     })
 
-    const LINE_W = 240, LINE_X = (W - LINE_W) / 2
+    // Caja proporcional al canvas (460×175, ratio ≈2.63) para no distorsionar el render.
+    const LINE_W = 105, LINE_H = 40, LINE_X = (W - LINE_W) / 2
     const lineURL = lineaDataURL(lineData, 460, 175)
-    doc.addImage(lineURL, 'PNG', LINE_X, 101, LINE_W, 46)
+    doc.addImage(lineURL, 'PNG', LINE_X, 106, LINE_W, LINE_H)
   } catch (_) {}
 }
 
