@@ -74,6 +74,14 @@ export async function getComparativoPMD() {
   return data
 }
 
+// Mapa { indicador_id: clave } — v_indicadores_acum no expone "clave", así que
+// se cruza en cliente contra la tabla indicadores (sin tocar la vista).
+export async function getClavesIndicadores() {
+  const { data, error } = await supabase.from('indicadores').select('id, clave')
+  if (error) throw error
+  return Object.fromEntries((data || []).map(i => [i.id, i.clave]))
+}
+
 // Acumula resultado/meta_programada por indicador (mes 1 → mes dado) y deriva
 // pct/semaforo con la misma metodología y umbrales que v_comparativo_pmd.
 // pct queda en escala de porcentaje (ej. 101.45), no como fracción.
