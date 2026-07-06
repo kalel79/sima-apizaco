@@ -6,7 +6,8 @@ import { useConfiguracionCtx } from '../contexts/ConfiguracionContext'
 import { formatPeriodoLabel } from '../utils/periodo'
 import { useDatosReporte } from '../hooks/useDatosReporte'
 import { generarPDF, generarExcel, generarPDFPiloto, generarExcelPiloto, generarExcelMetas } from '../utils/reportes'
-import { getMetasResultados, getAvancesMensualesPDF, actualizarPeriodo } from '../lib/supabase'
+import { generarInformeGobierno } from '../utils/informeGobierno'
+import { getMetasResultados, getAvancesMensualesPDF, actualizarPeriodo, getComparativoPMD, getClavesIndicadores } from '../lib/supabase'
 import AvanceCaptura from './AvanceCaptura'
 
 const C = {
@@ -157,6 +158,21 @@ export default function AdminUsuarios() {
       if (!global) await cargar()
       const avancesMensuales = await getAvancesMensualesPDF(anioActual)
       generarPDFPiloto({ global, ejes, indicadoresPorEje, avancesMensuales, mesActual, anioActual, periodoLabel })
+      setGenStatus('ok')
+    } catch (e) {
+      setGenStatus('error:' + e.message)
+    }
+  }
+
+  async function handleInformeGobierno() {
+    setGenStatus('cargando')
+    try {
+      if (!global) await cargar()
+      const [pmdProgramas, claves] = await Promise.all([
+        getComparativoPMD(),
+        getClavesIndicadores(),
+      ])
+      await generarInformeGobierno({ ejes, indicadoresPorEje, claves, pmdProgramas })
       setGenStatus('ok')
     } catch (e) {
       setGenStatus('error:' + e.message)
@@ -588,6 +604,26 @@ export default function AdminUsuarios() {
             }}
           >
             📋 Descargar Tabla Metas y Resultados
+          </button>
+        </div>
+
+        {/* Informe de Gobierno */}
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.62rem', color: C.txtMuted, marginBottom: '0.5rem', letterSpacing: 1 }}>
+            SEGUNDO INFORME DE GOBIERNO — Sep 2025 – Ago 2026, portada + 9 ejes:
+          </div>
+          <button
+            onClick={handleInformeGobierno}
+            disabled={rLoading || genStatus === 'cargando'}
+            style={{
+              background: rLoading || genStatus === 'cargando' ? '#444' : `linear-gradient(135deg,#3a2000,#7a4800)`,
+              border: 'none', borderRadius: 8, color: C.txt,
+              padding: '0.75rem 1.2rem', fontSize: '0.82rem', fontWeight: 700,
+              fontFamily: 'inherit', cursor: rLoading || genStatus === 'cargando' ? 'not-allowed' : 'pointer',
+              letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 8,
+            }}
+          >
+            📋 Descargar Informe de Gobierno
           </button>
         </div>
 
