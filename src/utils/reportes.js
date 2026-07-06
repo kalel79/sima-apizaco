@@ -16,13 +16,6 @@ const SEM_COLORS = {
   'RIESGO':   { txt: [180, 135,  0], bg: [255, 248, 200] },
   'CRÍTICO':  { txt: [192,   0,  0], bg: [255, 215, 215] },
 }
-const SEM_SEG = {
-  'ÓPTIMO':   '#046205',
-  'ADECUADO': '#00B050',
-  'RIESGO':   '#FFC000',
-  'CRÍTICO':  '#C00000',
-}
-
 // ── Paleta Excel (ARGB) ───────────────────────────────────────────────────────
 const XL = {
   guinda:   'FF7B1F2C',
@@ -53,6 +46,20 @@ const FIRMAS_RESP = {
   MS: { nombre: 'Lic. Juan Pablo Morales Rico',     cargo: 'Secretario del Ayuntamiento' },
   AJ: { nombre: 'Lic. Omar Muñoz Torres',           cargo: 'Director Jurídico' },
 }
+
+// ── Catálogo de programa presupuestario por eje (encabezado del reporte) ──────
+const PROGRAMA_EJE = {
+  E1: { programa: '005 Seguridad Pública y Transito Vial', responsable: 'Dirección de Seguridad Pública, Juzgado Municipal, Protección Civil', elaboro: 'Cap. José Ramón Jacques Mena - Director de Seguridad Pública' },
+  E2: { programa: '018 Fortalecimiento a la calidad educativa, cultural y deportiva', responsable: 'Desarrollo Social, Salud, DIF, Deporte, Rastro, Educación, Juventud', elaboro: 'Lic. Fernando Águila Sánchez' },
+  E3: { programa: '024 Infraestructura y Equipamiento para el Desarrollo Urbano', responsable: 'Dirección de Obras Públicas', elaboro: 'Ing. Jesús Martinez Vázquez - Director de Obras Públicas' },
+  E4: { programa: '012 Fomento a la Producción y Comercialización', responsable: 'Desarrollo Económico, Comercio en vía pública, Turismo, Agropecuario, Cultura, Parquímetros', elaboro: 'Lic. David Velazquez Rugerio - Director de Desarrollo Económico' },
+  E5: { programa: '037 Fiscalizar, Controlar y Evaluar la Gestión Municipal', responsable: 'Tesorería, Control Interno, TICS, Transparencia, Planeación', elaboro: 'C.p. David Hernandez Montiel' },
+  TA: { programa: '032 Protección al ambiente', responsable: 'Dirección de Ecología y Desarrollo Ambiental, Servicios Municipales', elaboro: 'Lic. Edgar Torres López' },
+  TB: { programa: '021 Desarrollo Integral para la Familia', responsable: 'Dirección del Instituto Municipal de la Mujer, SIPINNA', elaboro: 'C. Anabel Alducin Lima' },
+  MS: { programa: '033 Apoyo a las Políticas Gubernamentales', responsable: 'Presidencia, Secretaría del Ayuntamiento, Regidurías, Presidencias de Comunidad, Comunicación Social y Gobernación', elaboro: 'Lic. Juan Pablo Morales Rico' },
+  AJ: { programa: '003 Procuración y Defensa de los Intereses Municipales', responsable: 'Sindicatura Municipal y Dirección Jurídica', elaboro: 'Lic. Omar Muñoz Torres - Director Jurídico' },
+}
+const ENTIDAD_NOMBRE = 'Ayuntamiento de Apizaco'
 
 const MESES_NOMBRES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC']
 
@@ -112,61 +119,15 @@ function setColor(doc, rgb) { doc.setTextColor(rgb[0], rgb[1], rgb[2]) }
 function setFill(doc, rgb)  { doc.setFillColor(rgb[0], rgb[1], rgb[2]) }
 function setDraw(doc, rgb)  { doc.setDrawColor(rgb[0], rgb[1], rgb[2]) }
 
-// ── Canvas: dona de semáforo ─────────────────────────────────────────────────
-function donaDataURL(optimo, adecuado, riesgo, critico, totalLabel, size = 160) {
-  const canvas = document.createElement('canvas')
-  canvas.width = canvas.height = size
-  const ctx = canvas.getContext('2d')
-  const cx = size / 2, cy = size / 2, r = size * 0.44, ri = size * 0.27
-
-  const slices = [
-    { n: optimo,   color: SEM_SEG['ÓPTIMO']   },
-    { n: adecuado, color: SEM_SEG['ADECUADO'] },
-    { n: riesgo,   color: SEM_SEG['RIESGO']   },
-    { n: critico,  color: SEM_SEG['CRÍTICO']  },
-  ]
-  const segTotal = slices.reduce((s, sl) => s + sl.n, 0)
-
-  if (segTotal === 0) {
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, 2 * Math.PI)
-    ctx.fillStyle = '#DDDDDD'; ctx.fill()
-  } else {
-    let a = -Math.PI / 2
-    slices.forEach(sl => {
-      if (!sl.n) return
-      const sw = (sl.n / segTotal) * 2 * Math.PI
-      ctx.beginPath()
-      ctx.moveTo(cx + ri * Math.cos(a), cy + ri * Math.sin(a))
-      ctx.arc(cx, cy, r, a, a + sw)
-      ctx.arc(cx, cy, ri, a + sw, a, true)
-      ctx.closePath()
-      ctx.fillStyle = sl.color; ctx.fill()
-      a += sw
-    })
-  }
-
-  ctx.beginPath(); ctx.arc(cx, cy, ri - 1, 0, 2 * Math.PI)
-  ctx.fillStyle = '#FFFFFF'; ctx.fill()
-
-  const fs = Math.round(size * 0.13), sfs = Math.round(size * 0.07)
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-  ctx.fillStyle = '#222'; ctx.font = `bold ${fs}px Arial`
-  ctx.fillText(String(totalLabel), cx, cy - fs * 0.4)
-  ctx.font = `${sfs}px Arial`; ctx.fillStyle = '#777'
-  ctx.fillText('indicadores', cx, cy + fs * 0.65)
-
-  return canvas.toDataURL('image/png')
-}
-
 // ── Canvas: barra de avance ──────────────────────────────────────────────────
-function barraDataURL(pct, width = 250, height = 64, sem = 'ADECUADO') {
+function barraDataURL(pct, width = 250, height = 64) {
   const canvas = document.createElement('canvas')
   canvas.width = width; canvas.height = height
   const ctx = canvas.getContext('2d')
 
   const bX = 6, bY = Math.round(height * 0.44), bH = Math.round(height * 0.30), bW = width - 12
   const fill = Math.min(pct || 0, 1.0)
-  const barColor = SEM_SEG[sem] || '#7B1F2C'
+  const barColor = '#7B1F2C'
 
   ctx.font = `bold ${Math.round(height * 0.26)}px Arial`
   ctx.fillStyle = '#222'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'
@@ -275,6 +236,45 @@ function drawRunningHeader(doc, ejeNombre) {
   setDraw(doc, DORADO); doc.setLineWidth(0.2); doc.line(14, 16.5, W - 14, 16.5)
 }
 
+// ── Bloque de encabezado de programa (Entidad/Programa/Unidad Responsable/Elaboró) ──
+// Tabla de 2 columnas (etiqueta en guinda, valor en negro) sobre fondo blanco,
+// antes de la tabla de indicadores. Devuelve la Y donde debe iniciar la tabla.
+function drawProgramaHeader(doc, eje, startY) {
+  const W = doc.internal.pageSize.width, ML = 14
+  const info = PROGRAMA_EJE[eje.codigo] || {}
+  const rows = [
+    ['Entidad:',             ENTIDAD_NOMBRE],
+    ['Programa:',            info.programa   || '-'],
+    ['Unidad Responsable:',  info.responsable || '-'],
+    ['Elaboró:',             info.elaboro     || '-'],
+  ]
+  const LABEL_W = 40
+  const VALUE_W = W - ML * 2 - LABEL_W - 4
+  const FONT_SZ = 8, LINE_H = 3.6, PAD_V = 2
+
+  doc.setFontSize(FONT_SZ)
+  const wrapped = rows.map(([label, val]) => doc.splitTextToSize(val, VALUE_W))
+  const rowH = wrapped.map(lines => Math.max(LINE_H + PAD_V * 2, lines.length * LINE_H + PAD_V * 2))
+  const totalH = rowH.reduce((a, b) => a + b, 0)
+
+  setDraw(doc, [210, 205, 195]); doc.setLineWidth(0.25)
+  setFill(doc, BLANCO); doc.rect(ML, startY, W - ML * 2, totalH, 'FD')
+  doc.line(ML + LABEL_W, startY, ML + LABEL_W, startY + totalH)
+
+  let ry = startY
+  rows.forEach(([label], i) => {
+    const h = rowH[i]
+    if (i > 0) doc.line(ML, ry, W - ML, ry)
+    doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
+    doc.text(label, ML + 2, ry + PAD_V + LINE_H - 1)
+    doc.setFont('helvetica', 'normal'); setColor(doc, [20, 20, 20])
+    doc.text(wrapped[i], ML + LABEL_W + 2, ry + PAD_V + LINE_H - 1)
+    ry += h
+  })
+
+  return startY + totalH + 4
+}
+
 // ── Bloque de firmas ─────────────────────────────────────────────────────────
 function drawFirmas(doc, ejeCodigo, y) {
   const resp = FIRMAS_RESP[ejeCodigo] || { nombre: '___________________', cargo: 'Responsable del Eje' }
@@ -305,85 +305,31 @@ function drawFirmas(doc, ejeCodigo, y) {
 
 // ── Gráficas por eje (página dedicada) ───────────────────────────────────────
 function drawGraficasPage(doc, eje, periodoLabel, indsEje, avancesMensuales, mesActual) {
-  const W = doc.internal.pageSize.width
-  const sem = semaforoEje(eje)
-  const sc  = SEM_COLORS[sem] || { txt: GRIS, bg: [245, 245, 245] }
+  const W = doc.internal.pageSize.width, ML = 14
 
   doc.setFontSize(11); doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
-  doc.text('Distribución de Indicadores por Semáforo  ·  Avance del Eje', W / 2, 21, { align: 'center' })
-  setDraw(doc, DORADO); doc.setLineWidth(0.5); doc.line(14, 24.5, W - 14, 24.5)
+  doc.text('Avance del Eje', W / 2, 21, { align: 'center' })
+  setDraw(doc, DORADO); doc.setLineWidth(0.5); doc.line(ML, 24.5, W - ML, 24.5)
 
-  // ── IZQUIERDO: dona centrada vertical y horizontalmente ──────────────────────
-  // Panel derecho ocupa y=33..146 (centro≈89). Dona (68mm) centrada en y=44..112
-  // para alinearla visualmente con barra+línea del panel derecho.
-  const LEFT_CX = 75.5                   // centro horizontal panel izquierdo (14→137)
-  const DONA_W  = 68
-  const DONA_X  = LEFT_CX - DONA_W / 2  // ≈ 41.5
-  const DONA_Y  = 44                     // alineada visualmente con panel derecho
-
-  doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
-  doc.text('Semáforo del Eje', LEFT_CX, DONA_Y - 3, { align: 'center' })
+  // ── Barra de avance acumulado del eje (color institucional uniforme) ────────
+  doc.setFontSize(9.5); doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
+  doc.text('Avance Acumulado del Eje', W / 2, 32, { align: 'center' })
+  const BAR_W = 220, BAR_X = (W - BAR_W) / 2
   try {
-    const donaURL = donaDataURL(eje.optimo||0, eje.adecuado||0, eje.riesgo||0, eje.critico||0, eje.total_indicadores||0, 280)
-    doc.addImage(donaURL, 'PNG', DONA_X, DONA_Y, DONA_W, DONA_W)
-  } catch (_) {}
-
-  // Leyenda en 2 columnas debajo de la dona
-  const legItems = [
-    { label: `Óptimo: ${eje.optimo||0}`,    color: SEM_COLORS['ÓPTIMO'].txt   },
-    { label: `Adecuado: ${eje.adecuado||0}`, color: SEM_COLORS['ADECUADO'].txt },
-    { label: `Riesgo: ${eje.riesgo||0}`,     color: SEM_COLORS['RIESGO'].txt   },
-    { label: `Crítico: ${eje.critico||0}`,   color: SEM_COLORS['CRÍTICO'].txt  },
-  ]
-  const sinDato = Math.max(0, (eje.total_indicadores||0) - (eje.optimo||0) - (eje.adecuado||0) - (eje.riesgo||0) - (eje.critico||0))
-  if (sinDato > 0) legItems.push({ label: `Sin dato: ${sinDato}`, color: [150, 150, 150] })
-
-  const legY0     = DONA_Y + DONA_W + 5  // debajo de la dona
-  const LEG_COLS  = 2
-  const LEG_COL_W = 52
-  const LEG_X0    = LEFT_CX - (LEG_COLS * LEG_COL_W) / 2
-
-  doc.setFontSize(8)
-  legItems.forEach((item, i) => {
-    const col = i % LEG_COLS, row = Math.floor(i / LEG_COLS)
-    const lx  = LEG_X0 + col * LEG_COL_W
-    const ly  = legY0 + row * 10
-    setFill(doc, item.color); doc.rect(lx, ly - 3, 4, 4, 'F')
-    doc.setFont('helvetica', 'bold'); setColor(doc, item.color)
-    doc.text(item.label, lx + 6, ly)
-  })
-
-  // Divisor vertical
-  setDraw(doc, [220, 220, 220]); doc.setLineWidth(0.2); doc.line(137, 26, 137, 148)
-
-  // ── DERECHO: barra ────────────────────────────────────────────────────────
-  doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
-  doc.text('Avance Acumulado del Eje', 202, 29, { align: 'center' })
-  try {
-    const barURL = barraDataURL(eje.pct_promedio || 0, 460, 95, sem)
-    doc.addImage(barURL, 'PNG', 141, 33, 123, 25)
+    const barURL = barraDataURL(eje.pct_promedio || 0, 460, 95)
+    doc.addImage(barURL, 'PNG', BAR_X, 36, BAR_W, 30)
   } catch (_) {}
 
   // Stats
-  doc.setFontSize(7.5)
-  const statsItems = [
-    { txt: `Total indicadores: ${eje.total_indicadores||0}`, font: 'normal', color: GRIS },
-    { txt: `Período: ${periodoLabel}`,                       font: 'normal', color: GRIS },
-    { txt: `Semáforo del eje: ${sem}`,                       font: 'bold',   color: sc.txt },
-  ]
-  statsItems.forEach((s, i) => {
-    doc.setFont('helvetica', s.font); setColor(doc, s.color)
-    doc.text(s.txt, 202, 62 + i * 7, { align: 'center' })
-  })
+  doc.setFontSize(8.5); doc.setFont('helvetica', 'normal'); setColor(doc, GRIS)
+  doc.text(`Total indicadores: ${eje.total_indicadores||0}`, W / 2, 75, { align: 'center' })
+  doc.text(`Período: ${periodoLabel}`, W / 2, 81, { align: 'center' })
 
-  // Badge semáforo
-  setFill(doc, sc.bg); doc.roundedRect(166, 82, 72, 10, 2.5, 2.5, 'F')
-  doc.setFontSize(9); doc.setFont('helvetica', 'bold'); setColor(doc, sc.txt)
-  doc.text(sem, 202, 89, { align: 'center' })
+  setDraw(doc, [220, 220, 220]); doc.setLineWidth(0.2); doc.line(ML, 88, W - ML, 88)
 
-  // ── DERECHO: gráfica de línea acumulada ───────────────────────────────────
-  doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
-  doc.text('Tendencia Acumulada Mensual', 202, 97, { align: 'center' })
+  // ── Gráfica de línea acumulada meta vs resultado ────────────────────────────
+  doc.setFontSize(9.5); doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
+  doc.text('Tendencia Acumulada Mensual', W / 2, 97, { align: 'center' })
 
   try {
     const mesAct = mesActual || 5
@@ -403,8 +349,9 @@ function drawGraficasPage(doc, eje, periodoLabel, indsEje, avancesMensuales, mes
       return { mesLabel: MESES_NOMBRES[mi], metaAcum, resAcum }
     })
 
+    const LINE_W = 240, LINE_X = (W - LINE_W) / 2
     const lineURL = lineaDataURL(lineData, 460, 175)
-    doc.addImage(lineURL, 'PNG', 141, 100, 123, 46)
+    doc.addImage(lineURL, 'PNG', LINE_X, 101, LINE_W, 46)
   } catch (_) {}
 }
 
@@ -471,17 +418,14 @@ export function generarPDF({
   doc.text(periodoLabel, W_L - ML, 22, { align: 'right' })
   setDraw(doc, DORADO); doc.setLineWidth(0.6); doc.line(ML, 25, W_L - ML, 25)
 
-  // Anchos: Eje=88 + TotalInd=14 + %Avance=18 + Óptimo=14 + Adecuado=16 + Riesgo=14 + Crítico=14 + Semáforo=24 = 202mm
-  const RES_TOTAL_W = 202
+  // Anchos: Eje=88 + TotalInd=14 + %Avance=18 + Óptimo=14 + Adecuado=16 + Riesgo=14 + Crítico=14 = 178mm
+  const RES_TOTAL_W = 178
   const resMargin = (W_L - RES_TOTAL_W) / 2
 
   autoTable(doc, {
-    head: [['Eje Estratégico', 'Total\nInd.', '% Avance', 'Óptimo', 'Adecuado', 'Riesgo', 'Crítico', 'Semáforo']],
-    body: ejes.map(e => {
-      const sem = semaforoEje(e)
-      return [e.eje, e.total_indicadores||0, pctStr(e.pct_promedio),
-        e.optimo||0, e.adecuado||0, e.riesgo||0, e.critico||0, sem]
-    }),
+    head: [['Eje Estratégico', 'Total\nInd.', '% Avance', 'Óptimo', 'Adecuado', 'Riesgo', 'Crítico']],
+    body: ejes.map(e => [e.eje, e.total_indicadores||0, pctStr(e.pct_promedio),
+      e.optimo||0, e.adecuado||0, e.riesgo||0, e.critico||0]),
     startY: 30,
     margin: { left: resMargin, right: resMargin },
     styles: {
@@ -498,18 +442,8 @@ export function generarPDF({
       4: { cellWidth: 16 },
       5: { cellWidth: 14 },
       6: { cellWidth: 14 },
-      7: { cellWidth: 24 },
     },
     alternateRowStyles: { fillColor: [249, 244, 232] },
-    didParseCell: (data) => {
-      if (data.section === 'body' && data.column.index === 7) {
-        const sem = data.cell.raw
-        const sc = SEM_COLORS[sem] || { txt: GRIS, bg: [245,245,245] }
-        data.cell.styles.textColor = sc.txt
-        data.cell.styles.fillColor = sc.bg
-        data.cell.styles.fontStyle = 'bold'
-      }
-    },
   })
 
   // ── PÁGINAS POR EJE ────────────────────────────────────────────────────────
@@ -539,8 +473,9 @@ export function generarPDF({
     const indsRaw = indicadoresPorEje[eje.codigo] || []
     const inds    = sortByMIR(indsRaw)
 
-    // ── PASO A: Tabla mensual + firmas ────────────────────────────────────
+    // ── PASO A: Encabezado de programa + tabla mensual + firmas ───────────
     doc.addPage('letter', 'landscape')
+    const tablaStartY = drawProgramaHeader(doc, eje, 20)
 
     // Encabezados dobles
     const headRow1 = [
@@ -605,7 +540,7 @@ export function generarPDF({
     autoTable(doc, {
       head: [headRow1, headRow2],
       body: bodyRows,
-      startY: 20,
+      startY: tablaStartY,
       margin: { left: indMargin, right: indMargin, bottom: 60, top: 20 },
       styles: {
         fontSize: FONT_SZ, cellPadding: [1.5, 1.2, 1.5, 1.2],
