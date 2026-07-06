@@ -346,6 +346,144 @@ export async function getAvancesValidadosMes(areaId, mes, anio) {
     .sort((a, b) => (a.clave || '').localeCompare(b.clave || '', 'es'))
 }
 
+/* ── Corrección/desvalidación de avances (admin/planeación) ─────────────── */
+
+// Inserta una fila de trazabilidad en audit_log (esquema JSONB: datos_antes/datos_nuevo).
+export async function registrarAuditLog({ tabla, accion, registro_id, usuario_id, datos_antes, datos_nuevo }) {
+  const { error } = await supabase.from('audit_log').insert({
+    tabla, accion, registro_id: String(registro_id), usuario_id, datos_antes, datos_nuevo,
+  })
+  if (error) throw error
+}
+
+// Todos los indicadores de un área con su avance del mes (incluye validado=false
+// y los que aún no tienen avance capturado), para el panel "Ver indicadores".
+export async function getAvancesDetalleArea(areaId, mes, anio) {
+  const [{ data: inds, error: eInd }, { data: avs, error: eAv }] = await Promise.all([
+    supabase.from('indicadores').select('id, clave, nombre, nivel_mir').eq('area_id', areaId).order('clave'),
+    supabase.from('avances')
+      .select('id, indicador_id, meta_programada, resultado, pct_cumplimiento, semaforo, validado, validado_at')
+      .eq('mes', mes).eq('anio', anio),
+  ])
+  if (eInd) throw eInd
+  if (eAv) throw eAv
+
+  const avMap = Object.fromEntries((avs || []).map(a => [a.indicador_id, a]))
+  return (inds || []).map(ind => {
+    const av = avMap[ind.id] || {}
+    return {
+      avance_id:         av.id ?? null,
+      indicador_id:      ind.id,
+      clave:             ind.clave || '-',
+      nombre:            ind.nombre || '',
+      nivel_mir:         ind.nivel_mir || '-',
+      meta_programada:   av.meta_programada ?? null,
+      resultado:         av.resultado ?? null,
+      pct_cumplimiento:  av.pct_cumplimiento ?? null,
+      semaforo:          av.semaforo ?? null,
+      validado:          av.validado ?? false,
+      validado_at:       av.validado_at ?? null,
+    }
+  })
+}
+
+// Recalcula pct_cumplimiento/semaforo sustituyendo el mes corregido dentro del
+// acumulado ENE→mes del indicador (misma metodología de guardarAvance), y
+// corrige el avance validado dejando trazabilidad en audit_log.
+export async function corregirAvance(avanceId, nuevoResultado, nuevaMeta, justificacion, usuarioId) {
+  const { data: actual, error: eActual } = await supabase
+    .from('avances')
+    .select('indicador_id, anio, mes, meta_programada, resultado, pct_cumplimiento, semaforo, validado')
+    .eq('id', avanceId).single()
+  if (eActual) throw eActual
+
+  const { data: acumRows, error: eAcum } = await supabase
+    .from('avances')
+    .select('id, meta_programada, resultado')
+    .eq('indicador_id', actual.indicador_id).eq('anio', actual.anio)
+    .gte('mes', 1).lte('mes', actual.mes)
+  if (eAcum) throw eAcum
+
+  const metaNueva = (nuevaMeta === null || nuevaMeta === undefined || nuevaMeta === '')
+    ? actual.meta_programada : parseFloat(nuevaMeta)
+
+  let metaAcum = 0, resultAcum = 0
+  ;(acumRows || []).forEach(row => {
+    if (row.id === avanceId) {
+      metaAcum   += parseFloat(metaNueva ?? 0)
+      resultAcum += parseFloat(nuevoResultado ?? 0)
+    } else {
+      metaAcum   += parseFloat(row.meta_programada ?? 0)
+      resultAcum += parseFloat(row.resultado ?? 0)
+    }
+  })
+
+  const pct = metaAcum > 0 ? resultAcum / metaAcum : (resultAcum > 0 ? resultAcum : null)
+  const semaforo = pct === null ? null
+    : pct >= 1.10 ? 'ÓPTIMO'
+    : pct >= 0.90 ? 'ADECUADO'
+    : pct >= 0.70 ? 'RIESGO'
+    : 'CRÍTICO'
+
+  const { error: eUpdate } = await supabase
+    .from('avances')
+    .update({
+      resultado:        nuevoResultado,
+      meta_programada:  metaNueva,
+      pct_cumplimiento: pct,
+      semaforo,
+      updated_at:       new Date().toISOString(),
+    })
+    .eq('id', avanceId)
+  if (eUpdate) throw eUpdate
+
+  await registrarAuditLog({
+    tabla: 'avances',
+    accion: 'CORRECCION_ADMIN',
+    registro_id: avanceId,
+    usuario_id: usuarioId,
+    datos_antes: {
+      resultado: actual.resultado, meta_programada: actual.meta_programada,
+      pct_cumplimiento: actual.pct_cumplimiento, semaforo: actual.semaforo, validado: actual.validado,
+    },
+    datos_nuevo: {
+      resultado: nuevoResultado, meta_programada: metaNueva,
+      pct_cumplimiento: pct, semaforo, validado: actual.validado, justificacion,
+    },
+  })
+}
+
+// Devuelve el avance al enlace para que lo recapture (conserva el valor, solo
+// desbloquea el registro), dejando el motivo en audit_log.
+export async function desvalidarAvance(avanceId, motivo, usuarioId) {
+  const { data: actual, error: eActual } = await supabase
+    .from('avances')
+    .select('resultado, meta_programada, pct_cumplimiento, semaforo, validado')
+    .eq('id', avanceId).single()
+  if (eActual) throw eActual
+
+  const { error: eUpdate } = await supabase
+    .from('avances')
+    .update({ validado: false, validado_at: null, validado_por: null, updated_at: new Date().toISOString() })
+    .eq('id', avanceId)
+  if (eUpdate) throw eUpdate
+
+  await registrarAuditLog({
+    tabla: 'avances',
+    accion: 'DESVALIDACION_ADMIN',
+    registro_id: avanceId,
+    usuario_id: usuarioId,
+    datos_antes: {
+      resultado: actual.resultado, meta_programada: actual.meta_programada,
+      pct_cumplimiento: actual.pct_cumplimiento, semaforo: actual.semaforo, validado: true,
+    },
+    datos_nuevo: {
+      resultado: actual.resultado, meta_programada: actual.meta_programada,
+      pct_cumplimiento: actual.pct_cumplimiento, semaforo: actual.semaforo, validado: false, justificacion: motivo,
+    },
+  })
+}
+
 /* ── EVIDENCIAS ──────────────────────────────────────────────── */
 export const EVIDENCIAS_BUCKET = 'evidencias'
 export const EVIDENCIAS_MAX_BYTES = 10 * 1024 * 1024
