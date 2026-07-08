@@ -389,9 +389,9 @@ function PantallaAlertas() {
   if (loading) return <Spinner/>
   if (error)   return <ErrMsg msg={error} onRetry={refetch}/>
 
-  const criticos = (data||[]).filter(r=>r.semaforo==='CRÍTICO').slice(0,10)
-  const riesgo   = (data||[]).filter(r=>r.semaforo==='RIESGO').slice(0,8)
-  const logros   = (data||[]).filter(r=>r.semaforo==='ÓPTIMO').slice(0,10)
+  const criticos = (data||[]).filter(r=>r.semaforo==='CRÍTICO').slice(0,20)
+  const riesgo   = (data||[]).filter(r=>r.semaforo==='RIESGO').slice(0,20)
+  const logros   = (data||[]).filter(r=>r.semaforo==='ÓPTIMO').slice(0,20)
 
   const Grupo = ({titulo, items, color}) => (
     <div style={{marginBottom:'1.5rem'}}>
