@@ -1,6 +1,18 @@
-﻿node_modules/
+node_modules/
 dist/
 .env
 .env.local
+.env*.local
 *.local
 .vercel
+.claude/
+
+# Supabase CLI (archivos temporales del proyecto vinculado)
+supabase/.temp/
+
+# Credenciales y respaldos — nunca al repo
+*contraseña*
+*contrasena*
+*password*.txt
+backup_*.sql
+*.backup.sql
