@@ -5,15 +5,8 @@ import { useAuth } from '../hooks/useAuth'
 import { formatPeriodoLabel } from '../utils/periodo'
 import { generarExcelAvanceCaptura } from '../utils/reportes'
 import { getAvancesDetalleArea, corregirAvance, desvalidarAvance } from '../lib/supabase'
-
-const C = {
-  guinda: '#7B1F2C', guindaDark: '#51141D',
-  dorado: '#C8A96E', doradoLight: '#E2C998',
-  bg: '#0D0D0D', bgCard: '#161616', bgPanel: '#1C1C1C',
-  border: '#2A2A2A', txt: '#F0EAE0', txtMuted: '#706050', txtSub: '#A09080',
-  correccion: '#C9A961', desvalidar: '#FF8C00',
-  ok: '#00B050', error: '#C00000',
-}
+import { C } from '../theme.js'
+import { ACCION, overlay, modalBox, ModalCorregir, ModalDesvalidar } from './admin/AvanceCapturaModales.jsx'
 
 const ESTADO_COLOR = {
   COMPLETO:          '#00B050',
@@ -32,24 +25,6 @@ const SEM_COLOR = {
 function pctStr(val) {
   if (val == null) return '—'
   return ((+val) * 100).toFixed(1) + '%'
-}
-
-const overlay = {
-  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
-  display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem',
-}
-const modalBox = {
-  background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12,
-  padding: '1.4rem', width: '100%', boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
-}
-const inp = {
-  width: '100%', background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 8,
-  color: C.txt, padding: '0.55rem 0.75rem', fontSize: '0.82rem', fontFamily: 'inherit',
-  outline: 'none', boxSizing: 'border-box',
-}
-const label = {
-  fontSize: '0.65rem', color: C.txtSub, textTransform: 'uppercase', letterSpacing: 1,
-  display: 'block', marginBottom: 5,
 }
 
 // Orden pedido: primero lo que necesita atención (PENDIENTE), luego EN
@@ -303,7 +278,7 @@ export default function AvanceCaptura() {
 
             {detalleLoading && <div style={{ fontSize: '0.8rem', color: C.txtMuted, padding: '1rem', textAlign: 'center' }}>Cargando indicadores…</div>}
             {detalleError && (
-              <div style={{ background: '#1a0505', border: `1px solid ${C.error}`, borderRadius: 8, padding: '0.75rem 1rem', color: C.error, fontSize: '0.78rem', marginBottom: '0.75rem' }}>
+              <div style={{ background: '#1a0505', border: `1px solid ${ACCION.error}`, borderRadius: 8, padding: '0.75rem 1rem', color: ACCION.error, fontSize: '0.78rem', marginBottom: '0.75rem' }}>
                 ⚠️ {detalleError}
               </div>
             )}
@@ -336,11 +311,11 @@ export default function AvanceCaptura() {
                           {row.validado && row.avance_id ? (
                             <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
                               <button onClick={() => abrirCorregir(row)}
-                                style={{ background: C.correccion, border: 'none', borderRadius: 6, color: '#241a05', padding: '0.3rem 0.55rem', fontSize: '0.65rem', fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer' }}>
+                                style={{ background: ACCION.correccion, border: 'none', borderRadius: 6, color: '#241a05', padding: '0.3rem 0.55rem', fontSize: '0.65rem', fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer' }}>
                                 ✏️ Corregir
                               </button>
                               <button onClick={() => abrirDesvalidar(row)}
-                                style={{ background: C.desvalidar, border: 'none', borderRadius: 6, color: '#2a1600', padding: '0.3rem 0.55rem', fontSize: '0.65rem', fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer' }}>
+                                style={{ background: ACCION.desvalidar, border: 'none', borderRadius: 6, color: '#2a1600', padding: '0.3rem 0.55rem', fontSize: '0.65rem', fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer' }}>
                                 ↩️ Desvalidar
                               </button>
                             </div>
@@ -359,89 +334,22 @@ export default function AvanceCaptura() {
         </div>
       )}
 
-      {/* ── Modal: corregir avance validado ── */}
       {corrigiendo && (
-        <div style={overlay} onClick={() => !corrSaving && setCorrigiendo(null)}>
-          <div style={{ ...modalBox, maxWidth: 460 }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: '0.85rem', fontWeight: 800, color: C.correccion, marginBottom: 4 }}>✏️ Corregir avance validado</div>
-            <div style={{ fontSize: '0.72rem', color: C.txtMuted, marginBottom: '1rem' }}>
-              {corrigiendo.clave} · {corrigiendo.nombre} · {periodoLabel}
-            </div>
-
-            {corrError && (
-              <div style={{ background: '#1a0505', border: `1px solid ${C.error}`, borderRadius: 8, padding: '0.6rem 0.85rem', color: C.error, fontSize: '0.75rem', marginBottom: '0.85rem' }}>
-                ⚠️ {corrError}
-              </div>
-            )}
-
-            <div style={{ display: 'grid', gap: '0.85rem' }}>
-              <div>
-                <label style={label}>Nuevo resultado</label>
-                <input type="number" step="any" value={corrForm.resultado}
-                  onChange={e => setCorrForm(f => ({ ...f, resultado: e.target.value }))} style={inp}/>
-              </div>
-              <div>
-                <label style={label}>Nueva meta (opcional — deja igual si no cambia)</label>
-                <input type="number" step="any" value={corrForm.meta}
-                  onChange={e => setCorrForm(f => ({ ...f, meta: e.target.value }))} style={inp}/>
-              </div>
-              <div>
-                <label style={label}>Justificación (mínimo 10 caracteres)</label>
-                <textarea rows={3} value={corrForm.justificacion}
-                  onChange={e => setCorrForm(f => ({ ...f, justificacion: e.target.value }))}
-                  style={{ ...inp, resize: 'vertical', fontFamily: 'inherit' }}/>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '0.6rem', marginTop: '1.2rem' }}>
-              <button onClick={guardarCorreccion} disabled={corrSaving}
-                style={{ flex: 1, background: corrSaving ? '#444' : C.correccion, border: 'none', borderRadius: 8, color: '#241a05', padding: '0.65rem', fontSize: '0.8rem', fontWeight: 800, fontFamily: 'inherit', cursor: corrSaving ? 'not-allowed' : 'pointer' }}>
-                {corrSaving ? '⏳ Guardando…' : '💾 Guardar corrección'}
-              </button>
-              <button onClick={() => setCorrigiendo(null)} disabled={corrSaving}
-                style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, color: C.txtMuted, padding: '0.65rem 1rem', fontSize: '0.8rem', fontFamily: 'inherit', cursor: 'pointer' }}>
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
+        <ModalCorregir
+          row={corrigiendo} periodoLabel={periodoLabel}
+          form={corrForm} setForm={setCorrForm}
+          error={corrError} saving={corrSaving}
+          onGuardar={guardarCorreccion} onClose={() => setCorrigiendo(null)}
+        />
       )}
 
-      {/* ── Modal: desvalidar avance ── */}
       {desvalidando && (
-        <div style={overlay} onClick={() => !desvSaving && setDesvalidando(null)}>
-          <div style={{ ...modalBox, maxWidth: 460 }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: '0.85rem', fontWeight: 800, color: C.desvalidar, marginBottom: 4 }}>↩️ Desvalidar avance</div>
-            <div style={{ fontSize: '0.72rem', color: C.txtMuted, marginBottom: '1rem' }}>
-              {desvalidando.clave} · {desvalidando.nombre} · {periodoLabel}
-            </div>
-
-            <div style={{ background: '#2a1600', border: `1px solid ${C.desvalidar}`, borderRadius: 8, padding: '0.75rem 1rem', color: C.doradoLight, fontSize: '0.76rem', marginBottom: '1rem', lineHeight: 1.5 }}>
-              Esta acción devolverá el indicador al enlace para que lo recapture. El avance actual se conserva pero quedará desbloqueado.
-            </div>
-
-            {desvError && (
-              <div style={{ background: '#1a0505', border: `1px solid ${C.error}`, borderRadius: 8, padding: '0.6rem 0.85rem', color: C.error, fontSize: '0.75rem', marginBottom: '0.85rem' }}>
-                ⚠️ {desvError}
-              </div>
-            )}
-
-            <label style={label}>Motivo de desvalidación (mínimo 10 caracteres)</label>
-            <textarea rows={3} value={desvMotivo} onChange={e => setDesvMotivo(e.target.value)}
-              style={{ ...inp, resize: 'vertical', fontFamily: 'inherit' }}/>
-
-            <div style={{ display: 'flex', gap: '0.6rem', marginTop: '1.2rem' }}>
-              <button onClick={confirmarDesvalidacion} disabled={desvSaving}
-                style={{ flex: 1, background: desvSaving ? '#444' : C.desvalidar, border: 'none', borderRadius: 8, color: '#2a1600', padding: '0.65rem', fontSize: '0.8rem', fontWeight: 800, fontFamily: 'inherit', cursor: desvSaving ? 'not-allowed' : 'pointer' }}>
-                {desvSaving ? '⏳ Procesando…' : '↩️ Confirmar desvalidación'}
-              </button>
-              <button onClick={() => setDesvalidando(null)} disabled={desvSaving}
-                style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, color: C.txtMuted, padding: '0.65rem 1rem', fontSize: '0.8rem', fontFamily: 'inherit', cursor: 'pointer' }}>
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
+        <ModalDesvalidar
+          row={desvalidando} periodoLabel={periodoLabel}
+          motivo={desvMotivo} setMotivo={setDesvMotivo}
+          error={desvError} saving={desvSaving}
+          onConfirmar={confirmarDesvalidacion} onClose={() => setDesvalidando(null)}
+        />
       )}
     </div>
   )
