@@ -161,6 +161,45 @@ Estimaciones asumen 1 desarrollador con apoyo de Claude Code.
 
 ---
 
+## FASE 5 — Multi-municipio y comercialización (Kalan Consulting)
+
+Objetivo: convertir SIMA en un producto SaaS replicable para otros
+municipios de Tlaxcala y del país.
+
+### 5.1 Arquitectura multi-tenant
+- Agregar columna municipio_id a todas las tablas principales
+- RLS por municipio: cada municipio solo ve sus propios datos
+- Un solo proyecto Supabase soporta N municipios
+
+### 5.2 Catálogos parametrizables
+- Indicadores, ejes y programas PMD configurables por municipio
+- Import desde Excel para cargar la MIR de cada municipio
+- Plantillas base reutilizables (municipios similares comparten estructura)
+
+### 5.3 Marca blanca por municipio
+- Logo, colores institucionales y nombre configurables
+- Subdominio propio: sima.[municipio].gob.mx o [municipio].sima.kalan.mx
+- Portada del informe de gobierno con identidad del municipio
+
+### 5.4 Panel de super-admin (Kalan)
+- Vista consolidada de todos los municipios activos
+- Métricas de uso, facturación y soporte
+- Activación/desactivación de módulos por municipio
+
+### Modelo de negocio
+| Concepto | Precio |
+|---|---|
+| Implementación inicial | $15,000 - $25,000 MXN |
+| Mensualidad por municipio | $3,000 - $5,000 MXN |
+| Capacitación (2 días) | $8,000 MXN |
+| Soporte anual | $15,000 MXN |
+
+**CA:** un segundo municipio puede ser dado de alta en <1 día hábil;
+sus datos están completamente aislados del municipio de Apizaco;
+el costo de infraestructura incremental por municipio es <$5 USD/mes.
+
+---
+
 ## Priorización sugerida
 
 | Orden | Entrega | Por qué primero |
@@ -173,3 +212,4 @@ Estimaciones asumen 1 desarrollador con apoyo de Claude Code.
 | 6 | 3.1 Portal ciudadano | Máximo valor político/transparencia |
 | 7 | 3.2 + 3.3 IA | Diferenciador; requiere datos limpios de fases previas |
 | 8 | Fase 4 | Sostenibilidad y legado de la administración |
+| 9 | Fase 5 | Comercialización multi-municipio (Kalan Consulting); requiere fases 0–2 maduras |
