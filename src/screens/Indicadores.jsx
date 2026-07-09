@@ -1,11 +1,13 @@
 import { useState, useMemo } from 'react'
-import { useIndicadores } from '../hooks/useSupabase'
+import { useIndicadores, useSparklines } from '../hooks/useSupabase'
 import { useConfiguracionCtx } from '../contexts/ConfiguracionContext'
 import { formatPeriodoLabel } from '../utils/periodo'
 import { semColor } from '../utils/semaforo.js'
 import { C } from '../theme.js'
 import { Spinner, ErrMsg, Pill, Barra } from '../components/ui.jsx'
 import SeccionEvidencias from '../components/SeccionEvidencias'
+import Sparkline from '../components/Sparkline'
+import FichaIndicador from '../components/FichaIndicador'
 
 /* ── INDICADORES ─────────────────────────────────────────────── */
 export default function PantallaIndicadores() {
@@ -16,6 +18,8 @@ export default function PantallaIndicadores() {
   const { mesActual, anioActual } = useConfiguracionCtx()
   const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
   const [expandido, setExpandido] = useState(null)
+  const [fichaRow, setFichaRow] = useState(null)
+  const { data: sparklines } = useSparklines(anioActual)
 
   const inp = {background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:6,color:C.txt,padding:'0.45rem 0.7rem',fontSize:'0.78rem',fontFamily:'inherit',outline:'none'}
 
@@ -69,6 +73,13 @@ export default function PantallaIndicadores() {
                   <span>📌 Meta: <strong style={{color:C.doradoLight}}>{row.meta_evaluable}</strong></span>
                   <span>📊 Real: <strong style={{color:col}}>{row.resultado}</strong></span>
                 </div>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:6}}>
+                  <Sparkline valores={sparklines?.get(row.indicador_id) || []} color={col}/>
+                  <button onClick={e=>{e.stopPropagation(); setFichaRow(row)}}
+                    style={{background:'none',border:`1px solid ${C.border}`,borderRadius:6,color:C.doradoLight,padding:'0.25rem 0.55rem',cursor:'pointer',fontSize:'0.68rem'}}>
+                    📈 Ver ficha
+                  </button>
+                </div>
                 {abierto && (
                   <div onClick={e=>e.stopPropagation()}>
                     <SeccionEvidencias indicadorId={row.indicador_id} mes={mesActual} anio={anioActual}/>
@@ -78,6 +89,18 @@ export default function PantallaIndicadores() {
             )
           })}
         </>
+      )}
+
+      {fichaRow && (
+        <FichaIndicador
+          indicadorId={fichaRow.indicador_id}
+          nombre={fichaRow.indicador}
+          area={fichaRow.area}
+          ejeCodigo={fichaRow.eje_codigo}
+          nivelMir={fichaRow.nivel_mir}
+          anioInicial={anioActual}
+          onClose={()=>setFichaRow(null)}
+        />
       )}
     </div>
   )

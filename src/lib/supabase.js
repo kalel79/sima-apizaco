@@ -28,3 +28,7 @@ export {
   getMetasCatalogo, getMetasIndicadorAnio, getMetasArea, getIndicadoresOrdenados,
   upsertMeta, upsertMetasLote,
 } from './metas.js'
+
+export {
+  getAniosDisponiblesIndicador, getFichaIndicador, getSparklinesAnio,
+} from './historico.js'

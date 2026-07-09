@@ -6,6 +6,7 @@ import { formatPeriodoLabel } from '../utils/periodo'
 import { getSemaforo, semColor } from '../utils/semaforo.js'
 import { C } from '../theme.js'
 import { Spinner, ErrMsg, Pill, Barra, KPI } from '../components/ui.jsx'
+import FichaIndicador from '../components/FichaIndicador'
 
 /* ── DASHBOARD ───────────────────────────────────────────────── */
 export default function PantallaDashboard() {
@@ -137,6 +138,8 @@ export default function PantallaDashboard() {
 function DetalleEje({ejeId, color}) {
   const filtros = useMemo(()=>({ejeId}),[ejeId])
   const {data, loading, error} = useIndicadores(filtros)
+  const { anioActual } = useConfiguracionCtx()
+  const [fichaRow, setFichaRow] = useState(null)
   if (loading) return <Spinner/>
   if (error)   return <ErrMsg msg={error}/>
   return (
@@ -158,9 +161,27 @@ function DetalleEje({ejeId, color}) {
               <span style={{fontSize:'0.78rem',fontWeight:700,color:col,minWidth:44,textAlign:'right'}}>{((row.pct_cumplimiento||0)*100).toFixed(1)}%</span>
               <span style={{fontSize:'0.62rem',color:C.txtMuted,minWidth:55}}>{row.resultado}/{row.meta_evaluable}</span>
             </div>
+            <div style={{display:'flex',justifyContent:'flex-end',marginTop:5}}>
+              <button onClick={()=>setFichaRow(row)}
+                style={{background:'none',border:`1px solid ${C.border}`,borderRadius:6,color:C.doradoLight,padding:'0.25rem 0.55rem',cursor:'pointer',fontSize:'0.65rem'}}>
+                📈 Ver ficha
+              </button>
+            </div>
           </div>
         )
       })}
+
+      {fichaRow && (
+        <FichaIndicador
+          indicadorId={fichaRow.indicador_id}
+          nombre={fichaRow.indicador}
+          area={fichaRow.area}
+          ejeCodigo={fichaRow.eje_codigo}
+          nivelMir={fichaRow.nivel_mir}
+          anioInicial={anioActual}
+          onClose={()=>setFichaRow(null)}
+        />
+      )}
     </div>
   )
 }
