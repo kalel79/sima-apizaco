@@ -129,6 +129,7 @@ Deno.serve(async (req: Request) => {
       cargo,
       rol_id: rol.id,
       area_id: area_id ?? null,
+      primer_login: true,
     })
 
   if (insertErr) {
