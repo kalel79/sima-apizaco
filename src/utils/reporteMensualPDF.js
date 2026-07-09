@@ -145,7 +145,7 @@ function drawGraficasPage(doc, eje, periodoLabel, indsEje, avancesMensuales, mes
 export function generarPDF({
   global: g, ejes, indicadoresPorEje,
   avancesMensuales, mesActual, anioActual,
-  periodoLabel, piloto = false
+  periodoLabel, piloto = false, correccionesExtemporaneas = [],
 }) {
   const ejesToRender = piloto ? ejes.slice(0, 1) : ejes
   const mesAct = mesActual || 5
@@ -229,6 +229,30 @@ export function generarPDF({
     },
     alternateRowStyles: { fillColor: [249, 244, 232] },
   })
+
+  // ── AVISO: correcciones registradas después del cierre de este periodo ─────
+  if (correccionesExtemporaneas.length) {
+    const yExt = doc.lastAutoTable.finalY + 10
+    setFill(doc, [255, 243, 224]); setDraw(doc, [239, 108, 0]); doc.setLineWidth(0.4)
+    doc.roundedRect(resMargin, yExt, RES_TOTAL_W, 10, 2, 2, 'FD')
+    doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); setColor(doc, [180, 80, 0])
+    doc.text(`⚠ ${correccionesExtemporaneas.length} corrección(es) registrada(s) después del cierre de este periodo`, resMargin + 4, yExt + 6.5)
+
+    autoTable(doc, {
+      head: [['Avance', 'Mes', 'Corrigió', 'Fecha', 'Justificación']],
+      body: correccionesExtemporaneas.map(c => [
+        `#${c.registro_id}`,
+        MESES_NOMBRES[(c.datos_nuevo?.mes || 1) - 1],
+        c.usuario?.nombre || '—',
+        formatFecha(new Date(c.created_at)),
+        c.datos_nuevo?.justificacion || '—',
+      ]),
+      startY: yExt + 14,
+      margin: { left: resMargin, right: resMargin },
+      styles: { fontSize: 7.5, cellPadding: 2, overflow: 'linebreak' },
+      headStyles: { fillColor: [239, 108, 0], textColor: BLANCO, fontSize: 7.5 },
+    })
+  }
 
   // ── PÁGINAS POR EJE ────────────────────────────────────────────────────────
   const H_L  = 215.9

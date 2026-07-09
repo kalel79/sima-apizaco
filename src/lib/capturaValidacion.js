@@ -1,6 +1,7 @@
 // ── Captura de avances, validación mensual y correcciones (con audit_log) ─────
 import { supabase } from './supabaseClient.js'
 import { getMetasIndicadorAnio } from './metas.js'
+import { getCierreMensual } from './cierres.js'
 
 /* ── VALIDACIÓN DE CAPTURA (enlace) ─────────────────────────────── */
 export async function getAvanceActual(indicadorId, mes, anio) {
@@ -189,9 +190,11 @@ export async function corregirAvance(avanceId, nuevoResultado, nuevaMeta, justif
     .eq('id', avanceId)
   if (eUpdate) throw eUpdate
 
+  const cierre = await getCierreMensual(actual.anio, actual.mes)
+
   await registrarAuditLog({
     tabla: 'avances',
-    accion: 'CORRECCION_ADMIN',
+    accion: cierre ? 'CORRECCION_EXTEMPORANEA' : 'CORRECCION_ADMIN',
     registro_id: avanceId,
     usuario_id: usuarioId,
     datos_antes: {
@@ -201,6 +204,8 @@ export async function corregirAvance(avanceId, nuevoResultado, nuevaMeta, justif
     datos_nuevo: {
       resultado: nuevoResultado, meta_programada: metaNueva,
       pct_cumplimiento: pct, semaforo, validado: actual.validado, justificacion,
+      anio: actual.anio, mes: actual.mes,
+      ...(cierre ? { cierre_id: cierre.id } : {}),
     },
   })
 }

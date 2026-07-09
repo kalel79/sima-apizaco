@@ -32,3 +32,9 @@ export {
 export {
   getAniosDisponiblesIndicador, getFichaIndicador, getSparklinesAnio,
 } from './historico.js'
+
+export {
+  getCierresMensuales, getCierreMensual, cerrarMesActual,
+  getIndicadoresPorEjeCatalogo, getCorreccionesExtemporaneas,
+  getPeriodosConDatos, getResumenPeriodo,
+} from './cierres.js'

@@ -1,20 +1,90 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { generarPDF, generarExcel, generarPDFPiloto, generarExcelPiloto, generarExcelMetas } from '../../utils/reportes'
 import { generarInformeGobierno } from '../../utils/informeGobierno'
-import { getMetasResultados, getAvancesMensualesPDF, getComparativoPMD, getClavesIndicadores } from '../../lib/supabase'
+import {
+  getMetasResultados, getAvancesMensualesPDF, getComparativoPMD, getClavesIndicadores,
+  getCierresMensuales, getIndicadoresPorEjeCatalogo, getCorreccionesExtemporaneas,
+  getPeriodosConDatos, getResumenPeriodo,
+} from '../../lib/supabase'
+import { formatPeriodoLabel } from '../../utils/periodo'
+import { getSemaforo } from '../../utils/semaforo.js'
 import { C } from '../../theme.js'
+import { inp } from './estilos.js'
 
 // Sección de descarga de reportes del panel Admin. Recibe los datos del
 // reporte desde el padre (instancia única de useDatosReporte).
 export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoading, rError, cargar, mesActual, anioActual, periodoLabel }) {
   const [genStatus, setGenStatus] = useState(null)
+  const [cierres, setCierres] = useState([])
+  const [periodosConDatos, setPeriodosConDatos] = useState([])
+  const [periodoSelKey, setPeriodoSelKey] = useState('actual') // 'actual' | `${anio}-${mes}`
+
+  useEffect(() => {
+    getCierresMensuales().then(setCierres).catch(() => {})
+    getPeriodosConDatos().then(setPeriodosConDatos).catch(() => {})
+  }, [])
+
+  const cierresMap = Object.fromEntries(cierres.map(c => [`${c.anio}-${c.mes}`, c]))
+  // Meses anteriores al periodo activo (el activo se reporta "en vivo" como siempre).
+  const periodosAnteriores = periodosConDatos.filter(p =>
+    p.anio < anioActual || (p.anio === anioActual && p.mes < mesActual)
+  )
+
+  const periodoSel = periodoSelKey === 'actual'
+    ? null
+    : periodosAnteriores.find(p => `${p.anio}-${p.mes}` === periodoSelKey) || null
+  const cierreSel = periodoSel ? cierresMap[`${periodoSel.anio}-${periodoSel.mes}`] || null : null
+
+  // Arma los datos que consumen generarPDF/generarExcel: del periodo activo
+  // en vivo (comportamiento de siempre), de un mes ya cerrado (cifras de
+  // resumen congeladas en cierres_mensuales), o de un mes pasado que nunca
+  // se cerró (recalculado en vivo con la misma fórmula vía RPC
+  // resumen_*_periodo) — en los tres casos, el catálogo de indicadores se
+  // re-acumula desde avances, que ya es independiente del periodo activo.
+  async function resolverDatosReporte() {
+    if (!periodoSel) {
+      const avancesMensuales = await getAvancesMensualesPDF(anioActual)
+      return { global, ejes, indicadoresPorEje, avancesMensuales, mesActual, anioActual, periodoLabel, correccionesExtemporaneas: [] }
+    }
+
+    const [resumen, catalogoPorEje, avancesMensuales, correcciones] = await Promise.all([
+      cierreSel ? Promise.resolve(cierreSel) : getResumenPeriodo(periodoSel.anio, periodoSel.mes),
+      getIndicadoresPorEjeCatalogo(),
+      getAvancesMensualesPDF(periodoSel.anio),
+      getCorreccionesExtemporaneas(periodoSel.anio, periodoSel.mes),
+    ])
+
+    const indicadoresPorEjeCerrado = {}
+    Object.entries(catalogoPorEje).forEach(([codigo, inds]) => {
+      indicadoresPorEjeCerrado[codigo] = inds.map(ind => {
+        const porMes = avancesMensuales[ind.id] || {}
+        let metaAcum = 0, resAcum = 0
+        for (let m = 1; m <= periodoSel.mes; m++) {
+          metaAcum += porMes[m]?.meta || 0
+          resAcum  += porMes[m]?.res  || 0
+        }
+        const pct = metaAcum > 0 ? resAcum / metaAcum : (resAcum > 0 ? resAcum : null)
+        return { ...ind, meta_evaluable: metaAcum, resultado: resAcum, pct_cumplimiento: pct, semaforo: pct == null ? null : getSemaforo(pct) }
+      })
+    })
+
+    return {
+      global: resumen.resumen_global,
+      ejes: resumen.resumen_ejes,
+      indicadoresPorEje: indicadoresPorEjeCerrado,
+      avancesMensuales,
+      mesActual: periodoSel.mes,
+      anioActual: periodoSel.anio,
+      periodoLabel: `${formatPeriodoLabel(periodoSel.mes, periodoSel.anio)} ${cierreSel ? '(cerrado)' : '(recalculado)'}`,
+      correccionesExtemporaneas: correcciones,
+    }
+  }
 
   async function handleGenerarPDF() {
     setGenStatus('cargando')
     try {
-      if (!global) await cargar()
-      const avancesMensuales = await getAvancesMensualesPDF(anioActual)
-      generarPDF({ global, ejes, indicadoresPorEje, avancesMensuales, mesActual, anioActual, periodoLabel })
+      if (!global && !periodoSel) await cargar()
+      generarPDF(await resolverDatosReporte())
       setGenStatus('ok')
     } catch (e) {
       setGenStatus('error:' + e.message)
@@ -24,8 +94,8 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
   async function handleGenerarExcel() {
     setGenStatus('cargando')
     try {
-      if (!global) await cargar()
-      await generarExcel({ global, ejes, indicadoresPorEje, periodoLabel })
+      if (!global && !periodoSel) await cargar()
+      await generarExcel(await resolverDatosReporte())
       setGenStatus('ok')
     } catch (e) {
       setGenStatus('error:' + e.message)
@@ -35,9 +105,8 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
   async function handlePilotoPDF() {
     setGenStatus('cargando')
     try {
-      if (!global) await cargar()
-      const avancesMensuales = await getAvancesMensualesPDF(anioActual)
-      generarPDFPiloto({ global, ejes, indicadoresPorEje, avancesMensuales, mesActual, anioActual, periodoLabel })
+      if (!global && !periodoSel) await cargar()
+      generarPDFPiloto(await resolverDatosReporte())
       setGenStatus('ok')
     } catch (e) {
       setGenStatus('error:' + e.message)
@@ -73,8 +142,8 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
   async function handlePilotoExcel() {
     setGenStatus('cargando')
     try {
-      if (!global) await cargar()
-      await generarExcelPiloto({ global, ejes, indicadoresPorEje, periodoLabel })
+      if (!global && !periodoSel) await cargar()
+      await generarExcelPiloto(await resolverDatosReporte())
       setGenStatus('ok')
     } catch (e) {
       setGenStatus('error:' + e.message)
@@ -86,8 +155,28 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
       <div style={{ fontSize: '0.75rem', fontWeight: 700, color: C.doradoLight, marginBottom: '0.3rem', letterSpacing: 1 }}>
         Reportes
       </div>
-      <div style={{ fontSize: '0.65rem', color: C.txtMuted, marginBottom: '1.2rem' }}>
-        Periodo: {periodoLabel} · {rLoading ? 'Cargando datos…' : `${ejes.length} ejes`}
+      <div style={{ fontSize: '0.65rem', color: C.txtMuted, marginBottom: '0.8rem' }}>
+        Periodo: {periodoSel
+          ? `${formatPeriodoLabel(periodoSel.mes, periodoSel.anio)} ${cierreSel ? '🔒 cerrado' : '🕓 recalculado'}`
+          : periodoLabel} · {rLoading ? 'Cargando datos…' : `${ejes.length} ejes`}
+      </div>
+
+      <div style={{ marginBottom: '1.2rem' }}>
+        <label style={{ fontSize: '0.62rem', color: C.txtSub, textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 5 }}>
+          Periodo a reportar (aplica a PDF Ejecutivo y Excel de Detalle)
+        </label>
+        <select value={periodoSelKey} onChange={e => setPeriodoSelKey(e.target.value)} style={inp}>
+          <option value="actual">Actual (en vivo) · {periodoLabel}</option>
+          {periodosAnteriores.map(p => {
+            const key = `${p.anio}-${p.mes}`
+            const c = cierresMap[key]
+            return (
+              <option key={key} value={key}>
+                {c ? '🔒' : '🕓'} {formatPeriodoLabel(p.mes, p.anio)} · {c ? `cerrado ${new Date(c.cerrado_at).toLocaleDateString('es-MX')}` : 'recalculado'}
+              </option>
+            )
+          })}
+        </select>
       </div>
 
       {rError && (

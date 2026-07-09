@@ -5,7 +5,7 @@ import { XL, semLabel, semaforoEje, pctStr, descargarExcel } from './reportesBas
 // ══════════════════════════════════════════════════════════════════════════════
 // GENERAR EXCEL  (ExcelJS — estilos completos)
 // ══════════════════════════════════════════════════════════════════════════════
-export async function generarExcel({ global: g, ejes, indicadoresPorEje, periodoLabel, piloto = false }) {
+export async function generarExcel({ global: g, ejes, indicadoresPorEje, periodoLabel, piloto = false, correccionesExtemporaneas = [] }) {
   const wb = new ExcelJS.Workbook()
   wb.creator = 'SIMA · Dirección de Planeación y Evaluación'
   wb.created = new Date()
@@ -108,6 +108,27 @@ export async function generarExcel({ global: g, ejes, indicadoresPorEje, periodo
   ])
   totR.eachCell(c => styleTotal(c))
   totR.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' }
+
+  if (correccionesExtemporaneas.length) {
+    wsR.addRow([])
+    const avisoRow = wsR.addRow([`⚠ ${correccionesExtemporaneas.length} corrección(es) registrada(s) después del cierre de este periodo`])
+    wsR.mergeCells(avisoRow.number, 1, avisoRow.number, 8)
+    avisoRow.getCell(1).font      = { bold: true, color: { argb: 'FFB45400' }, size: 10 }
+    avisoRow.getCell(1).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3E0' } }
+    avisoRow.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' }
+
+    const hdrExt = wsR.addRow(['Avance', 'Mes', 'Corrigió', 'Fecha', 'Justificación'])
+    hdrExt.eachCell(c => { c.font = { bold: true, size: 9 }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE0B2' } } })
+    correccionesExtemporaneas.forEach(c => {
+      wsR.addRow([
+        `#${c.registro_id}`,
+        ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'][(c.datos_nuevo?.mes || 1) - 1],
+        c.usuario?.nombre || '—',
+        new Date(c.created_at).toLocaleDateString('es-MX'),
+        c.datos_nuevo?.justificacion || '—',
+      ])
+    })
+  }
 
   wsR.columns = [
     {width:52},{width:12},{width:13},{width:10},{width:10},{width:10},{width:10},{width:14},
