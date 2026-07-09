@@ -77,8 +77,6 @@ export async function generarExcelAvanceCaptura({ areas, periodoLabel }) {
 // ══════════════════════════════════════════════════════════════════════════════
 export async function generarExcelMetas({ indicadores, periodoLabel }) {
   const MESES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC']
-  const META_KEYS = ['meta_ene','meta_feb','meta_mar','meta_abr','meta_may','meta_jun',
-                     'meta_jul','meta_ago','meta_sep','meta_oct','meta_nov','meta_dic']
 
   const wb = new ExcelJS.Workbook()
   wb.creator = 'SIMA · Dirección de Planeación y Evaluación'
@@ -132,7 +130,7 @@ export async function generarExcelMetas({ indicadores, periodoLabel }) {
     const rowVals = [
       idx + 1, ind.eje_codigo, ind.area_nombre, ind.nombre, ind.nivel_mir || '',
       ...MESES.flatMap((_, mi) => {
-        const meta = parseFloat(ind[META_KEYS[mi]] || 0)
+        const meta = parseFloat(ind.metas?.[mi + 1] || 0)
         const av   = ind.avances?.[mi + 1]
         const real = av ? parseFloat(av.resultado) : null
         return [meta === 0 ? '' : meta, real ?? '']
@@ -150,7 +148,7 @@ export async function generarExcelMetas({ indicadores, periodoLabel }) {
     }
     MESES.forEach((_, mi) => {
       const colMeta = 6 + mi * 2, colReal = colMeta + 1
-      const meta = parseFloat(ind[META_KEYS[mi]] || 0)
+      const meta = parseFloat(ind.metas?.[mi + 1] || 0)
       const av   = ind.avances?.[mi + 1]
       const real = av ? parseFloat(av.resultado) : null
       const sem  = av?.semaforo || null

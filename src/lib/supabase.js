@@ -23,3 +23,8 @@ export {
   getIndicadorAreaId, getAvancePorIndicador, listarEvidencias,
   subirEvidencia, borrarEvidencia, getEvidenciaUrl,
 } from './evidencias.js'
+
+export {
+  getMetasCatalogo, getMetasIndicadorAnio, getMetasArea, getIndicadoresOrdenados,
+  upsertMeta, upsertMetasLote,
+} from './metas.js'

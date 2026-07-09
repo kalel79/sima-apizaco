@@ -1,5 +1,6 @@
 // ── Captura de avances, validación mensual y correcciones (con audit_log) ─────
 import { supabase } from './supabaseClient.js'
+import { getMetasIndicadorAnio } from './metas.js'
 
 /* ── VALIDACIÓN DE CAPTURA (enlace) ─────────────────────────────── */
 export async function getAvanceActual(indicadorId, mes, anio) {
@@ -246,29 +247,25 @@ export async function actualizarPeriodo(mes, anio) {
 }
 
 export async function guardarAvance({ indicadorId, mes, anio, resultado, observaciones, usuarioId }) {
-  const MESES_COLS = ['meta_ene','meta_feb','meta_mar','meta_abr','meta_may','meta_jun',
-                      'meta_jul','meta_ago','meta_sep','meta_oct','meta_nov','meta_dic']
-
-  // Leer metas del catálogo y avances previos (meses 1..mes-1) en paralelo
+  // Leer metas del catálogo (año correspondiente) y avances previos (meses 1..mes-1) en paralelo
   const [
-    { data: ind,         error: indError },
+    metasIndicador,
     { data: prevAvances, error: avError  },
   ] = await Promise.all([
-    supabase.from('indicadores').select(MESES_COLS.join(',')).eq('id', indicadorId).single(),
+    getMetasIndicadorAnio(indicadorId, anio),
     supabase.from('avances').select('mes,resultado').eq('indicador_id', indicadorId).eq('anio', anio).lt('mes', mes),
   ])
-  if (indError) throw indError
   if (avError)  throw avError
 
   // meta del mes actual (del catálogo)
-  const metaMes = parseFloat(ind[MESES_COLS[mes - 1]] ?? 0)
+  const metaMes = parseFloat(metasIndicador[mes] ?? 0)
 
   // meta_evaluable: meta del mes; si meta_mes=0 pero hay resultado, usar 1 (regla meta=1)
   const metaEvaluable = (metaMes === 0 && resultado > 0) ? 1 : metaMes
 
   // Acumulado ene→M: suma de metas del catálogo
   let metaAcum = 0
-  for (let m = 1; m <= mes; m++) metaAcum += parseFloat(ind[MESES_COLS[m - 1]] ?? 0)
+  for (let m = 1; m <= mes; m++) metaAcum += parseFloat(metasIndicador[m] ?? 0)
 
   // Acumulado ene→M: resultados previos + resultado actual
   const prevMap = Object.fromEntries((prevAvances || []).map(av => [av.mes, parseFloat(av.resultado ?? 0)]))

@@ -62,7 +62,7 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
   async function handleExcelMetas() {
     setGenStatus('cargando')
     try {
-      const indicadores = await getMetasResultados()
+      const indicadores = await getMetasResultados(anioActual)
       await generarExcelMetas({ indicadores, periodoLabel })
       setGenStatus('ok')
     } catch (e) {

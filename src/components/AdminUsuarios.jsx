@@ -8,6 +8,7 @@ import AvanceCaptura from './AvanceCaptura'
 import GestionUsuarios from './admin/GestionUsuarios.jsx'
 import PeriodoEvaluacion from './admin/PeriodoEvaluacion.jsx'
 import ReportesAdmin from './admin/ReportesAdmin.jsx'
+import MetasPorAnio from './admin/MetasPorAnio.jsx'
 
 export default function AdminUsuarios() {
   const { isAdmin, isPlaneacion } = useAuth()
@@ -59,6 +60,8 @@ export default function AdminUsuarios() {
             mesActual={mesActual} anioActual={anioActual} periodoLabel={periodoLabel}
             refetchCfg={refetchCfg} cargar={cargar}
           />
+
+          <MetasPorAnio/>
 
           <ReportesAdmin
             global={global} ejes={ejes} indicadoresPorEje={indicadoresPorEje}

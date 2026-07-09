@@ -1,5 +1,6 @@
 // ── Consultas de lectura (dashboards, listados y datos para reportes) ─────────
 import { supabase } from './supabaseClient.js'
+import { getMetasCatalogo } from './metas.js'
 
 export async function getDashboardGlobal() {
   const { data, error } = await supabase.from('v_dashboard_global').select('*').single()
@@ -189,18 +190,18 @@ export async function getIndicadoresLista() {
   }))
 }
 
-export async function getMetasResultados() {
-  const MESES_COLS = 'id,nombre,nivel_mir,area_id,meta_ene,meta_feb,meta_mar,meta_abr,meta_may,meta_jun,meta_jul,meta_ago,meta_sep,meta_oct,meta_nov,meta_dic'
-  const [pages, { data: areas, error: eAreas }, { data: ejes, error: eEjes }, { data: avances, error: eAv }] = await Promise.all([
+export async function getMetasResultados(anio = 2026) {
+  const [pages, { data: areas, error: eAreas }, { data: ejes, error: eEjes }, { data: avances, error: eAv }, metasCatalogo] = await Promise.all([
     Promise.all([
-      supabase.from('indicadores').select(MESES_COLS).order('id').range(0,   59),
-      supabase.from('indicadores').select(MESES_COLS).order('id').range(60,  119),
-      supabase.from('indicadores').select(MESES_COLS).order('id').range(120, 179),
-      supabase.from('indicadores').select(MESES_COLS).order('id').range(180, 239),
+      supabase.from('indicadores').select('id,nombre,nivel_mir,area_id').order('id').range(0,   59),
+      supabase.from('indicadores').select('id,nombre,nivel_mir,area_id').order('id').range(60,  119),
+      supabase.from('indicadores').select('id,nombre,nivel_mir,area_id').order('id').range(120, 179),
+      supabase.from('indicadores').select('id,nombre,nivel_mir,area_id').order('id').range(180, 239),
     ]),
     supabase.from('areas').select('id,nombre,eje_id'),
     supabase.from('ejes').select('id,codigo,nombre,orden').order('orden'),
-    supabase.from('avances').select('indicador_id,mes,resultado,pct_cumplimiento,semaforo').eq('anio', 2026),
+    supabase.from('avances').select('indicador_id,mes,resultado,pct_cumplimiento,semaforo').eq('anio', anio),
+    getMetasCatalogo(anio),
   ])
   pages.forEach(p => { if (p.error) throw p.error })
   if (eAreas || eEjes || eAv) throw eAreas || eEjes || eAv
@@ -217,7 +218,10 @@ export async function getMetasResultados() {
   return todos.map(ind => {
     const area = areasMap[ind.area_id] || {}
     const eje  = ejesMap[area.eje_id]  || {}
-    return { ...ind, area_nombre: area.nombre || '', eje_codigo: eje.codigo || '', eje_orden: eje.orden ?? 99, avances: avMap[ind.id] || {} }
+    return {
+      ...ind, area_nombre: area.nombre || '', eje_codigo: eje.codigo || '', eje_orden: eje.orden ?? 99,
+      avances: avMap[ind.id] || {}, metas: metasCatalogo[ind.id] || {},
+    }
   }).sort((a, b) => {
     if (a.eje_orden !== b.eje_orden) return a.eje_orden - b.eje_orden
     if (a.area_nombre !== b.area_nombre) return a.area_nombre.localeCompare(b.area_nombre, 'es')
