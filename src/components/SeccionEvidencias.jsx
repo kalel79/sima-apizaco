@@ -31,7 +31,7 @@ function formatFecha(iso) {
    el area_id del indicador y el avance_id del periodo, así sirve igual
    para Captura (enlace) y para el detalle de Indicadores (admin/planeación). */
 export default function SeccionEvidencias({ indicadorId, mes, anio }) {
-  const { profile, isAdmin, isPlaneacion, isEnlace } = useAuth()
+  const { profile, isAdmin, isPlaneacion, isEnlace, isCoordinador } = useAuth()
   const [areaId,   setAreaId]   = useState(null)
   const [avanceId, setAvanceId] = useState(undefined) // undefined=cargando, null=sin avance
   const [lista,    setLista]    = useState([])
@@ -149,10 +149,12 @@ export default function SeccionEvidencias({ indicadorId, mes, anio }) {
                       <div style={{ fontSize: '0.76rem', color: C.txt, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.nombre_archivo}</div>
                       <div style={{ fontSize: '0.62rem', color: C.txtMuted }}>{formatFecha(ev.created_at)} · {formatTamano(ev.tamano_bytes)}</div>
                     </div>
-                    <button onClick={() => handleDescargar(ev)} title="Descargar"
-                      style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, color: C.doradoLight, padding: '0.35rem 0.5rem', cursor: 'pointer', fontSize: '0.72rem' }}>
-                      ⬇️
-                    </button>
+                    {!isCoordinador && (
+                      <button onClick={() => handleDescargar(ev)} title="Descargar"
+                        style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, color: C.doradoLight, padding: '0.35rem 0.5rem', cursor: 'pointer', fontSize: '0.72rem' }}>
+                        ⬇️
+                      </button>
+                    )}
                     {puedeBorrar && (
                       <button onClick={() => handleBorrar(ev)} title="Borrar"
                         style={{ background: 'none', border: `1px solid ${C.criticoB}55`, borderRadius: 6, color: C.criticoB, padding: '0.35rem 0.5rem', cursor: 'pointer', fontSize: '0.72rem' }}>

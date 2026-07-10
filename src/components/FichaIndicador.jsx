@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { jsPDF } from 'jspdf'
+import { useAuth } from '../hooks/useAuth'
 import { getAniosDisponiblesIndicador, getFichaIndicador } from '../lib/supabase'
 import { semColor } from '../utils/semaforo.js'
 import { MESES_NOMBRES } from '../utils/reportesBase.js'
@@ -26,6 +27,7 @@ function CustomDot(props) {
 }
 
 export default function FichaIndicador({ indicadorId, nombre, area, ejeCodigo, nivelMir, anioInicial, onClose }) {
+  const { isCoordinador } = useAuth()
   const [anios,          setAnios]          = useState([])
   const [anioPrincipal,  setAnioPrincipal]  = useState(anioInicial || null)
   const [aniosComparar,  setAniosComparar]  = useState([])
@@ -126,12 +128,16 @@ export default function FichaIndicador({ indicadorId, nombre, area, ejeCodigo, n
             </label>
           ))}
           <div style={{ flex: 1 }} />
-          <button onClick={() => exportar('png')} disabled={!!exportando} style={btnExport}>
-            {exportando === 'png' ? '⏳' : '🖼️'} PNG
-          </button>
-          <button onClick={() => exportar('pdf')} disabled={!!exportando} style={btnExport}>
-            {exportando === 'pdf' ? '⏳' : '📄'} PDF
-          </button>
+          {!isCoordinador && (
+            <button onClick={() => exportar('png')} disabled={!!exportando} style={btnExport}>
+              {exportando === 'png' ? '⏳' : '🖼️'} PNG
+            </button>
+          )}
+          {!isCoordinador && (
+            <button onClick={() => exportar('pdf')} disabled={!!exportando} style={btnExport}>
+              {exportando === 'pdf' ? '⏳' : '📄'} PDF
+            </button>
+          )}
         </div>
 
         {error && <ErrMsg msg={error} />}

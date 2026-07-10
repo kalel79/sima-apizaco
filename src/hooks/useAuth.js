@@ -144,6 +144,7 @@ export function useAuth() {
     isPlaneacion: rol === 'planeacion',
     isEnlace:     rol === 'enlace',
     isDirectivo:  rol === 'directivo',
+    isCoordinador: rol === 'coordinador',
     refetchProfile,
   }
 }
