@@ -1,6 +1,9 @@
 import ExcelJS from 'exceljs'
 import { LOGO_BASE64 } from '../logo.js'
-import { XL, semLabel, semaforoEje, pctStr, descargarExcel } from './reportesBase.js'
+import {
+  XL, semLabel, semaforoEje, pctStr, descargarExcel,
+  semArgb, styleHeader, styleData, styleTotal, addSheetHeader,
+} from './reportesBase.js'
 
 // ══════════════════════════════════════════════════════════════════════════════
 // GENERAR EXCEL  (ExcelJS — estilos completos)
@@ -15,69 +18,9 @@ export async function generarExcel({ global: g, ejes, indicadoresPorEje, periodo
 
   const ejesToRender = piloto ? ejes.slice(0, 1) : ejes
 
-  const thinB  = { style: 'thin', color: { argb: 'FFD0D0D0' } }
-  const borders = { top: thinB, left: thinB, bottom: thinB, right: thinB }
-
-  function semArgb(sem) {
-    return { 'ÓPTIMO': XL.optimo, 'ADECUADO': XL.adecuado, 'RIESGO': XL.riesgo, 'CRÍTICO': XL.critico }[sem] || XL.gris
-  }
-  function semBgArgb(sem) {
-    return { 'ÓPTIMO': XL.optBg, 'ADECUADO': XL.adeBg, 'RIESGO': XL.riesBg, 'CRÍTICO': XL.critBg }[sem] || XL.grisClaro
-  }
-
-  function styleHeader(cell) {
-    cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.guinda } }
-    cell.font      = { bold: true, color: { argb: XL.blanco }, size: 10 }
-    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
-    cell.border    = borders
-  }
-
-  function styleData(cell, isAlt, semVal) {
-    cell.fill = {
-      type: 'pattern', pattern: 'solid',
-      fgColor: { argb: semVal ? semBgArgb(semVal) : (isAlt ? XL.crema : XL.blanco) },
-    }
-    cell.font = semVal
-      ? { bold: true, color: { argb: semArgb(semVal) }, size: 9.5 }
-      : { size: 9.5 }
-    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
-    cell.border    = borders
-  }
-
-  function styleTotal(cell) {
-    cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.dorado } }
-    cell.font      = { bold: true, color: { argb: XL.blanco }, size: 10 }
-    cell.alignment = { horizontal: 'center', vertical: 'middle' }
-    cell.border    = borders
-  }
-
-  function addSheetHeader(ws, title, isEje = false) {
-    ws.getRow(1).height = 30
-    ws.getRow(2).height = 24
-    ws.getRow(3).height = 20
-    ws.getRow(4).height = 8
-    ws.addImage(logoId, { tl: { col: 0, row: 0 }, ext: { width: 58, height: 58 } })
-    for (let row = 1; row <= 3; row++) {
-      for (let col = 2; col <= 9; col++) {
-        ws.getCell(row, col).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.guinda } }
-      }
-    }
-    ws.mergeCells('B1:I2')
-    const titleCell     = ws.getCell('B1')
-    titleCell.value     = title
-    titleCell.font      = { bold: true, size: isEje ? 16 : 15, color: { argb: XL.blanco } }
-    titleCell.alignment = { horizontal: 'center', vertical: 'middle' }
-    ws.mergeCells('B3:I3')
-    const perCell     = ws.getCell('B3')
-    perCell.value     = `Periodo: ${periodoLabel}`
-    perCell.font      = { size: isEje ? 12 : 11, color: { argb: XL.blanco } }
-    perCell.alignment = { horizontal: 'center', vertical: 'middle' }
-    ws.addRow([])
-  }
-
   const wsR = wb.addWorksheet('Resumen')
   wsR.properties.defaultRowHeight = 14.4
-  addSheetHeader(wsR, 'SIMA – Resumen por Eje Estratégico', false)
+  addSheetHeader(wsR, 'SIMA – Resumen por Eje Estratégico', logoId, periodoLabel, false)
 
   const resHdr = ['Eje Estratégico', 'Total Ind.', '% Avance', 'Óptimo', 'Adecuado', 'Riesgo', 'Crítico', 'Semáforo']
   const rhRow  = wsR.addRow(resHdr)
@@ -144,7 +87,7 @@ export async function generarExcel({ global: g, ejes, indicadoresPorEje, periodo
     const wsName = `${eje.codigo} ${eje.eje}`.substring(0, 31)
     const ws    = wb.addWorksheet(wsName)
     ws.properties.defaultRowHeight = 14.4
-    addSheetHeader(ws, eje.eje, true)
+    addSheetHeader(ws, eje.eje, logoId, periodoLabel, true)
 
     const statRow = ws.addRow([
       `Semáforo eje: ${sem}`,
@@ -161,8 +104,7 @@ export async function generarExcel({ global: g, ejes, indicadoresPorEje, periodo
       c.font      = { size: 10, color: { argb: XL.guinda } }
       c.alignment = { horizontal: 'center', vertical: 'middle' }
     })
-    const semArgbVal = { 'ÓPTIMO': XL.optimo, 'ADECUADO': XL.adecuado, 'RIESGO': XL.riesgo, 'CRÍTICO': XL.critico }[sem] || XL.gris
-    statRow.getCell(1).font = { bold: true, size: 10, color: { argb: semArgbVal } }
+    statRow.getCell(1).font = { bold: true, size: 10, color: { argb: semArgb(sem) } }
     ws.getRow(statRow.number).height = 16
 
     const hRow = ws.addRow(IND_HDR)
@@ -195,7 +137,7 @@ export async function generarExcel({ global: g, ejes, indicadoresPorEje, periodo
   if (!piloto) {
     const wsA  = wb.addWorksheet('Todos los Indicadores')
     wsA.properties.defaultRowHeight = 14.4
-    addSheetHeader(wsA, 'Todos los Indicadores – Vista Global', false)
+    addSheetHeader(wsA, 'Todos los Indicadores – Vista Global', logoId, periodoLabel, false)
     const allHdr = ['#', 'Eje', 'Nivel MIR', 'Indicador', 'Área', 'Meta', 'Resultado', '% Avance', 'Semáforo']
     const hRowA  = wsA.addRow(allHdr)
     hRowA.eachCell(c => styleHeader(c))

@@ -31,6 +31,69 @@ export const XL = {
   critBg:   'FFFFEBEE',
 }
 
+// ── Helpers de estilo Excel (ExcelJS) — compartidos entre generarExcel() y
+// generarExcelEjecutivo() ──────────────────────────────────────────────────────
+const XL_THIN_BORDER = { style: 'thin', color: { argb: 'FFD0D0D0' } }
+const XL_BORDERS = { top: XL_THIN_BORDER, left: XL_THIN_BORDER, bottom: XL_THIN_BORDER, right: XL_THIN_BORDER }
+
+export function semArgb(sem) {
+  return { 'ÓPTIMO': XL.optimo, 'ADECUADO': XL.adecuado, 'RIESGO': XL.riesgo, 'CRÍTICO': XL.critico }[sem] || XL.gris
+}
+export function semBgArgb(sem) {
+  return { 'ÓPTIMO': XL.optBg, 'ADECUADO': XL.adeBg, 'RIESGO': XL.riesBg, 'CRÍTICO': XL.critBg }[sem] || XL.grisClaro
+}
+
+export function styleHeader(cell) {
+  cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.guinda } }
+  cell.font      = { bold: true, color: { argb: XL.blanco }, size: 10 }
+  cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+  cell.border    = XL_BORDERS
+}
+
+export function styleData(cell, isAlt, semVal) {
+  cell.fill = {
+    type: 'pattern', pattern: 'solid',
+    fgColor: { argb: semVal ? semBgArgb(semVal) : (isAlt ? XL.crema : XL.blanco) },
+  }
+  cell.font = semVal
+    ? { bold: true, color: { argb: semArgb(semVal) }, size: 9.5 }
+    : { size: 9.5 }
+  cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+  cell.border    = XL_BORDERS
+}
+
+export function styleTotal(cell) {
+  cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.dorado } }
+  cell.font      = { bold: true, color: { argb: XL.blanco }, size: 10 }
+  cell.alignment = { horizontal: 'center', vertical: 'middle' }
+  cell.border    = XL_BORDERS
+}
+
+// logoId: id devuelto por wb.addImage(...) · periodoLabel: texto de la fila 3
+export function addSheetHeader(ws, title, logoId, periodoLabel, isEje = false) {
+  ws.getRow(1).height = 30
+  ws.getRow(2).height = 24
+  ws.getRow(3).height = 20
+  ws.getRow(4).height = 8
+  ws.addImage(logoId, { tl: { col: 0, row: 0 }, ext: { width: 58, height: 58 } })
+  for (let row = 1; row <= 3; row++) {
+    for (let col = 2; col <= 9; col++) {
+      ws.getCell(row, col).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.guinda } }
+    }
+  }
+  ws.mergeCells('B1:I2')
+  const titleCell     = ws.getCell('B1')
+  titleCell.value     = title
+  titleCell.font      = { bold: true, size: isEje ? 16 : 15, color: { argb: XL.blanco } }
+  titleCell.alignment = { horizontal: 'center', vertical: 'middle' }
+  ws.mergeCells('B3:I3')
+  const perCell     = ws.getCell('B3')
+  perCell.value     = `Periodo: ${periodoLabel}`
+  perCell.font      = { size: isEje ? 12 : 11, color: { argb: XL.blanco } }
+  perCell.alignment = { horizontal: 'center', vertical: 'middle' }
+  ws.addRow([])
+}
+
 // ── Catálogo de firmas ────────────────────────────────────────────────────────
 export const FIRMAS_RESP = {
   E1: { nombre: 'Cap. José Ramón Jacques Mena',     cargo: 'Director de Seguridad Pública' },

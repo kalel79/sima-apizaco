@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { generarPDF, generarExcel, generarPDFPiloto, generarExcelPiloto, generarExcelMetas } from '../../utils/reportes'
+import { generarPDF, generarExcel, generarExcelEjecutivo, generarPDFPiloto, generarExcelPiloto, generarExcelMetas } from '../../utils/reportes'
 import { generarInformeGobierno } from '../../utils/informeGobierno'
 import {
   getMetasResultados, getAvancesMensualesPDF, getComparativoPMD, getClavesIndicadores,
@@ -96,6 +96,17 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
     try {
       if (!global && !periodoSel) await cargar()
       await generarExcel(await resolverDatosReporte())
+      setGenStatus('ok')
+    } catch (e) {
+      setGenStatus('error:' + e.message)
+    }
+  }
+
+  async function handleGenerarExcelEjecutivo() {
+    setGenStatus('cargando')
+    try {
+      if (!global && !periodoSel) await cargar()
+      await generarExcelEjecutivo(await resolverDatosReporte())
       setGenStatus('ok')
     } catch (e) {
       setGenStatus('error:' + e.message)
@@ -302,6 +313,27 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
               Generando…
             </>
           ) : '📊 Descargar Excel de Detalle'}
+        </button>
+
+        <button
+          onClick={handleGenerarExcelEjecutivo}
+          disabled={rLoading || genStatus === 'cargando'}
+          style={{
+            flex: 1, minWidth: 180,
+            background: rLoading || genStatus === 'cargando' ? '#444' : `linear-gradient(135deg,#3d3010,#7a5f1c)`,
+            border: 'none', borderRadius: 8, color: C.txt,
+            padding: '0.75rem 1rem', fontSize: '0.82rem', fontWeight: 700,
+            fontFamily: 'inherit', cursor: rLoading || genStatus === 'cargando' ? 'not-allowed' : 'pointer',
+            letterSpacing: 1, opacity: rLoading ? 0.6 : 1,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          }}
+        >
+          {genStatus === 'cargando' ? (
+            <>
+              <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid #ffffff44', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}/>
+              Generando…
+            </>
+          ) : '📈 Descargar Excel Ejecutivo'}
         </button>
       </div>
     </div>
