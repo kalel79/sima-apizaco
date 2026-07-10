@@ -5,10 +5,11 @@ import { C } from '../../theme.js'
 import { inp } from './estilos.js'
 
 const ROLES = [
-  { value: 'admin',      label: 'Administrador' },
-  { value: 'planeacion', label: 'Planeación' },
-  { value: 'enlace',     label: 'Enlace de Área' },
-  { value: 'directivo',  label: 'Directivo' },
+  { value: 'admin',       label: 'Administrador' },
+  { value: 'planeacion',  label: 'Planeación' },
+  { value: 'enlace',      label: 'Enlace de Área' },
+  { value: 'directivo',   label: 'Directivo' },
+  { value: 'coordinador', label: 'Coordinador de Área' },
 ]
 
 export default function GestionUsuarios() {
