@@ -24,9 +24,9 @@ const NAV_ANTES_PMD = [
   {id:'areas',      l:'Áreas',      icon:'🏢'},
 ]
 const NAV_PMD = {id:'pmd', l:'PMD', icon:'🗺️'}
+const NAV_CAPTURA = {id:'captura', l:'Captura', icon:'✍️'}
 const NAV_DESPUES_PMD = [
   {id:'alertas',    l:'Alertas',    icon:'🔔'},
-  {id:'captura',    l:'Captura',    icon:'✍️'},
 ]
 
 export default function App() {
@@ -35,7 +35,8 @@ export default function App() {
 
   // PMD: visible para admin/planeación/directivo — el enlace solo captura sus indicadores
   const puedeVerPMD = isAdmin || isPlaneacion || isDirectivo
-  const NAV = [...NAV_ANTES_PMD, ...(puedeVerPMD ? [NAV_PMD] : []), ...NAV_DESPUES_PMD]
+  const puedeCapturar = isAdmin || isPlaneacion || isEnlace
+  const NAV = [...NAV_ANTES_PMD, ...(puedeVerPMD ? [NAV_PMD] : []), ...NAV_DESPUES_PMD, ...(puedeCapturar ? [NAV_CAPTURA] : [])]
   const { mesActual, anioActual, loading: cfgLoading, refetch: refetchCfg } = useConfiguracion()
   const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
 
@@ -150,7 +151,7 @@ export default function App() {
         {pan==='areas'       && <PantallaAreas/>}
         {pan==='pmd'         && puedeVerPMD && <PantallaPMD/>}
         {pan==='alertas'     && <PantallaAlertas/>}
-        {pan==='captura'     && <PantallaCaptura areaCoordinador={isEnlace ? area : null}/>}
+        {pan==='captura'     && puedeCapturar && <PantallaCaptura areaCoordinador={isEnlace ? area : null}/>}
         {pan==='admin'       && (isAdmin || isPlaneacion) && <AdminUsuarios/>}
       </main>
 
