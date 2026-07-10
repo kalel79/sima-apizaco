@@ -11,12 +11,14 @@ import ReportesAdmin from './admin/ReportesAdmin.jsx'
 import MetasPorAnio from './admin/MetasPorAnio.jsx'
 
 export default function AdminUsuarios() {
-  const { isAdmin, isPlaneacion } = useAuth()
+  const { isAdmin, isPlaneacion, isDirectivo } = useAuth()
+  const puedeVerReportesAdmin = isAdmin || isPlaneacion || isDirectivo
   const TABS = [
     ...(isAdmin ? [{ id: 'usuarios', label: '👥 Gestión de Usuarios' }] : []),
     ...((isAdmin || isPlaneacion) ? [{ id: 'captura', label: '📊 Avance de Captura' }] : []),
+    ...(puedeVerReportesAdmin ? [{ id: 'reportes', label: '📄 Reportes' }] : []),
   ]
-  const [adminTab, setAdminTab] = useState(isAdmin ? 'usuarios' : 'captura')
+  const [adminTab, setAdminTab] = useState(isAdmin ? 'usuarios' : (isPlaneacion ? 'captura' : 'reportes'))
 
   const { mesActual, anioActual, refetchCfg } = useConfiguracionCtx()
   const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
@@ -62,7 +64,11 @@ export default function AdminUsuarios() {
           />
 
           <MetasPorAnio/>
+        </div>
+      )}
 
+      {adminTab === 'reportes' && puedeVerReportesAdmin && (
+        <div style={{ maxWidth: 560 }}>
           <ReportesAdmin
             global={global} ejes={ejes} indicadoresPorEje={indicadoresPorEje}
             rLoading={rLoading} rError={rError} cargar={cargar}

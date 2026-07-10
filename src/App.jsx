@@ -36,6 +36,7 @@ export default function App() {
   // PMD: visible para admin/planeación/directivo — el enlace solo captura sus indicadores
   const puedeVerPMD = isAdmin || isPlaneacion || isDirectivo
   const puedeCapturar = isAdmin || isPlaneacion || isEnlace
+  const puedeVerAdmin = isAdmin || isPlaneacion || isDirectivo
   const NAV = [...NAV_ANTES_PMD, ...(puedeVerPMD ? [NAV_PMD] : []), ...NAV_DESPUES_PMD, ...(puedeCapturar ? [NAV_CAPTURA] : [])]
   const { mesActual, anioActual, loading: cfgLoading, refetch: refetchCfg } = useConfiguracion()
   const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
@@ -132,7 +133,7 @@ export default function App() {
               <span style={{display:'block',fontSize:15,marginBottom:1}}>{n.icon}</span>{n.l}
             </button>
           ))}
-          {(isAdmin || isPlaneacion) && (
+          {puedeVerAdmin && (
             <button onClick={()=>setPan('admin')}
               style={{flex:1,padding:'0.65rem 0.3rem',border:'none',background:pan==='admin'?`${C.guinda}33`:'none',cursor:'pointer',fontFamily:'inherit',fontSize:'0.68rem',letterSpacing:2,textTransform:'uppercase',whiteSpace:'nowrap',
                 color:pan==='admin'?C.dorado:C.txtMuted,
@@ -152,7 +153,7 @@ export default function App() {
         {pan==='pmd'         && puedeVerPMD && <PantallaPMD/>}
         {pan==='alertas'     && <PantallaAlertas/>}
         {pan==='captura'     && puedeCapturar && <PantallaCaptura areaCoordinador={isEnlace ? area : null}/>}
-        {pan==='admin'       && (isAdmin || isPlaneacion) && <AdminUsuarios/>}
+        {pan==='admin'       && puedeVerAdmin && <AdminUsuarios/>}
       </main>
 
       <footer style={{borderTop:`1px solid ${C.border}`,padding:'0.6rem 1rem',textAlign:'center',fontSize:'0.58rem',color:C.txtMuted,letterSpacing:1}}>
