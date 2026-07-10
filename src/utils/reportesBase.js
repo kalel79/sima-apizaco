@@ -70,28 +70,44 @@ export function styleTotal(cell) {
 }
 
 // logoId: id devuelto por wb.addImage(...) · periodoLabel: texto de la fila 3
-export function addSheetHeader(ws, title, logoId, periodoLabel, isEje = false) {
+// totalCols: ancho real de la tabla de esa hoja — el banner cubre desde la
+// columna 1 hasta totalCols, sin dejar columnas sin colorear.
+export function addSheetHeader(ws, title, logoId, periodoLabel, totalCols, isEje = false) {
   ws.getRow(1).height = 30
   ws.getRow(2).height = 24
   ws.getRow(3).height = 20
   ws.getRow(4).height = 8
-  ws.addImage(logoId, { tl: { col: 0, row: 0 }, ext: { width: 58, height: 58 } })
   for (let row = 1; row <= 3; row++) {
-    for (let col = 2; col <= 9; col++) {
+    for (let col = 1; col <= totalCols; col++) {
       ws.getCell(row, col).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.guinda } }
     }
   }
-  ws.mergeCells('B1:I2')
-  const titleCell     = ws.getCell('B1')
+  ws.addImage(logoId, { tl: { col: 0, row: 0 }, ext: { width: 64, height: 64 } })
+  ws.mergeCells(1, 2, 2, totalCols)
+  const titleCell     = ws.getCell(1, 2)
   titleCell.value     = title
   titleCell.font      = { bold: true, size: isEje ? 16 : 15, color: { argb: XL.blanco } }
-  titleCell.alignment = { horizontal: 'center', vertical: 'middle' }
-  ws.mergeCells('B3:I3')
-  const perCell     = ws.getCell('B3')
+  titleCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+  ws.mergeCells(3, 2, 3, totalCols)
+  const perCell     = ws.getCell(3, 2)
   perCell.value     = `Periodo: ${periodoLabel}`
   perCell.font      = { size: isEje ? 12 : 11, color: { argb: XL.blanco } }
   perCell.alignment = { horizontal: 'center', vertical: 'middle' }
   ws.addRow([])
+}
+
+// Estima la altura (en puntos) que necesita una fila para que ninguno de sus
+// textos se corte al hacer wrap dentro del ancho de su columna (en "unidades
+// de ancho" de ExcelJS). Conservador a propósito: prefiere fila más alta de
+// lo necesario a que el texto se desborde o se corte.
+export function alturaAjustada(textos, anchos, lineaPt = 12.5, minPt = 14.4) {
+  let maxLineas = 1
+  textos.forEach((t, i) => {
+    const ancho = Math.max(6, anchos[i] || 20)
+    const lineas = Math.max(1, Math.ceil(String(t ?? '').length / ancho))
+    if (lineas > maxLineas) maxLineas = lineas
+  })
+  return Math.max(minPt, maxLineas * lineaPt + 4)
 }
 
 // ── Catálogo de firmas ────────────────────────────────────────────────────────

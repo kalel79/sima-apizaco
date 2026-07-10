@@ -1,9 +1,11 @@
 import ExcelJS from 'exceljs'
 import { LOGO_BASE64 } from '../logo.js'
 import {
-  semaforoEje, pctStr, descargarExcel,
+  MESES_NOMBRES, semaforoEje, pctStr, descargarExcel, alturaAjustada,
   styleHeader, styleData, styleTotal, addSheetHeader,
 } from './reportesBase.js'
+
+const RES_COLS = 8 // Eje/TotalInd/%Avance/Óptimo/Adecuado/Riesgo/Crítico/Semáforo
 
 // ══════════════════════════════════════════════════════════════════════════════
 // GENERAR EXCEL EJECUTIVO — solo la hoja "Resumen" (equivalente al PDF Ejecutivo:
@@ -20,7 +22,7 @@ export async function generarExcelEjecutivo({ global: g, ejes, periodoLabel, cor
 
   const wsR = wb.addWorksheet('Resumen')
   wsR.properties.defaultRowHeight = 14.4
-  addSheetHeader(wsR, 'SIMA – Resumen Ejecutivo', logoId, periodoLabel, false)
+  addSheetHeader(wsR, 'SIMA – Resumen Ejecutivo', logoId, periodoLabel, RES_COLS, false)
 
   const resHdr = ['Eje Estratégico', 'Total Ind.', '% Avance', 'Óptimo', 'Adecuado', 'Riesgo', 'Crítico', 'Semáforo']
   const rhRow  = wsR.addRow(resHdr)
@@ -35,8 +37,7 @@ export async function generarExcelEjecutivo({ global: g, ejes, periodoLabel, cor
     ])
     const isAlt = i % 2 === 1
     row.eachCell((c, col) => styleData(c, isAlt, col === 8 ? sem : null))
-    row.getCell(1).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true }
-    for (let c = 2; c <= 7; c++) row.getCell(c).alignment = { horizontal: 'center', vertical: 'middle' }
+    row.height = alturaAjustada([e.eje], [58])
   })
 
   const totR = wsR.addRow([
@@ -50,31 +51,39 @@ export async function generarExcelEjecutivo({ global: g, ejes, periodoLabel, cor
     '',
   ])
   totR.eachCell(c => styleTotal(c))
-  totR.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' }
 
   if (correccionesExtemporaneas.length) {
     wsR.addRow([])
     const avisoRow = wsR.addRow([`⚠ ${correccionesExtemporaneas.length} corrección(es) registrada(s) después del cierre de este periodo`])
-    wsR.mergeCells(avisoRow.number, 1, avisoRow.number, 8)
+    wsR.mergeCells(avisoRow.number, 1, avisoRow.number, RES_COLS)
     avisoRow.getCell(1).font      = { bold: true, color: { argb: 'FFB45400' }, size: 10 }
     avisoRow.getCell(1).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3E0' } }
-    avisoRow.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' }
+    avisoRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' }
 
     const hdrExt = wsR.addRow(['Avance', 'Mes', 'Corrigió', 'Fecha', 'Justificación'])
-    hdrExt.eachCell(c => { c.font = { bold: true, size: 9 }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE0B2' } } })
+    hdrExt.eachCell(c => {
+      c.font = { bold: true, size: 9 }
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE0B2' } }
+      c.alignment = { horizontal: 'center', vertical: 'middle' }
+    })
     correccionesExtemporaneas.forEach(c => {
-      wsR.addRow([
+      const fila = wsR.addRow([
         `#${c.registro_id}`,
-        ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'][(c.datos_nuevo?.mes || 1) - 1],
+        MESES_NOMBRES[(c.datos_nuevo?.mes || 1) - 1],
         c.usuario?.nombre || '—',
         new Date(c.created_at).toLocaleDateString('es-MX'),
         c.datos_nuevo?.justificacion || '—',
       ])
+      fila.eachCell(cc => { cc.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true } })
+      fila.height = alturaAjustada(
+        ['', '', '', '', c.datos_nuevo?.justificacion || ''],
+        [12, 8, 12, 12, 60],
+      )
     })
   }
 
   wsR.columns = [
-    {width:52},{width:12},{width:13},{width:10},{width:10},{width:10},{width:10},{width:14},
+    {width:58},{width:12},{width:13},{width:10},{width:10},{width:10},{width:10},{width:14},
   ]
   wsR.views = [{ state: 'frozen', xSplit: 0, ySplit: 5 }]
 
