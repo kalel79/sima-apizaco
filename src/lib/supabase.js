@@ -37,4 +37,6 @@ export {
   getCierresMensuales, getCierreMensual, cerrarMesActual,
   getIndicadoresPorEjeCatalogo, getCorreccionesExtemporaneas,
   getPeriodosConDatos, getResumenPeriodo,
+  getPublicacionesTransparencia, publicarTransparencia, despublicarTransparencia,
+  getTransparenciaPublica,
 } from './cierres.js'

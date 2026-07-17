@@ -123,6 +123,91 @@ export async function getResumenPeriodo(anio, mes) {
   }
 }
 
+/* ── Portal de transparencia (fase 3.1) ──────────────────────────────────── */
+
+// Meses cerrados que ya están marcados como publicados — para pintar el
+// toggle en el panel admin (no confundir con getTransparenciaPublica, que
+// es la lectura pública sin login).
+export async function getPublicacionesTransparencia() {
+  const { data, error } = await supabase
+    .from('transparencia_publicaciones')
+    .select('cierre_id, publicado_at')
+  if (error) throw error
+  return data || []
+}
+
+const DESTACADOS_MAX = 3
+
+// Top N indicadores (solo ÓPTIMO/ADECUADO — nunca se destaca públicamente un
+// indicador en riesgo o crítico) del mes que se está publicando, para
+// congelarlos en transparencia_publicaciones.destacados. Curado automático
+// simple; el admin no elige manualmente cuáles en esta primera versión.
+async function calcularDestacados(anio, mes) {
+  const { data, error } = await supabase.rpc('resumen_indicadores_periodo', { p_anio: anio, p_mes: mes })
+  if (error) throw error
+  return (data || [])
+    .filter(i => i.semaforo === 'ÓPTIMO' || i.semaforo === 'ADECUADO')
+    .sort((a, b) => (b.pct || 0) - (a.pct || 0))
+    .slice(0, DESTACADOS_MAX)
+    .map(i => ({ clave: i.clave, nombre: i.indicador, area: i.area, pct: i.pct, semaforo: i.semaforo }))
+}
+
+export async function publicarTransparencia(cierreId, anio, mes, usuarioId) {
+  const destacados = await calcularDestacados(anio, mes)
+  const { error } = await supabase
+    .from('transparencia_publicaciones')
+    .insert({ cierre_id: cierreId, publicado_por: usuarioId, destacados })
+  if (error) {
+    if (error.code === '23505') throw new Error('Este mes ya está publicado en Transparencia.')
+    throw error
+  }
+  await supabase.from('audit_log').insert({
+    tabla: 'transparencia_publicaciones', accion: 'PUBLICAR', registro_id: String(cierreId),
+    usuario_id: usuarioId, datos_antes: null, datos_nuevo: { anio, mes, destacados },
+  })
+}
+
+export async function despublicarTransparencia(cierreId, anio, mes, usuarioId) {
+  const { error } = await supabase
+    .from('transparencia_publicaciones')
+    .delete()
+    .eq('cierre_id', cierreId)
+  if (error) throw error
+  await supabase.from('audit_log').insert({
+    tabla: 'transparencia_publicaciones', accion: 'DESPUBLICAR', registro_id: String(cierreId),
+    usuario_id: usuarioId, datos_antes: { anio, mes }, datos_nuevo: null,
+  })
+}
+
+// Lectura pública (anon, sin login) vía función SECURITY DEFINER: solo
+// devuelve meses explícitamente publicados, más reciente primero. Endpoint
+// público sin autenticación en un proyecto de plan gratuito de Supabase —
+// dos mitigaciones de abuso además del LIMIT ya fijo en la función SQL:
+//   1. { get: true } fuerza GET en vez de POST — precondición para que
+//      cualquier CDN/navegador pueda cachear la respuesta (POST no es
+//      cacheable). La función es STABLE, así que PostgREST lo permite.
+//   2. Caché de 60 s en sessionStorage: quien recarga /transparencia varias
+//      veces (o un bot que la recorre) no genera una llamada nueva por
+//      visita. No sustituye un límite de tasa real de infraestructura
+//      (fuera de alcance de este repo — requeriría configurar el proyecto
+//      de Supabase o un WAF/CDN delante, ninguno de los dos accesible
+//      desde aquí), pero acota el patrón de abuso más común y barato.
+const CACHE_KEY = 'sima_transparencia_publica'
+const CACHE_TTL_MS = 60_000
+
+export async function getTransparenciaPublica() {
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(CACHE_KEY) || 'null')
+    if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.data
+  } catch { /* sessionStorage no disponible o corrupto: seguir sin caché */ }
+
+  const { data, error } = await supabase.rpc('get_transparencia_publica', {}, { get: true })
+  if (error) throw error
+
+  try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), data: data || [] })) } catch { /* cuota llena: no es crítico */ }
+  return data || []
+}
+
 // Correcciones registradas después del cierre de un periodo (ver
 // corregirAvance en capturaValidacion.js, que marca CORRECCION_EXTEMPORANEA).
 export async function getCorreccionesExtemporaneas(anio, mes) {

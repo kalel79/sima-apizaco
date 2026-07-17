@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { actualizarPeriodo, getCierreMensual, cerrarMesActual } from '../../lib/supabase'
+import {
+  actualizarPeriodo, getCierreMensual, cerrarMesActual,
+  getPublicacionesTransparencia, publicarTransparencia, despublicarTransparencia,
+} from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { C } from '../../theme.js'
 import { inp } from './estilos.js'
@@ -25,6 +28,11 @@ export default function PeriodoEvaluacion({ mesActual, anioActual, periodoLabel,
   const [cierreSaving,  setCierreSaving]  = useState(false)
   const [cierreError,   setCierreError]   = useState(null)
 
+  // Publicación en el portal de transparencia (fase 3.1) del cierre vigente
+  const [publicado,        setPublicado]        = useState(undefined) // undefined=cargando, null=no publicado
+  const [publicadoSaving,  setPublicadoSaving]  = useState(false)
+  const [publicadoError,   setPublicadoError]   = useState(null)
+
   // Inicializar selectors cuando carga la config
   useEffect(() => {
     if (mesActual && anioActual && cfgMes === null) {
@@ -40,6 +48,16 @@ export default function PeriodoEvaluacion({ mesActual, anioActual, periodoLabel,
   }, [mesActual, anioActual])
 
   useEffect(() => { cargarCierre() }, [cargarCierre])
+
+  // El toggle de publicación solo tiene sentido una vez que el mes está
+  // cerrado (cierre.id es el que referencia transparencia_publicaciones).
+  useEffect(() => {
+    if (!cierre?.id) { setPublicado(cierre === null ? null : undefined); return }
+    setPublicado(undefined)
+    getPublicacionesTransparencia()
+      .then(pubs => setPublicado(pubs.some(p => p.cierre_id === cierre.id) ? true : null))
+      .catch(e => setPublicadoError(e.message))
+  }, [cierre])
 
   async function handleConfirmarPeriodo() {
     setCfgSaving(true)
@@ -68,6 +86,32 @@ export default function PeriodoEvaluacion({ mesActual, anioActual, periodoLabel,
     } finally {
       setCierreSaving(false)
       setCierrePending(false)
+    }
+  }
+
+  async function handlePublicar() {
+    setPublicadoSaving(true)
+    setPublicadoError(null)
+    try {
+      await publicarTransparencia(cierre.id, cierre.anio, cierre.mes, profile?.id)
+      setPublicado(true)
+    } catch (e) {
+      setPublicadoError(e.message)
+    } finally {
+      setPublicadoSaving(false)
+    }
+  }
+
+  async function handleDespublicar() {
+    setPublicadoSaving(true)
+    setPublicadoError(null)
+    try {
+      await despublicarTransparencia(cierre.id, cierre.anio, cierre.mes, profile?.id)
+      setPublicado(null)
+    } catch (e) {
+      setPublicadoError(e.message)
+    } finally {
+      setPublicadoSaving(false)
     }
   }
 
@@ -142,8 +186,63 @@ export default function PeriodoEvaluacion({ mesActual, anioActual, periodoLabel,
         )}
 
         {cierre && (
-          <div style={{ fontSize: '0.76rem', color: C.optimoB }}>
+          <div style={{ fontSize: '0.76rem', color: C.optimoB, marginBottom: '0.8rem' }}>
             🔒 Cerrado el {formatFecha(cierre.cerrado_at)}{cierre.cerrado_por?.nombre ? ` por ${cierre.cerrado_por.nombre}` : ''}.
+          </div>
+        )}
+
+        {cierre && (
+          <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: '0.8rem' }}>
+            <div style={{ fontSize: '0.65rem', fontWeight: 700, color: C.doradoLight, marginBottom: 6, letterSpacing: 1 }}>
+              Portal de Transparencia
+            </div>
+
+            {publicadoError && (
+              <div style={{ color: '#ff6b6b', fontSize: '0.74rem', marginBottom: 8 }}>⚠️ {publicadoError}</div>
+            )}
+
+            {publicado === undefined && (
+              <div style={{ fontSize: '0.74rem', color: C.txtMuted }}>Consultando estado de publicación…</div>
+            )}
+
+            {publicado === true && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div style={{ fontSize: '0.74rem', color: C.optimoB }}>
+                  🌐 Publicado — cualquier persona puede ver el resumen de {periodoLabel} en /transparencia, sin iniciar sesión.
+                </div>
+                <button
+                  onClick={handleDespublicar}
+                  disabled={publicadoSaving}
+                  style={{
+                    background: 'transparent', border: `1px solid ${C.criticoB}`, borderRadius: 6, color: '#ff6b6b',
+                    padding: '0.45rem 0.9rem', fontSize: '0.72rem', fontWeight: 700,
+                    fontFamily: 'inherit', cursor: publicadoSaving ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
+                  }}
+                >
+                  {publicadoSaving ? '⏳…' : 'Retirar del portal'}
+                </button>
+              </div>
+            )}
+
+            {publicado === null && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div style={{ fontSize: '0.72rem', color: C.txtMuted }}>
+                  Aún no es visible al público. Publícalo cuando las cifras de {periodoLabel} estén listas para difundirse.
+                </div>
+                <button
+                  onClick={handlePublicar}
+                  disabled={publicadoSaving}
+                  style={{
+                    background: publicadoSaving ? '#444' : `linear-gradient(135deg,${C.guindaDark},${C.guinda})`,
+                    border: 'none', borderRadius: 6, color: '#fff',
+                    padding: '0.45rem 0.9rem', fontSize: '0.72rem', fontWeight: 700,
+                    fontFamily: 'inherit', cursor: publicadoSaving ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
+                  }}
+                >
+                  {publicadoSaving ? '⏳…' : '🌐 Publicar en Transparencia'}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

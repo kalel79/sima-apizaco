@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/transparencia", "destination": "/index.html" },
+    { "source": "/transparencia/(.*)", "destination": "/index.html" }
+  ]
+}

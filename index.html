@@ -7,6 +7,15 @@
     <meta name="description" content="SIMA – Sistema de Información Municipal de Avance · H. Ayuntamiento de Apizaco" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>SIMA · Apizaco</title>
+
+    <!-- Open Graph: cubre tanto la app como /transparencia — sin SSR no hay
+         forma de variar esto por mes cerrado, así que queda genérico
+         (pendiente si se quiere un og:image dinámico por corte). -->
+    <meta property="og:title" content="Transparencia SIMA · H. Ayuntamiento de Apizaco" />
+    <meta property="og:description" content="Consulta sin necesidad de cuenta el cumplimiento de metas municipales por eje estratégico, mes a mes." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/logo-apizaco.png" />
+    <meta name="twitter:card" content="summary" />
     <style>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
       html, body, #root { height: 100%; }
