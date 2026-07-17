@@ -138,15 +138,18 @@ export async function getPublicacionesTransparencia() {
 
 const DESTACADOS_MAX = 3
 
-// Top N indicadores (solo ÓPTIMO/ADECUADO — nunca se destaca públicamente un
-// indicador en riesgo o crítico) del mes que se está publicando, para
-// congelarlos en transparencia_publicaciones.destacados. Curado automático
-// simple; el admin no elige manualmente cuáles en esta primera versión.
+// Top N indicadores dentro del rango ADECUADO (0.90–1.10) del mes que se
+// está publicando, para congelarlos en transparencia_publicaciones.
+// destacados. A propósito NO incluye ÓPTIMO (cumplimiento >110% suele
+// significar una meta mal calibrada, no un logro que valga destacar
+// públicamente) ni RIESGO/CRÍTICO (nunca se exhibe públicamente un
+// indicador en problemas). Curado automático simple; el admin no elige
+// manualmente cuáles en esta primera versión.
 async function calcularDestacados(anio, mes) {
   const { data, error } = await supabase.rpc('resumen_indicadores_periodo', { p_anio: anio, p_mes: mes })
   if (error) throw error
   return (data || [])
-    .filter(i => i.semaforo === 'ÓPTIMO' || i.semaforo === 'ADECUADO')
+    .filter(i => i.semaforo === 'ADECUADO')
     .sort((a, b) => (b.pct || 0) - (a.pct || 0))
     .slice(0, DESTACADOS_MAX)
     .map(i => ({ clave: i.clave, nombre: i.indicador, area: i.area, pct: i.pct, semaforo: i.semaforo }))
