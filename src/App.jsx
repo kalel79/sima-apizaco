@@ -16,6 +16,7 @@ import PantallaIndicadores from './screens/Indicadores.jsx'
 import PantallaAreas from './screens/Areas.jsx'
 import PantallaAlertas from './screens/Alertas.jsx'
 import PantallaCaptura from './screens/Captura.jsx'
+import PantallaASM from './screens/PantallaASM.jsx'
 
 /* ── APP PRINCIPAL ───────────────────────────────────────────── */
 const NAV_ANTES_PMD = [
@@ -25,6 +26,7 @@ const NAV_ANTES_PMD = [
 ]
 const NAV_PMD = {id:'pmd', l:'PMD', icon:'🗺️'}
 const NAV_CAPTURA = {id:'captura', l:'Captura', icon:'✍️'}
+const NAV_ASM = {id:'asm', l:'ASM', icon:'📋'}
 const NAV_DESPUES_PMD = [
   {id:'alertas',    l:'Alertas',    icon:'🔔'},
 ]
@@ -37,7 +39,10 @@ export default function App() {
   const puedeVerPMD = isAdmin || isPlaneacion || isDirectivo
   const puedeCapturar = isAdmin || isPlaneacion || isEnlace
   const puedeVerAdmin = isAdmin || isPlaneacion || isDirectivo
-  const NAV = [...NAV_ANTES_PMD, ...(puedeVerPMD ? [NAV_PMD] : []), ...NAV_DESPUES_PMD, ...(puedeCapturar ? [NAV_CAPTURA] : [])]
+  // ASM: dashboard visible para admin/planeación/directivo (igual que PMD);
+  // el enlace entra solo para registrar/dar seguimiento a sus hallazgos.
+  const puedeVerASM = isAdmin || isPlaneacion || isDirectivo || isEnlace
+  const NAV = [...NAV_ANTES_PMD, ...(puedeVerPMD ? [NAV_PMD] : []), ...NAV_DESPUES_PMD, ...(puedeVerASM ? [NAV_ASM] : []), ...(puedeCapturar ? [NAV_CAPTURA] : [])]
   const { mesActual, anioActual, loading: cfgLoading, refetch: refetchCfg } = useConfiguracion()
   const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
 
@@ -152,6 +157,7 @@ export default function App() {
         {pan==='areas'       && <PantallaAreas/>}
         {pan==='pmd'         && puedeVerPMD && <PantallaPMD/>}
         {pan==='alertas'     && <PantallaAlertas/>}
+        {pan==='asm'         && puedeVerASM && <PantallaASM/>}
         {pan==='captura'     && puedeCapturar && <PantallaCaptura areaCoordinador={isEnlace ? area : null}/>}
         {pan==='admin'       && puedeVerAdmin && <AdminUsuarios/>}
       </main>

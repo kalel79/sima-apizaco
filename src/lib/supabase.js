@@ -40,3 +40,12 @@ export {
   getPublicacionesTransparencia, publicarTransparencia, despublicarTransparencia,
   getTransparenciaPublica,
 } from './cierres.js'
+
+export {
+  getAsmConsolidado, getAccionesAbiertas, getPctCumplimientoIndicador,
+  crearHallazgo, crearAccionMejora, actualizarAvanceAccion, crearRecurso,
+} from './asm.js'
+
+export {
+  listarEvidenciasAsm, subirEvidenciaAsm, borrarEvidenciaAsm, getEvidenciaAsmUrl,
+} from './asmEvidencias.js'

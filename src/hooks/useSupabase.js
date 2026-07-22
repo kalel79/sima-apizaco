@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   getDashboardGlobal, getResumenEjes, getResumenAreas,
   getAlertasLogros, getIndicadores, getIndicadoresLista, getComparativoPMD,
-  getAvanceCapturaAreas, getSparklinesAnio
+  getAvanceCapturaAreas, getSparklinesAnio, getAsmConsolidado
 } from '../lib/supabase'
 
 function useQuery(fn, deps = []) {
@@ -64,4 +64,11 @@ export function useAvanceCapturaAreas() {
 
 export function useSparklines(anio) {
   return useQuery(() => getSparklinesAnio(anio), [anio])
+}
+
+export function useAsmConsolidado(filtros = {}) {
+  return useQuery(
+    () => getAsmConsolidado(filtros),
+    [filtros.ejeCodigo, filtros.areaId, filtros.tipoHallazgo, filtros.estatus]
+  )
 }
