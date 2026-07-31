@@ -8,9 +8,10 @@ export default function PantallaAlertas() {
   if (loading) return <Spinner/>
   if (error)   return <ErrMsg msg={error} onRetry={refetch}/>
 
-  const criticos = (data||[]).filter(r=>r.semaforo==='CRÍTICO').slice(0,20)
-  const riesgo   = (data||[]).filter(r=>r.semaforo==='RIESGO').slice(0,20)
-  const logros   = (data||[]).filter(r=>r.semaforo==='ÓPTIMO').slice(0,20)
+  const porPctAsc = (a,b)=>(a.pct_cumplimiento||0)-(b.pct_cumplimiento||0)
+  const criticos = (data||[]).filter(r=>r.semaforo==='CRÍTICO').sort(porPctAsc).slice(0,20)
+  const riesgo   = (data||[]).filter(r=>r.semaforo==='RIESGO').sort(porPctAsc).slice(0,20)
+  const logros   = (data||[]).filter(r=>r.semaforo==='ÓPTIMO').sort(porPctAsc).slice(0,20)
 
   const Grupo = ({titulo, items, color}) => (
     <div style={{marginBottom:'1.5rem'}}>
