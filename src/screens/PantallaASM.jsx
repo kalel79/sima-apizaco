@@ -8,6 +8,7 @@ import { C } from '../theme.js'
 import { Spinner, ErrMsg, KPI } from '../components/ui.jsx'
 import CapturaASM from './CapturaASM.jsx'
 import SeguimientoASM from './SeguimientoASM.jsx'
+import SeccionEvidenciasASM from '../components/SeccionEvidenciasASM'
 
 const TIPOS = ['CRÍTICO', 'RIESGO', 'ADECUADO', 'ÓPTIMO']
 const ESTATUS = ['No Iniciado', 'En Proceso', 'Cerrado', 'Atrasado']
@@ -165,6 +166,7 @@ function DashboardASM() {
 }
 
 function FilaASM({ f }) {
+  const [verEvidencia, setVerEvidencia] = useState(false)
   const col = SEM_COLOR[f.tipo_hallazgo] || C.txtMuted
   const estatusColor = f.estatus === 'Atrasado' ? C.criticoB : f.estatus === 'Cerrado' ? C.optimoB : C.dorado
   return (
@@ -180,14 +182,24 @@ function FilaASM({ f }) {
       </div>
       <div style={{ fontSize: '0.75rem', color: C.txtSub, marginBottom: 6 }}>{f.hallazgo}</div>
       <div style={{ fontSize: '0.74rem', color: C.txt, marginBottom: 4 }}>➡️ {f.accion}</div>
-      <div style={{ display: 'flex', gap: 12, fontSize: '0.65rem', color: C.txtMuted, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 12, fontSize: '0.65rem', color: C.txtMuted, flexWrap: 'wrap', alignItems: 'center' }}>
         <span>👤 {f.responsable_nombre || '—'}</span>
         <span>📅 Compromiso: {f.fecha_compromiso}</span>
         <span>📊 {f.porcentaje_avance}%</span>
         <span style={{ color: estatusColor, fontWeight: 700 }}>
           {f.estatus}{f.estatus !== 'Cerrado' ? ` (${f.dias_al_vencimiento >= 0 ? f.dias_al_vencimiento + ' días' : Math.abs(f.dias_al_vencimiento) + ' días de retraso'})` : ''}
         </span>
+        <button onClick={() => setVerEvidencia(v => !v)}
+          style={{ marginLeft: 'auto', background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, color: C.doradoLight, padding: '0.3rem 0.6rem', fontSize: '0.65rem', fontFamily: 'inherit', cursor: 'pointer' }}>
+          {verEvidencia ? '▲ Ocultar evidencia' : '📎 Evidencia'}
+        </button>
       </div>
+
+      {verEvidencia && (
+        <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 10, paddingTop: 10 }}>
+          <SeccionEvidenciasASM hallazgoId={f.hallazgo_id} areaId={f.area_id} />
+        </div>
+      )}
     </div>
   )
 }
