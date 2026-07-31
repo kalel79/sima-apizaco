@@ -160,6 +160,10 @@ export async function corregirAvance(avanceId, nuevoResultado, nuevaMeta, justif
   const metaNueva = (nuevaMeta === null || nuevaMeta === undefined || nuevaMeta === '')
     ? actual.meta_programada : parseFloat(nuevaMeta)
 
+  // meta_evaluable: misma regla que guardarAvance (meta=1 si la meta del mes
+  // es 0 pero hay resultado), para que no quede desincronizada tras corregir.
+  const metaEvaluable = (metaNueva === 0 && nuevoResultado > 0) ? 1 : metaNueva
+
   let metaAcum = 0, resultAcum = 0
   ;(acumRows || []).forEach(row => {
     if (row.id === avanceId) {
@@ -183,6 +187,7 @@ export async function corregirAvance(avanceId, nuevoResultado, nuevaMeta, justif
     .update({
       resultado:        nuevoResultado,
       meta_programada:  metaNueva,
+      meta_evaluable:   metaEvaluable,
       pct_cumplimiento: pct,
       semaforo,
       updated_at:       new Date().toISOString(),
