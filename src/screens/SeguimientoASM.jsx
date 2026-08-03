@@ -1,13 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getAccionesAbiertas, actualizarAvanceAccion } from '../lib/supabase'
-import { useAuth } from '../hooks/useAuth'
 import { C } from '../theme.js'
 import { Spinner, ErrMsg } from '../components/ui.jsx'
 
-// Actualización de acciones de mejora abiertas: enlace ve/edita las de su
-// propia área; admin/planeación ven/editan todas (mismo alcance que RLS).
+// Actualización de acciones de mejora abiertas: admin/planeación ven/editan
+// todas (mismo alcance que RLS).
 export default function SeguimientoASM() {
-  const { profile, isEnlace } = useAuth()
   const [data,      setData]      = useState(null)
   const [loading,   setLoading]   = useState(true)
   const [error,     setError]     = useState(null)
@@ -15,11 +13,11 @@ export default function SeguimientoASM() {
 
   const cargar = useCallback(() => {
     setLoading(true); setError(null)
-    getAccionesAbiertas({ areaId: isEnlace ? profile?.area_id : undefined })
+    getAccionesAbiertas()
       .then(setData)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false))
-  }, [isEnlace, profile?.area_id])
+  }, [])
 
   useEffect(() => { cargar() }, [cargar])
 
@@ -50,7 +48,7 @@ export default function SeguimientoASM() {
   return (
     <div>
       <div style={{ fontSize: '0.62rem', letterSpacing: 3, color: C.dorado, textTransform: 'uppercase', marginBottom: '0.8rem' }}>
-        📆 Seguimiento de acciones ASM {isEnlace ? '· mi área' : ''}
+        📆 Seguimiento de acciones ASM
       </div>
 
       {loading && <Spinner />}

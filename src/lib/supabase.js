@@ -43,9 +43,21 @@ export {
 
 export {
   getAsmConsolidado, getAccionesAbiertas, getPctCumplimientoIndicador,
-  crearHallazgo, crearAccionMejora, actualizarAvanceAccion, crearRecurso,
+  crearHallazgo, actualizarHallazgo, crearAccionMejora, actualizarAvanceAccion, crearRecurso,
 } from './asm.js'
 
 export {
   listarEvidenciasAsm, subirEvidenciaAsm, borrarEvidenciaAsm, getEvidenciaAsmUrl,
 } from './asmEvidencias.js'
+
+export {
+  getProgramaIdDeArea, getProgramasLista, getIndicadoresDePrograma, getAreasDePrograma,
+  crearIndicador, resolverDatosMML,
+  upsertDiagnostico, eliminarDiagnostico,
+  upsertArbolNodo, eliminarArbolNodo,
+  upsertInvolucrado, eliminarInvolucrado,
+  upsertAccionAlternativa, eliminarAccionAlternativa, generarAccionesDesdeMedios,
+  actualizarNodoMIR, actualizarFichaIndicador,
+  upsertVariable, eliminarVariable, upsertValorVariable,
+  actualizarPresupuesto, actualizarEncabezadoPrograma,
+} from './mml.js'

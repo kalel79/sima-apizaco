@@ -1,7 +1,6 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useIndicadoresLista } from '../hooks/useSupabase'
 import { crearHallazgo, crearAccionMejora, getPctCumplimientoIndicador } from '../lib/supabase'
-import { useAuth } from '../hooks/useAuth'
 import { C } from '../theme.js'
 import { Pill } from '../components/ui.jsx'
 import SeccionEvidenciasASM from '../components/SeccionEvidenciasASM'
@@ -13,18 +12,25 @@ const inp = { width: '100%', background: C.bgPanel, border: `1px solid ${C.borde
 const lbl = { fontSize: '0.68rem', color: C.txtSub, textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 4 }
 
 export default function CapturaASM() {
-  const { profile, isEnlace, area } = useAuth()
   const { data: listaCompleta, loading: loadLista } = useIndicadoresLista()
+  const lista = listaCompleta || []
 
-  // Enlace solo captura hallazgos de indicadores de su propia área.
-  const lista = useMemo(() => {
-    if (!listaCompleta) return []
-    if (isEnlace) return listaCompleta.filter(i => i.area_id === profile?.area_id)
-    return listaCompleta
-  }, [listaCompleta, isEnlace, profile?.area_id])
-
+  const [areaTabId, setAreaTabId] = useState('')
   const [indicadorId, setIndicadorId] = useState('')
   const [cumplimiento, setCumplimiento] = useState(null) // { pct_cumplimiento, semaforo } | null
+
+  const areas = useMemo(() => {
+    const map = new Map()
+    lista.forEach(i => { if (i.area_id != null) map.set(i.area_id, i.area_nombre) })
+    return Array.from(map, ([id, nombre]) => ({ id, nombre })).sort((a, b) => a.nombre.localeCompare(b.nombre))
+  }, [lista])
+
+  const listaFiltrada = areaTabId ? lista.filter(i => i.area_id === +areaTabId) : lista
+
+  function handleAreaTab(id) {
+    setAreaTabId(id)
+    setIndicadorId('')
+  }
 
   const [form, setForm] = useState({
     origenAsm: '', tipoAsmConeval: '', hallazgo: '', justificacion: '',
@@ -82,7 +88,7 @@ export default function CapturaASM() {
     <div style={{ maxWidth: 640 }}>
       <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '1.2rem' }}>
         <div style={{ fontSize: '0.62rem', letterSpacing: 3, color: C.dorado, textTransform: 'uppercase', marginBottom: '1rem' }}>
-          📋 Registrar hallazgo ASM {isEnlace ? `· ${area}` : ''}
+          📋 Registrar hallazgo ASM
         </div>
 
         {status === 'ok' && hallazgoCreado && (
@@ -98,16 +104,38 @@ export default function CapturaASM() {
 
         <div style={{ display: 'grid', gap: '0.75rem' }}>
           <div>
-            <label style={lbl}>Indicador {isEnlace ? `de ${area}` : ''}</label>
+            <label style={lbl}>Indicador</label>
             {loadLista ? (
               <div style={{ fontSize: '0.78rem', color: C.txtMuted, padding: '0.5rem' }}>Cargando indicadores…</div>
             ) : (
-              <select value={indicadorId} onChange={e => setIndicadorId(e.target.value)} style={inp}>
-                <option value="">— Selecciona un indicador —</option>
-                {lista.map(i => (
-                  <option key={i.id} value={i.id}>[{i.area_nombre}] {i.nombre}</option>
-                ))}
-              </select>
+              <>
+                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 6 }}>
+                  <button type="button" onClick={() => handleAreaTab('')}
+                    style={{
+                      background: areaTabId === '' ? C.guinda : C.bgPanel, border: `1px solid ${areaTabId === '' ? C.guinda : C.border}`,
+                      borderRadius: 999, color: areaTabId === '' ? '#fff' : C.txtSub, padding: '0.3rem 0.65rem', fontSize: '0.66rem',
+                      fontWeight: areaTabId === '' ? 700 : 400, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap',
+                    }}>
+                    Todas
+                  </button>
+                  {areas.map(a => (
+                    <button key={a.id} type="button" onClick={() => handleAreaTab(String(a.id))}
+                      style={{
+                        background: areaTabId === String(a.id) ? C.guinda : C.bgPanel, border: `1px solid ${areaTabId === String(a.id) ? C.guinda : C.border}`,
+                        borderRadius: 999, color: areaTabId === String(a.id) ? '#fff' : C.txtSub, padding: '0.3rem 0.65rem', fontSize: '0.66rem',
+                        fontWeight: areaTabId === String(a.id) ? 700 : 400, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap',
+                      }}>
+                      {a.nombre}
+                    </button>
+                  ))}
+                </div>
+                <select value={indicadorId} onChange={e => setIndicadorId(e.target.value)} style={inp}>
+                  <option value="">— Selecciona un indicador —</option>
+                  {listaFiltrada.map(i => (
+                    <option key={i.id} value={i.id}>{areaTabId ? i.nombre : `[${i.area_nombre}] ${i.nombre}`}</option>
+                  ))}
+                </select>
+              </>
             )}
           </div>
 

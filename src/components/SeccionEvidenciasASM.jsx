@@ -15,16 +15,16 @@ function formatFecha(iso) {
 }
 
 /* Evidencias de un hallazgo ASM. areaId es el área del indicador ligado al
-   hallazgo (para construir el path de Storage y decidir quién puede subir). */
+   hallazgo (para construir el path de Storage). */
 export default function SeccionEvidenciasASM({ hallazgoId, areaId }) {
-  const { user, profile, isAdmin, isPlaneacion, isEnlace } = useAuth()
+  const { user, isAdmin, isPlaneacion } = useAuth()
   const [lista,    setLista]    = useState([])
   const [loading,  setLoading]  = useState(true)
   const [subiendo, setSubiendo] = useState(false)
   const [error,    setError]    = useState(null)
   const [medioVerificacion, setMedioVerificacion] = useState('')
 
-  const puedeSubir = isAdmin || isPlaneacion || (isEnlace && profile?.area_id === areaId)
+  const puedeSubir = isAdmin || isPlaneacion
 
   const cargar = useCallback(async () => {
     setLoading(true); setError(null)

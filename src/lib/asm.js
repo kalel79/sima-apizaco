@@ -54,6 +54,21 @@ export async function crearHallazgo({ indicadorId, origenAsm, tipoAsmConeval, ha
   return data
 }
 
+export async function actualizarHallazgo(hallazgoId, { hallazgo, justificacion } = {}) {
+  const patch = {}
+  if (hallazgo != null) patch.hallazgo = hallazgo
+  if (justificacion !== undefined) patch.justificacion = justificacion || null
+
+  const { data, error } = await supabase
+    .from('asm_hallazgos')
+    .update(patch)
+    .eq('id', hallazgoId)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
 export async function crearAccionMejora({ hallazgoId, accion, responsableNombre, fechaInicio, fechaCompromiso }) {
   const { data, error } = await supabase
     .from('asm_acciones_mejora')

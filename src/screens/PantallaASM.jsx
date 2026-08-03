@@ -4,6 +4,7 @@ import { useConfiguracionCtx } from '../contexts/ConfiguracionContext'
 import { formatPeriodoLabel } from '../utils/periodo'
 import { generarExcelASM } from '../utils/reportesExcelASM'
 import { useAuth } from '../hooks/useAuth'
+import { actualizarHallazgo } from '../lib/asm.js'
 import { C } from '../theme.js'
 import { Spinner, ErrMsg, KPI } from '../components/ui.jsx'
 import CapturaASM from './CapturaASM.jsx'
@@ -15,8 +16,11 @@ const ESTATUS = ['No Iniciado', 'En Proceso', 'Cerrado', 'Atrasado']
 const SEM_COLOR = { 'ÓPTIMO': C.optimoB, 'ADECUADO': C.adecuadoB, 'RIESGO': C.riesgoB, 'CRÍTICO': C.criticoB }
 
 export default function PantallaASM() {
-  const { isAdmin, isPlaneacion, isEnlace } = useAuth()
-  const puedeCapturarASM = isAdmin || isPlaneacion || isEnlace
+  const { isAdmin, isPlaneacion } = useAuth()
+  // Desde 20260729161059_fase_asm_restringir_lectura_sin_enlace.sql, enlace
+  // perdió el alcance de escritura en ASM — ya no se le muestran estas
+  // pestañas (antes fallaban en silencio contra RLS).
+  const puedeCapturarASM = isAdmin || isPlaneacion
   const [tab, setTab] = useState('dashboard')
 
   const tabs = [
@@ -50,6 +54,8 @@ export default function PantallaASM() {
 }
 
 function DashboardASM() {
+  const { isAdmin, isPlaneacion } = useAuth()
+  const puedeEditarHallazgo = isAdmin || isPlaneacion
   const [ejeCodigo, setEjeCodigo] = useState('')
   const [areaId, setAreaId] = useState('')
   const [tipoHallazgo, setTipoHallazgo] = useState('')
@@ -153,7 +159,7 @@ function DashboardASM() {
           <div style={{ fontSize: '0.68rem', color: C.txtMuted, marginBottom: '0.7rem' }}>
             {filas.length} acciones de mejora de {hallazgosUnicos.length} hallazgos · {periodoLabel}
           </div>
-          {filas.map(f => <FilaASM key={f.accion_id} f={f} />)}
+          {filas.map(f => <FilaASM key={f.accion_id} f={f} puedeEditar={puedeEditarHallazgo} onEditado={refetch} />)}
           {!filas.length && (
             <div style={{ fontSize: '0.78rem', color: C.txtMuted, padding: '1rem', textAlign: 'center' }}>
               Sin hallazgos ASM registrados con estos filtros.
@@ -165,10 +171,35 @@ function DashboardASM() {
   )
 }
 
-function FilaASM({ f }) {
+function FilaASM({ f, puedeEditar, onEditado }) {
   const [verEvidencia, setVerEvidencia] = useState(false)
+  const [editando, setEditando] = useState(false)
+  const [textoHallazgo, setTextoHallazgo] = useState(f.hallazgo)
+  const [guardandoEdicion, setGuardandoEdicion] = useState(false)
+  const [errorEdicion, setErrorEdicion] = useState(null)
   const col = SEM_COLOR[f.tipo_hallazgo] || C.txtMuted
   const estatusColor = f.estatus === 'Atrasado' ? C.criticoB : f.estatus === 'Cerrado' ? C.optimoB : C.dorado
+
+  function handleCancelarEdicion() {
+    setTextoHallazgo(f.hallazgo)
+    setErrorEdicion(null)
+    setEditando(false)
+  }
+
+  async function handleGuardarEdicion() {
+    if (!textoHallazgo.trim()) return
+    setGuardandoEdicion(true); setErrorEdicion(null)
+    try {
+      await actualizarHallazgo(f.hallazgo_id, { hallazgo: textoHallazgo.trim() })
+      setEditando(false)
+      onEditado?.()
+    } catch (e) {
+      setErrorEdicion(e.message)
+    } finally {
+      setGuardandoEdicion(false)
+    }
+  }
+
   return (
     <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderLeft: `4px solid ${f.eje_color || C.guinda}`, borderRadius: 8, padding: '0.8rem 0.95rem', marginBottom: '0.55rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6, marginBottom: 6 }}>
@@ -180,7 +211,33 @@ function FilaASM({ f }) {
           {f.tipo_hallazgo}
         </span>
       </div>
-      <div style={{ fontSize: '0.75rem', color: C.txtSub, marginBottom: 6 }}>{f.hallazgo}</div>
+      {editando ? (
+        <div style={{ marginBottom: 6 }}>
+          <textarea rows={3} value={textoHallazgo} onChange={e => setTextoHallazgo(e.target.value)} autoFocus
+            style={{ width: '100%', background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 6, color: C.txt, padding: '0.5rem 0.75rem', fontSize: '0.75rem', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
+          {errorEdicion && <div style={{ fontSize: '0.65rem', color: C.criticoB, marginTop: 4 }}>❌ {errorEdicion}</div>}
+          <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+            <button onClick={handleGuardarEdicion} disabled={guardandoEdicion || !textoHallazgo.trim()}
+              style={{ background: C.guinda, border: 'none', borderRadius: 6, color: '#fff', padding: '0.35rem 0.7rem', fontSize: '0.65rem', fontWeight: 700, fontFamily: 'inherit', cursor: guardandoEdicion ? 'not-allowed' : 'pointer' }}>
+              {guardandoEdicion ? '⏳ Guardando…' : '💾 Guardar'}
+            </button>
+            <button onClick={handleCancelarEdicion} disabled={guardandoEdicion}
+              style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, color: C.txtSub, padding: '0.35rem 0.7rem', fontSize: '0.65rem', fontFamily: 'inherit', cursor: 'pointer' }}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ fontSize: '0.75rem', color: C.txtSub, marginBottom: 6, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          <span style={{ flex: 1 }}>{f.hallazgo}</span>
+          {puedeEditar && (
+            <button onClick={() => setEditando(true)}
+              style={{ background: 'none', border: 'none', color: C.doradoLight, fontSize: '0.65rem', fontFamily: 'inherit', cursor: 'pointer', padding: 0, whiteSpace: 'nowrap' }}>
+              ✏️ Editar
+            </button>
+          )}
+        </div>
+      )}
       <div style={{ fontSize: '0.74rem', color: C.txt, marginBottom: 4 }}>➡️ {f.accion}</div>
       <div style={{ display: 'flex', gap: 12, fontSize: '0.65rem', color: C.txtMuted, flexWrap: 'wrap', alignItems: 'center' }}>
         <span>👤 {f.responsable_nombre || '—'}</span>
