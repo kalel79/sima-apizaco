@@ -61,14 +61,66 @@ function KPI({ label, value, sub, icon, color }) {
   )
 }
 
+/* ── Cascada MIR ──────────────────────────────────────────────────────────────
+   nivel_mir viene como texto libre ("Fin", "Proposito", "Componente 2",
+   "Actividad 1.1", con o sin acentos). Se normaliza para agrupar y ordenar
+   Fin → Propósito → Componentes → Actividades, y numéricamente dentro de
+   cada grupo (Actividad 1.2 antes que 1.10). */
+const GRUPOS_MIR = [
+  { tipo: 'FIN',        label: 'Fin',         desc: 'Objetivo superior al que contribuye el programa' },
+  { tipo: 'PROPOSITO',  label: 'Propósito',   desc: 'Resultado directo esperado en la población objetivo' },
+  { tipo: 'COMPONENTE', label: 'Componentes', desc: 'Bienes y servicios que entrega el programa' },
+  { tipo: 'ACTIVIDAD',  label: 'Actividades', desc: 'Acciones para producir los componentes' },
+  { tipo: 'OTRO',       label: 'Otros',       desc: null },
+]
+
+function parseNivelMir(nivel) {
+  const plano = (nivel || '').normalize('NFD').replace(/\p{M}/gu, '').trim().toUpperCase()
+  const tipo = plano.startsWith('FIN') ? 'FIN'
+    : plano.startsWith('PROPOSITO') ? 'PROPOSITO'
+    : plano.startsWith('COMPONENTE') ? 'COMPONENTE'
+    : plano.startsWith('ACTIVIDAD') ? 'ACTIVIDAD'
+    : 'OTRO'
+  const nums = (plano.match(/\d+/g) || []).map(Number)
+  return { tipo, orden: [(nums[0] ?? 0), (nums[1] ?? 0)] }
+}
+
+function FichaIndicador({ i }) {
+  const campos = [
+    ['Definición', i.definicion],
+    ['Fórmula', i.formula],
+    ['Tipo', i.tipo_indicador],
+    ['Dimensión', i.dimension],
+    ['Sentido', i.sentido],
+    ['Unidad de medida', i.unidad_medida],
+    ['Frecuencia', i.frecuencia],
+    ['Medios de verificación', i.medios_verificacion],
+    ['Interpretación', i.interpretacion],
+  ].filter(([, v]) => v)
+  if (!campos.length) {
+    return <div style={{ fontSize: '0.7rem', color: C.txtMuted, padding: '0.6rem 0.75rem' }}>Este indicador aún no tiene ficha técnica capturada.</div>
+  }
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 6, padding: '0.6rem 0.75rem' }}>
+      {campos.map(([l, v]) => (
+        <div key={l} style={{ background: C.bgPanel, borderRadius: 6, padding: '0.45rem 0.6rem' }}>
+          <div style={{ fontSize: '0.58rem', color: C.txtMuted, textTransform: 'uppercase', letterSpacing: 1 }}>{l}</div>
+          <div style={{ fontSize: '0.7rem', color: C.txt, marginTop: 2, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>{v}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function DetalleIndicadores({ programaId, mes, anio }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [fichaAbierta, setFichaAbierta] = useState(null) // clave del indicador expandido
 
   useEffect(() => {
     let cancel = false
-    setLoading(true); setError(null)
+    setLoading(true); setError(null); setFichaAbierta(null)
     getIndicadoresPorPrograma(programaId, mes, anio)
       .then(d => { if (!cancel) setData(d) })
       .catch(e => { if (!cancel) setError(e.message) })
@@ -76,31 +128,73 @@ function DetalleIndicadores({ programaId, mes, anio }) {
     return () => { cancel = true }
   }, [programaId, mes, anio])
 
+  const grupos = useMemo(() => {
+    if (!data?.length) return []
+    const conNivel = data.map(i => ({ ...i, _mir: parseNivelMir(i.nivel_mir) }))
+    return GRUPOS_MIR
+      .map(g => ({
+        ...g,
+        indicadores: conNivel
+          .filter(i => i._mir.tipo === g.tipo)
+          .sort((a, b) => (a._mir.orden[0] - b._mir.orden[0]) || (a._mir.orden[1] - b._mir.orden[1]) || a.nombre.localeCompare(b.nombre)),
+      }))
+      .filter(g => g.indicadores.length)
+  }, [data])
+
   if (loading) return <div style={{ fontSize: '0.75rem', color: C.txtMuted, padding: '0.75rem' }}>Cargando indicadores…</div>
   if (error)   return <div style={{ fontSize: '0.75rem', color: '#C00000', padding: '0.75rem' }}>⚠️ {error}</div>
-  if (!data?.length) return <div style={{ fontSize: '0.75rem', color: C.txtMuted, padding: '0.75rem' }}>Este programa no tiene indicadores vinculados.</div>
+  if (!data?.length) return <div style={{ fontSize: '0.75rem', color: C.txtMuted, padding: '0.75rem' }}>Este programa no tiene indicadores MIR vinculados.</div>
 
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem' }}>
         <thead>
           <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-            {['Clave', 'Indicador', 'Área', 'Meta acum.', 'Resultado acum.', '%', 'Semáforo'].map(h => (
-              <th key={h} style={{ textAlign: 'left', padding: '0.4rem 0.5rem', color: C.txtSub, textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.62rem' }}>{h}</th>
+            {['Nivel MIR', 'Clave', 'Indicador', 'Área', 'Meta acum.', 'Resultado acum.', '%', 'Semáforo', ''].map((h, idx) => (
+              <th key={idx} style={{ textAlign: 'left', padding: '0.4rem 0.5rem', color: C.txtSub, textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.62rem' }}>{h}</th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {data.map((i, idx) => (
-            <tr key={idx} style={{ borderBottom: `1px solid ${C.border}55` }}>
-              <td style={{ padding: '0.4rem 0.5rem', color: C.txtMuted }}>{i.clave}</td>
-              <td style={{ padding: '0.4rem 0.5rem', color: C.txt }}>{i.nombre}</td>
-              <td style={{ padding: '0.4rem 0.5rem', color: C.txtSub }}>{i.area_nombre}</td>
-              <td style={{ padding: '0.4rem 0.5rem', color: C.txtSub }}>{i.meta_acumulada ?? '—'}</td>
-              <td style={{ padding: '0.4rem 0.5rem', color: C.txtSub }}>{i.resultado_acumulado ?? '—'}</td>
-              <td style={{ padding: '0.4rem 0.5rem', color: C.txtSub }}>{i.pct_pmd != null ? `${i.pct_pmd.toFixed(1)}%` : '—'}</td>
-              <td style={{ padding: '0.4rem 0.5rem' }}><Pill sem={i.semaforo}/></td>
-            </tr>
+          {grupos.map(g => (
+            <Fragment key={g.tipo}>
+              <tr style={{ background: C.bgPanel }}>
+                <td colSpan={9} style={{ padding: '0.45rem 0.5rem' }}>
+                  <span style={{ fontSize: '0.64rem', fontWeight: 800, letterSpacing: 2, color: C.dorado, textTransform: 'uppercase' }}>{g.label}</span>
+                  {g.desc && <span style={{ fontSize: '0.62rem', color: C.txtMuted, marginLeft: 8 }}>{g.desc}</span>}
+                </td>
+              </tr>
+              {g.indicadores.map(i => {
+                const abierta = fichaAbierta === i.clave
+                return (
+                  <Fragment key={i.clave}>
+                    <tr style={{ borderBottom: `1px solid ${C.border}55` }}>
+                      <td style={{ padding: '0.4rem 0.5rem', color: C.txtSub, whiteSpace: 'nowrap' }}>{i.nivel_mir || '—'}</td>
+                      <td style={{ padding: '0.4rem 0.5rem', color: C.txtMuted }}>{i.clave}</td>
+                      <td style={{ padding: '0.4rem 0.5rem', color: C.txt }}>{i.nombre}</td>
+                      <td style={{ padding: '0.4rem 0.5rem', color: C.txtSub }}>{i.area_nombre}</td>
+                      <td style={{ padding: '0.4rem 0.5rem', color: C.txtSub }}>{i.meta_acumulada ?? '—'}</td>
+                      <td style={{ padding: '0.4rem 0.5rem', color: C.txtSub }}>{i.resultado_acumulado ?? '—'}</td>
+                      <td style={{ padding: '0.4rem 0.5rem', color: C.txtSub }}>{i.pct_pmd != null ? `${i.pct_pmd.toFixed(1)}%` : '—'}</td>
+                      <td style={{ padding: '0.4rem 0.5rem' }}><Pill sem={i.semaforo}/></td>
+                      <td style={{ padding: '0.4rem 0.5rem' }}>
+                        <button onClick={() => setFichaAbierta(abierta ? null : i.clave)}
+                          style={{ background: abierta ? C.guinda : 'none', border: `1px solid ${C.border}`, borderRadius: 6, color: abierta ? C.txt : C.doradoLight, padding: '0.25rem 0.55rem', fontSize: '0.62rem', fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                          {abierta ? '▲ Ficha' : '📋 Ficha'}
+                        </button>
+                      </td>
+                    </tr>
+                    {abierta && (
+                      <tr style={{ borderBottom: `1px solid ${C.border}55` }}>
+                        <td colSpan={9} style={{ padding: 0, background: `${C.bgCard}` }}>
+                          <FichaIndicador i={i}/>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                )
+              })}
+            </Fragment>
           ))}
         </tbody>
       </table>
@@ -258,9 +352,17 @@ export default function PantallaPMD() {
                       <td style={{ padding: '0.55rem 0.7rem', color: C.txtMuted }}>{p.numero}</td>
                       <td style={{ padding: '0.55rem 0.7rem', color: C.txt, fontWeight: 600, maxWidth: 260 }}>{p.programa_nombre}</td>
                       <td style={{ padding: '0.55rem 0.7rem', color: C.txtSub }}>{p.eje}</td>
-                      <td style={{ padding: '0.55rem 0.7rem', color: C.txtSub }}>{p.indicadores_con_avance}/{p.total_indicadores}</td>
+                      <td style={{ padding: '0.55rem 0.7rem', color: C.txtSub, whiteSpace: 'nowrap' }}>
+                        {Number(p.total_indicadores) === 0
+                          ? <span style={{ fontSize: '0.64rem', color: C.txtMuted, fontStyle: 'italic' }}>Sin indicadores MIR vinculados</span>
+                          : `${p.indicadores_con_avance}/${p.total_indicadores}`}
+                      </td>
                       <td style={{ padding: '0.55rem 0.7rem', color: C.txtSub }}>{pct != null ? `${pct.toFixed(1)}%` : '—'}</td>
-                      <td style={{ padding: '0.55rem 0.7rem' }}><Pill sem={sem}/></td>
+                      <td style={{ padding: '0.55rem 0.7rem' }}>
+                        {Number(p.total_indicadores) === 0
+                          ? <span style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: 1, background: '#3a3a3a', color: C.txtSub, padding: '2px 8px', borderRadius: 6, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Pendiente de alineación</span>
+                          : <Pill sem={sem}/>}
+                      </td>
                       <td style={{ padding: '0.55rem 0.7rem' }}>
                         <button onClick={() => setExpandido(abierto ? null : p.programa_id)}
                           style={{ background: abierto ? C.guinda : C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 6, color: C.txt, padding: '0.35rem 0.7rem', fontSize: '0.68rem', fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' }}>

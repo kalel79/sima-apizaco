@@ -105,7 +105,7 @@ function acumularAvancesPorIndicador(avances) {
 // evita mostrar "sin datos" cuando en realidad sí hay avance acumulado.
 export async function getIndicadoresPorPrograma(programaId, mes, anio) {
   const [{ data: inds, error: eInd }, { data: areas, error: eAreas }] = await Promise.all([
-    supabase.from('indicadores').select('id, clave, nombre, area_id').eq('programa_pmd_id', programaId).order('nombre'),
+    supabase.from('indicadores').select('id, clave, nombre, area_id, nivel_mir, definicion, formula, sentido, dimension, tipo_indicador, unidad_medida, frecuencia, medios_verificacion, interpretacion').eq('programa_pmd_id', programaId).order('nombre'),
     supabase.from('areas').select('id, nombre'),
   ])
   if (eInd) throw eInd
@@ -128,6 +128,16 @@ export async function getIndicadoresPorPrograma(programaId, mes, anio) {
       clave:               i.clave || '-',
       nombre:              i.nombre,
       area_nombre:         areasMap[i.area_id] || '-',
+      nivel_mir:           i.nivel_mir,
+      definicion:          i.definicion,
+      formula:             i.formula,
+      sentido:             i.sentido,
+      dimension:           i.dimension,
+      tipo_indicador:      i.tipo_indicador,
+      unidad_medida:       i.unidad_medida,
+      frecuencia:          i.frecuencia,
+      medios_verificacion: i.medios_verificacion,
+      interpretacion:      i.interpretacion,
       meta_acumulada:      ac.meta ?? null,
       resultado_acumulado: ac.resultado ?? null,
       pct_pmd:             ac.pct ?? null,
