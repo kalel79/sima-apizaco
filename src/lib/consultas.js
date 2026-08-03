@@ -98,6 +98,39 @@ function acumularAvancesPorIndicador(avances) {
   return out
 }
 
+// Serie mensual del % acumulado por indicador (mes 1 → mesHasta): cada punto m
+// es (SUM resultado / SUM meta) de los meses 1..m — misma metodología que
+// acumularAvancesPorIndicador, así el último punto coincide con el % de la
+// tabla. Meses sin ninguna captura previa quedan en null (hueco en la línea).
+function serieAcumuladaPorIndicador(avances, mesHasta) {
+  const porInd = {}
+  ;(avances || []).forEach(a => {
+    if (!porInd[a.indicador_id]) porInd[a.indicador_id] = {}
+    porInd[a.indicador_id][a.mes] = {
+      resultado: Number(a.resultado) || 0,
+      meta:      Number(a.meta_programada) || 0,
+    }
+  })
+  const out = {}
+  Object.entries(porInd).forEach(([id, meses]) => {
+    const serie = []
+    let resultado = 0, meta = 0, hayCaptura = false
+    for (let m = 1; m <= mesHasta; m++) {
+      if (meses[m]) {
+        hayCaptura = true
+        resultado += meses[m].resultado
+        meta      += meses[m].meta
+      }
+      if (!hayCaptura)      serie.push(null)
+      else if (meta > 0)    serie.push(Math.round((resultado / meta) * 10000) / 100)
+      else if (resultado > 0) serie.push(100)
+      else                  serie.push(null)
+    }
+    out[id] = serie
+  })
+  return out
+}
+
 // Indicadores de un programa PMD con su avance ACUMULADO (mes 1 → mes dado),
 // para el panel de detalle de v_comparativo_pmd. Usa la misma metodología
 // acumulada que la vista, en vez de una sola captura mensual — si el mes
@@ -117,11 +150,12 @@ export async function getIndicadoresPorPrograma(programaId, mes, anio) {
 
   const { data: avs, error: eAv } = await supabase
     .from('avances')
-    .select('indicador_id, meta_programada, resultado')
+    .select('indicador_id, mes, meta_programada, resultado')
     .in('indicador_id', ids).eq('anio', anio).gte('mes', 1).lte('mes', mes)
   if (eAv) throw eAv
 
   const acumulados = acumularAvancesPorIndicador(avs)
+  const series = serieAcumuladaPorIndicador(avs, mes)
   return (inds || []).map(i => {
     const ac = acumulados[i.id] || {}
     return {
@@ -142,6 +176,7 @@ export async function getIndicadoresPorPrograma(programaId, mes, anio) {
       resultado_acumulado: ac.resultado ?? null,
       pct_pmd:             ac.pct ?? null,
       semaforo:            ac.semaforo ?? null,
+      serie_acumulada:     series[i.id] ?? [],
     }
   })
 }

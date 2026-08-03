@@ -4,6 +4,7 @@ import { getIndicadoresPorPrograma, getDetalleIndicadoresPMD, getNombresEjes } f
 import { useConfiguracionCtx } from '../contexts/ConfiguracionContext'
 import { formatPeriodoLabel } from '../utils/periodo'
 import { generarReportePMD } from '../utils/reportesPMD'
+import Sparkline from './Sparkline.jsx'
 
 const C = {
   guinda: '#7B1F2C', guindaDark: '#51141D',
@@ -150,7 +151,7 @@ function DetalleIndicadores({ programaId, mes, anio }) {
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem' }}>
         <thead>
           <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-            {['Nivel MIR', 'Clave', 'Indicador', 'Área', 'Meta acum.', 'Resultado acum.', '%', 'Semáforo', ''].map((h, idx) => (
+            {['Nivel MIR', 'Clave', 'Indicador', 'Área', 'Meta acum.', 'Resultado acum.', '%', 'Tendencia', 'Semáforo', ''].map((h, idx) => (
               <th key={idx} style={{ textAlign: 'left', padding: '0.4rem 0.5rem', color: C.txtSub, textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.62rem' }}>{h}</th>
             ))}
           </tr>
@@ -159,7 +160,7 @@ function DetalleIndicadores({ programaId, mes, anio }) {
           {grupos.map(g => (
             <Fragment key={g.tipo}>
               <tr style={{ background: C.bgPanel }}>
-                <td colSpan={9} style={{ padding: '0.45rem 0.5rem' }}>
+                <td colSpan={10} style={{ padding: '0.45rem 0.5rem' }}>
                   <span style={{ fontSize: '0.64rem', fontWeight: 800, letterSpacing: 2, color: C.dorado, textTransform: 'uppercase' }}>{g.label}</span>
                   {g.desc && <span style={{ fontSize: '0.62rem', color: C.txtMuted, marginLeft: 8 }}>{g.desc}</span>}
                 </td>
@@ -176,6 +177,9 @@ function DetalleIndicadores({ programaId, mes, anio }) {
                       <td style={{ padding: '0.4rem 0.5rem', color: C.txtSub }}>{i.meta_acumulada ?? '—'}</td>
                       <td style={{ padding: '0.4rem 0.5rem', color: C.txtSub }}>{i.resultado_acumulado ?? '—'}</td>
                       <td style={{ padding: '0.4rem 0.5rem', color: C.txtSub }}>{i.pct_pmd != null ? `${i.pct_pmd.toFixed(1)}%` : '—'}</td>
+                      <td style={{ padding: '0.4rem 0.5rem' }} title="Evolución del % acumulado, enero → mes actual">
+                        <Sparkline valores={i.serie_acumulada} color={semColor(i.semaforo)}/>
+                      </td>
                       <td style={{ padding: '0.4rem 0.5rem' }}><Pill sem={i.semaforo}/></td>
                       <td style={{ padding: '0.4rem 0.5rem' }}>
                         <button onClick={() => setFichaAbierta(abierta ? null : i.clave)}
@@ -186,7 +190,7 @@ function DetalleIndicadores({ programaId, mes, anio }) {
                     </tr>
                     {abierta && (
                       <tr style={{ borderBottom: `1px solid ${C.border}55` }}>
-                        <td colSpan={9} style={{ padding: 0, background: `${C.bgCard}` }}>
+                        <td colSpan={10} style={{ padding: 0, background: `${C.bgCard}` }}>
                           <FichaIndicador i={i}/>
                         </td>
                       </tr>
