@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, Fragment } from 'react'
 import { useComparativoPMD } from '../hooks/useSupabase'
-import { getIndicadoresPorPrograma, getDetalleIndicadoresPMD, getNombresEjes } from '../lib/supabase'
+import { getIndicadoresPorPrograma, getDetalleIndicadoresPMD, getNombresEjes, getProgramasPresupuestariosDePmd } from '../lib/supabase'
 import { useConfiguracionCtx } from '../contexts/ConfiguracionContext'
 import { formatPeriodoLabel } from '../utils/periodo'
 import { generarReportePMD } from '../utils/reportesPMD'
@@ -88,6 +88,7 @@ function parseNivelMir(nivel) {
 
 function FichaIndicador({ i }) {
   const campos = [
+    ['Objetivo (MIR)', i.objetivo_mir],
     ['Definición', i.definicion],
     ['Fórmula', i.formula],
     ['Tipo', i.tipo_indicador],
@@ -96,6 +97,7 @@ function FichaIndicador({ i }) {
     ['Unidad de medida', i.unidad_medida],
     ['Frecuencia', i.frecuencia],
     ['Medios de verificación', i.medios_verificacion],
+    ['Supuestos (MIR)', i.supuestos_mir],
     ['Interpretación', i.interpretacion],
   ].filter(([, v]) => v)
   if (!campos.length) {
@@ -107,6 +109,40 @@ function FichaIndicador({ i }) {
         <div key={l} style={{ background: C.bgPanel, borderRadius: 6, padding: '0.45rem 0.6rem' }}>
           <div style={{ fontSize: '0.58rem', color: C.txtMuted, textTransform: 'uppercase', letterSpacing: 1 }}>{l}</div>
           <div style={{ fontSize: '0.7rem', color: C.txt, marginTop: 2, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>{v}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* Tarjeta(s) del programa presupuestario asociado al programa PMD, con su
+   objetivo central del árbol de objetivos MML. Casi siempre es una sola;
+   el programa PMD #34 cruza con dos (003 y 037) y se muestran ambas. */
+function ProgramasPresupuestarios({ programaId, anio }) {
+  const [progs, setProgs] = useState(null)
+
+  useEffect(() => {
+    let cancel = false
+    setProgs(null)
+    getProgramasPresupuestariosDePmd(programaId, anio)
+      .then(d => { if (!cancel) setProgs(d) })
+      .catch(() => { if (!cancel) setProgs([]) }) // contexto opcional: si falla, no bloquea el detalle
+    return () => { cancel = true }
+  }, [programaId, anio])
+
+  if (!progs?.length) return null
+
+  return (
+    <div style={{ display: 'grid', gap: 6, marginBottom: 12 }}>
+      {progs.map(p => (
+        <div key={p.clave} style={{ background: C.bgPanel, border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.dorado}`, borderRadius: 6, padding: '0.6rem 0.75rem' }}>
+          <div style={{ fontSize: '0.6rem', color: C.txtMuted, textTransform: 'uppercase', letterSpacing: 1 }}>Programa presupuestario</div>
+          <div style={{ fontSize: '0.76rem', color: C.txt, fontWeight: 700, marginTop: 2 }}>{p.clave} — {p.nombre}</div>
+          {p.objetivo_central && (
+            <div style={{ fontSize: '0.72rem', color: C.txtSub, marginTop: 4, lineHeight: 1.45 }}>
+              <span style={{ fontStyle: 'italic', color: C.txtMuted }}>Objetivo central: </span>{p.objetivo_central}
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -389,6 +425,7 @@ export default function PantallaPMD() {
                                 </div>
                               ))}
                             </div>
+                            {Number(p.total_indicadores) > 0 && <ProgramasPresupuestarios programaId={p.programa_id} anio={anioActual}/>}
                             <DetalleIndicadores programaId={p.programa_id} mes={mesActual} anio={anioActual}/>
                           </div>
                         </td>

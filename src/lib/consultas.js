@@ -148,14 +148,25 @@ export async function getIndicadoresPorPrograma(programaId, mes, anio) {
   const ids = (inds || []).map(i => i.id)
   if (!ids.length) return []
 
-  const { data: avs, error: eAv } = await supabase
-    .from('avances')
-    .select('indicador_id, mes, meta_programada, resultado')
-    .in('indicador_id', ids).eq('anio', anio).gte('mes', 1).lte('mes', mes)
+  // El objetivo/supuestos MIR de cada indicador vive en el árbol de objetivos
+  // MML (arbol_nodos), ligado directo por indicador_id — no en mir_niveles,
+  // que solo tiene narrativa capturada para el programa piloto 003.
+  const [{ data: avs, error: eAv }, { data: nodos, error: eNod }] = await Promise.all([
+    supabase
+      .from('avances')
+      .select('indicador_id, mes, meta_programada, resultado')
+      .in('indicador_id', ids).eq('anio', anio).gte('mes', 1).lte('mes', mes),
+    supabase
+      .from('arbol_nodos')
+      .select('indicador_id, texto, supuestos')
+      .eq('arbol', 'OBJETIVOS').eq('anio', anio).in('indicador_id', ids),
+  ])
   if (eAv) throw eAv
+  if (eNod) throw eNod
 
   const acumulados = acumularAvancesPorIndicador(avs)
   const series = serieAcumuladaPorIndicador(avs, mes)
+  const nodoPorIndicador = Object.fromEntries((nodos || []).map(n => [n.indicador_id, n]))
   return (inds || []).map(i => {
     const ac = acumulados[i.id] || {}
     return {
@@ -172,6 +183,8 @@ export async function getIndicadoresPorPrograma(programaId, mes, anio) {
       frecuencia:          i.frecuencia,
       medios_verificacion: i.medios_verificacion,
       interpretacion:      i.interpretacion,
+      objetivo_mir:        nodoPorIndicador[i.id]?.texto ?? null,
+      supuestos_mir:       nodoPorIndicador[i.id]?.supuestos ?? null,
       meta_acumulada:      ac.meta ?? null,
       resultado_acumulado: ac.resultado ?? null,
       pct_pmd:             ac.pct ?? null,
@@ -179,6 +192,31 @@ export async function getIndicadoresPorPrograma(programaId, mes, anio) {
       serie_acumulada:     series[i.id] ?? [],
     }
   })
+}
+
+// Programas presupuestarios asociados a un programa PMD, derivados de sus
+// indicadores (39 de 40 programas PMD mapean a exactamente uno; el #34 cruza
+// con dos y se devuelven ambos), con el objetivo central del árbol de
+// objetivos MML del año dado.
+export async function getProgramasPresupuestariosDePmd(programaPmdId, anio) {
+  const { data: inds, error: eInd } = await supabase
+    .from('indicadores').select('programa_id').eq('programa_pmd_id', programaPmdId)
+  if (eInd) throw eInd
+  const ids = [...new Set((inds || []).map(i => i.programa_id).filter(id => id != null))]
+  if (!ids.length) return []
+
+  const [{ data: progs, error: eProg }, { data: nodos, error: eNod }] = await Promise.all([
+    supabase.from('programas').select('id, clave, nombre').in('id', ids),
+    supabase.from('arbol_nodos').select('programa_id, texto')
+      .eq('arbol', 'OBJETIVOS').eq('anio', anio).eq('tipo', 'OBJETIVO').in('programa_id', ids),
+  ])
+  if (eProg) throw eProg
+  if (eNod) throw eNod
+
+  const objetivoPorPrograma = Object.fromEntries((nodos || []).map(n => [n.programa_id, n.texto]))
+  return (progs || [])
+    .sort((a, b) => (a.clave || '').localeCompare(b.clave || ''))
+    .map(p => ({ clave: p.clave, nombre: p.nombre, objetivo_central: objetivoPorPrograma[p.id] ?? null }))
 }
 
 // Indicadores de TODOS los programas PMD con su avance acumulado (mes 1 →
