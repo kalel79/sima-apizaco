@@ -1,6 +1,9 @@
 // ── Módulo ASM (Aspectos Susceptibles de Mejora) ──────────────────────────────
 import { supabase } from './supabaseClient.js'
 
+export const ORIGENES_ASM = ['Evaluación Interna - SED', 'Auditoría Externa', 'Órgano Fiscalizador', 'Otro']
+export const TIPOS_ASM_CONEVAL = ['Específico', 'Interinstitucional', 'Intragubernamental']
+
 export async function getAsmConsolidado({ ejeCodigo, areaId, tipoHallazgo, estatus } = {}) {
   let query = supabase.from('vw_asm_consolidado').select('*').order('fecha_compromiso', { ascending: true })
   if (ejeCodigo)    query = query.eq('eje_codigo', ejeCodigo)
@@ -54,10 +57,12 @@ export async function crearHallazgo({ indicadorId, origenAsm, tipoAsmConeval, ha
   return data
 }
 
-export async function actualizarHallazgo(hallazgoId, { hallazgo, justificacion } = {}) {
+export async function actualizarHallazgo(hallazgoId, { hallazgo, justificacion, origenAsm, tipoAsmConeval } = {}) {
   const patch = {}
   if (hallazgo != null) patch.hallazgo = hallazgo
   if (justificacion !== undefined) patch.justificacion = justificacion || null
+  if (origenAsm != null) patch.origen_asm = origenAsm
+  if (tipoAsmConeval != null) patch.tipo_asm_coneval = tipoAsmConeval
 
   const { data, error } = await supabase
     .from('asm_hallazgos')

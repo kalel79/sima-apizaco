@@ -4,7 +4,7 @@ import { useConfiguracionCtx } from '../contexts/ConfiguracionContext'
 import { formatPeriodoLabel } from '../utils/periodo'
 import { generarExcelASM } from '../utils/reportesExcelASM'
 import { useAuth } from '../hooks/useAuth'
-import { actualizarHallazgo } from '../lib/asm.js'
+import { actualizarHallazgo, ORIGENES_ASM, TIPOS_ASM_CONEVAL } from '../lib/asm.js'
 import { C } from '../theme.js'
 import { Spinner, ErrMsg, KPI } from '../components/ui.jsx'
 import CapturaASM from './CapturaASM.jsx'
@@ -175,6 +175,9 @@ function FilaASM({ f, puedeEditar, onEditado }) {
   const [verEvidencia, setVerEvidencia] = useState(false)
   const [editando, setEditando] = useState(false)
   const [textoHallazgo, setTextoHallazgo] = useState(f.hallazgo)
+  const [textoJustificacion, setTextoJustificacion] = useState(f.justificacion || '')
+  const [origenAsm, setOrigenAsm] = useState(f.origen_asm || '')
+  const [tipoAsmConeval, setTipoAsmConeval] = useState(f.tipo_asm_coneval || '')
   const [guardandoEdicion, setGuardandoEdicion] = useState(false)
   const [errorEdicion, setErrorEdicion] = useState(null)
   const col = SEM_COLOR[f.tipo_hallazgo] || C.txtMuted
@@ -182,6 +185,9 @@ function FilaASM({ f, puedeEditar, onEditado }) {
 
   function handleCancelarEdicion() {
     setTextoHallazgo(f.hallazgo)
+    setTextoJustificacion(f.justificacion || '')
+    setOrigenAsm(f.origen_asm || '')
+    setTipoAsmConeval(f.tipo_asm_coneval || '')
     setErrorEdicion(null)
     setEditando(false)
   }
@@ -190,7 +196,12 @@ function FilaASM({ f, puedeEditar, onEditado }) {
     if (!textoHallazgo.trim()) return
     setGuardandoEdicion(true); setErrorEdicion(null)
     try {
-      await actualizarHallazgo(f.hallazgo_id, { hallazgo: textoHallazgo.trim() })
+      await actualizarHallazgo(f.hallazgo_id, {
+        hallazgo: textoHallazgo.trim(),
+        justificacion: textoJustificacion.trim(),
+        origenAsm,
+        tipoAsmConeval,
+      })
       setEditando(false)
       onEditado?.()
     } catch (e) {
@@ -213,7 +224,29 @@ function FilaASM({ f, puedeEditar, onEditado }) {
       </div>
       {editando ? (
         <div style={{ marginBottom: 6 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 6 }}>
+            <div>
+              <label style={{ fontSize: '0.6rem', color: C.txtMuted, textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 2 }}>Origen ASM</label>
+              <select value={origenAsm} onChange={e => setOrigenAsm(e.target.value)}
+                style={{ width: '100%', background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 6, color: C.txt, padding: '0.4rem 0.6rem', fontSize: '0.72rem', fontFamily: 'inherit', boxSizing: 'border-box' }}>
+                <option value="">— Selecciona —</option>
+                {ORIGENES_ASM.map(o => <option key={o}>{o}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: '0.6rem', color: C.txtMuted, textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 2 }}>Tipo ASM (CONEVAL)</label>
+              <select value={tipoAsmConeval} onChange={e => setTipoAsmConeval(e.target.value)}
+                style={{ width: '100%', background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 6, color: C.txt, padding: '0.4rem 0.6rem', fontSize: '0.72rem', fontFamily: 'inherit', boxSizing: 'border-box' }}>
+                <option value="">— Selecciona —</option>
+                {TIPOS_ASM_CONEVAL.map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
+          <label style={{ fontSize: '0.6rem', color: C.txtMuted, textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 2 }}>Hallazgo</label>
           <textarea rows={3} value={textoHallazgo} onChange={e => setTextoHallazgo(e.target.value)} autoFocus
+            style={{ width: '100%', background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 6, color: C.txt, padding: '0.5rem 0.75rem', fontSize: '0.75rem', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
+          <label style={{ fontSize: '0.6rem', color: C.txtMuted, textTransform: 'uppercase', letterSpacing: 1, display: 'block', margin: '6px 0 2px' }}>Justificación</label>
+          <textarea rows={2} value={textoJustificacion} onChange={e => setTextoJustificacion(e.target.value)}
             style={{ width: '100%', background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 6, color: C.txt, padding: '0.5rem 0.75rem', fontSize: '0.75rem', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
           {errorEdicion && <div style={{ fontSize: '0.65rem', color: C.criticoB, marginTop: 4 }}>❌ {errorEdicion}</div>}
           <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>

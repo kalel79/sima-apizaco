@@ -1,12 +1,10 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useIndicadoresLista } from '../hooks/useSupabase'
 import { crearHallazgo, crearAccionMejora, getPctCumplimientoIndicador } from '../lib/supabase'
+import { ORIGENES_ASM, TIPOS_ASM_CONEVAL } from '../lib/asm.js'
 import { C } from '../theme.js'
 import { Pill } from '../components/ui.jsx'
 import SeccionEvidenciasASM from '../components/SeccionEvidenciasASM'
-
-const ORIGENES = ['Evaluación Interna - SED', 'Auditoría Externa', 'Órgano Fiscalizador', 'Otro']
-const TIPOS_CONEVAL = ['Específico', 'Interinstitucional', 'Intragubernamental']
 
 const inp = { width: '100%', background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 6, color: C.txt, padding: '0.5rem 0.75rem', fontSize: '0.8rem', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }
 const lbl = { fontSize: '0.68rem', color: C.txtSub, textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 4 }
@@ -158,14 +156,14 @@ export default function CapturaASM() {
               <label style={lbl}>Origen ASM</label>
               <select value={form.origenAsm} onChange={e => setForm(f => ({ ...f, origenAsm: e.target.value }))} style={inp}>
                 <option value="">— Selecciona —</option>
-                {ORIGENES.map(o => <option key={o}>{o}</option>)}
+                {ORIGENES_ASM.map(o => <option key={o}>{o}</option>)}
               </select>
             </div>
             <div>
               <label style={lbl}>Tipo ASM (CONEVAL)</label>
               <select value={form.tipoAsmConeval} onChange={e => setForm(f => ({ ...f, tipoAsmConeval: e.target.value }))} style={inp}>
                 <option value="">— Selecciona —</option>
-                {TIPOS_CONEVAL.map(t => <option key={t}>{t}</option>)}
+                {TIPOS_ASM_CONEVAL.map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
           </div>
