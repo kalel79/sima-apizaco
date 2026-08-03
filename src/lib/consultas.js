@@ -224,7 +224,7 @@ export async function getProgramasPresupuestariosDePmd(programaPmdId, anio) {
 // cuando se activa "incluir detalle" (evita 43 consultas individuales).
 export async function getDetalleIndicadoresPMD(mes, anio) {
   const [{ data: inds, error: eInd }, { data: areas, error: eAreas }, { data: avs, error: eAv }] = await Promise.all([
-    supabase.from('indicadores').select('id, clave, nombre, area_id, programa_pmd_id').order('nombre'),
+    supabase.from('indicadores').select('id, clave, nombre, area_id, programa_pmd_id, nivel_mir').order('nombre'),
     supabase.from('areas').select('id, nombre'),
     supabase.from('avances').select('indicador_id, meta_programada, resultado').eq('anio', anio).gte('mes', 1).lte('mes', mes),
   ])
@@ -244,11 +244,49 @@ export async function getDetalleIndicadoresPMD(mes, anio) {
       clave:       i.clave || '-',
       nombre:      i.nombre,
       area_nombre: areasMap[i.area_id] || '-',
+      nivel_mir:   i.nivel_mir,
       pct_pmd:     ac.pct ?? null,
       semaforo:    ac.semaforo ?? null,
     })
   })
   return porPrograma
+}
+
+// Programa(s) presupuestario(s) + objetivo central por CADA programa PMD, en
+// un solo pase (3 consultas totales) — para el reporte PDF, que necesita el
+// dato de los 43 programas de golpe en vez de una consulta por programa como
+// hace getProgramasPresupuestariosDePmd (pensada para un solo expandible).
+export async function getProgramasPresupuestariosPorPmd(anio) {
+  const [{ data: inds, error: eInd }, { data: progs, error: eProg }] = await Promise.all([
+    supabase.from('indicadores').select('programa_pmd_id, programa_id'),
+    supabase.from('programas').select('id, clave, nombre'),
+  ])
+  if (eInd) throw eInd
+  if (eProg) throw eProg
+
+  const progMap = Object.fromEntries((progs || []).map(p => [p.id, p]))
+  const idsPorPmd = {}
+  ;(inds || []).forEach(i => {
+    if (i.programa_pmd_id == null || i.programa_id == null) return
+    if (!idsPorPmd[i.programa_pmd_id]) idsPorPmd[i.programa_pmd_id] = new Set()
+    idsPorPmd[i.programa_pmd_id].add(i.programa_id)
+  })
+  const idsUsados = [...new Set((inds || []).map(i => i.programa_id).filter(id => id != null))]
+  if (!idsUsados.length) return {}
+
+  const { data: nodos, error: eNod } = await supabase
+    .from('arbol_nodos').select('programa_id, texto')
+    .eq('arbol', 'OBJETIVOS').eq('anio', anio).eq('tipo', 'OBJETIVO').in('programa_id', idsUsados)
+  if (eNod) throw eNod
+  const objetivoPorPrograma = Object.fromEntries((nodos || []).map(n => [n.programa_id, n.texto]))
+
+  const porPmd = {}
+  Object.entries(idsPorPmd).forEach(([pmdId, set]) => {
+    porPmd[pmdId] = [...set].map(id => progMap[id]).filter(Boolean)
+      .sort((a, b) => (a.clave || '').localeCompare(b.clave || ''))
+      .map(p => ({ clave: p.clave, nombre: p.nombre, objetivo_central: objetivoPorPrograma[p.id] ?? null }))
+  })
+  return porPmd
 }
 
 export async function getIndicadoresLista() {

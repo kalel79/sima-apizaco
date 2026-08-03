@@ -8,7 +8,7 @@ export {
   getDashboardGlobal, getResumenEjes, getResumenAreas, getAlertasLogros,
   getIndicadores, getAvanceCapturaAreas, getNombresEjes, getComparativoPMD,
   getClavesIndicadores, getIndicadoresPorPrograma, getDetalleIndicadoresPMD,
-  getProgramasPresupuestariosDePmd,
+  getProgramasPresupuestariosDePmd, getProgramasPresupuestariosPorPmd,
   getIndicadoresLista, getMetasResultados, getAvancesMensualesPDF,
 } from './consultas.js'
 

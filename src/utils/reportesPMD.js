@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { LOGO_BASE64 } from '../logo.js'
+import { agruparPorNivelMir } from './nivelMir.js'
 
 // ── Paleta PDF (RGB) — misma paleta que reportes.js ────────────────────────
 const GUINDA = [123, 31, 44]
@@ -90,12 +91,13 @@ function generarFolioPMD(mes, anio) {
  * @param {number} params.anioActual
  * @param {string} params.periodoLabel
  * @param {boolean} [params.incluirDetalle]
- * @param {Object}  [params.detallePorPrograma] { [programa_id]: [{clave,nombre,area_nombre,pct_pmd,semaforo}] } — pct_pmd acumulado, escala de porcentaje
+ * @param {Object}  [params.detallePorPrograma] { [programa_id]: [{clave,nombre,area_nombre,nivel_mir,pct_pmd,semaforo}] } — pct_pmd acumulado, escala de porcentaje
+ * @param {Object}  [params.presupuestarioPorPrograma] { [programa_id]: [{clave,nombre,objetivo_central}] } — programa(s) presupuestario(s) del programa PMD
  * @param {Array}   [params.ejes] filas de la tabla ejes ({codigo, nombre}) para mostrar el nombre completo en el encabezado
  */
 export function generarReportePMD({
   programas, mesActual, anioActual, periodoLabel,
-  incluirDetalle = false, detallePorPrograma = {}, ejes = [],
+  incluirDetalle = false, detallePorPrograma = {}, presupuestarioPorPrograma = {}, ejes = [],
 }) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
   const W = doc.internal.pageSize.width
@@ -244,29 +246,62 @@ export function generarReportePMD({
         const tituloPrograma = sanitizarPDF(`${eje} · ${p.numero}. ${p.programa_nombre}`)
         const lineasPrograma = doc.splitTextToSize(tituloPrograma, W - ML * 2)
         doc.text(lineasPrograma, ML, 18)
-        const yTitulo = 18 + (lineasPrograma.length - 1) * 4.5
-        setDraw(doc, DORADO); doc.setLineWidth(0.4); doc.line(ML, yTitulo + 5, W - ML, yTitulo + 5)
+        let y = 18 + (lineasPrograma.length - 1) * 4.5
+
+        // Programa(s) presupuestario(s) asociado(s) + objetivo central (árbol
+        // de objetivos MML) — casi siempre uno solo; el programa PMD #34
+        // cruza con dos y se imprimen ambos.
+        const presupuestarios = presupuestarioPorPrograma[p.programa_id] || []
+        presupuestarios.forEach(pp => {
+          y += 5.5
+          doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); setColor(doc, GRIS)
+          const lineaPP = doc.splitTextToSize(sanitizarPDF(`Programa presupuestario: ${pp.clave} — ${pp.nombre}`), W - ML * 2)
+          doc.text(lineaPP, ML, y)
+          y += (lineaPP.length - 1) * 3.6
+          if (pp.objetivo_central) {
+            y += 4
+            doc.setFont('helvetica', 'normal')
+            const lineaObj = doc.splitTextToSize(sanitizarPDF(`Objetivo central: ${pp.objetivo_central}`), W - ML * 2)
+            doc.text(lineaObj, ML, y)
+            y += (lineaObj.length - 1) * 3.6
+          }
+        })
+
+        setDraw(doc, DORADO); doc.setLineWidth(0.4); doc.line(ML, y + 5, W - ML, y + 5)
+
+        const grupos = agruparPorNivelMir(inds)
+        const body = []
+        grupos.forEach(g => {
+          body.push([{
+            content: sanitizarPDF(g.label), colSpan: 6,
+            styles: { fillColor: [245, 240, 230], textColor: GUINDA, fontStyle: 'bold', halign: 'left', fontSize: 7.5 },
+          }])
+          g.indicadores.forEach(i => {
+            body.push([
+              sanitizarPDF(i.nivel_mir || '-'), sanitizarPDF(i.clave), sanitizarPDF(i.nombre), sanitizarPDF(i.area_nombre),
+              pctStrPMD(i.pct_pmd), i.semaforo || 'SIN DATO',
+            ])
+          })
+        })
 
         autoTable(doc, {
-          head: [['Clave', 'Indicador', 'Área', '% Avance', 'Semáforo']],
-          body: inds.map(i => [
-            sanitizarPDF(i.clave), sanitizarPDF(i.nombre), sanitizarPDF(i.area_nombre),
-            pctStrPMD(i.pct_pmd), i.semaforo || 'SIN DATO',
-          ]),
-          startY: yTitulo + 10,
+          head: [['Nivel MIR', 'Clave', 'Indicador', 'Área', '% Avance', 'Semáforo']],
+          body,
+          startY: y + 10,
           margin: { left: ML, right: ML },
           styles: { fontSize: 7.5, cellPadding: 2, halign: 'center', valign: 'middle', overflow: 'linebreak' },
           headStyles: { fillColor: GUINDA, textColor: BLANCO, fontStyle: 'bold', fontSize: 7.5 },
           columnStyles: {
-            0: { cellWidth: 18 },
-            1: { cellWidth: 'auto', halign: 'left' },
-            2: { cellWidth: 26 },
-            3: { cellWidth: 20 },
-            4: { cellWidth: 22 },
+            0: { cellWidth: 22 },
+            1: { cellWidth: 18 },
+            2: { cellWidth: 'auto', halign: 'left' },
+            3: { cellWidth: 24 },
+            4: { cellWidth: 18 },
+            5: { cellWidth: 20 },
           },
           alternateRowStyles: { fillColor: [249, 244, 232] },
           didParseCell: (data) => {
-            if (data.section === 'body' && data.column.index === 4) {
+            if (data.section === 'body' && data.column.index === 5 && Array.isArray(data.row.raw) && data.row.raw.length === 6) {
               const sc = SEM_COLORS[data.cell.raw] || SEM_COLORS['SIN DATOS']
               data.cell.styles.textColor = sc.txt
               data.cell.styles.fillColor = sc.bg

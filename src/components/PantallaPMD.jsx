@@ -1,10 +1,11 @@
 import { useState, useMemo, useEffect, Fragment } from 'react'
 import { useComparativoPMD } from '../hooks/useSupabase'
-import { getIndicadoresPorPrograma, getDetalleIndicadoresPMD, getNombresEjes, getProgramasPresupuestariosDePmd } from '../lib/supabase'
+import { getIndicadoresPorPrograma, getDetalleIndicadoresPMD, getNombresEjes, getProgramasPresupuestariosDePmd, getProgramasPresupuestariosPorPmd } from '../lib/supabase'
 import { useConfiguracionCtx } from '../contexts/ConfiguracionContext'
 import { formatPeriodoLabel } from '../utils/periodo'
 import { generarReportePMD } from '../utils/reportesPMD'
 import Sparkline from './Sparkline.jsx'
+import { agruparPorNivelMir } from '../utils/nivelMir.js'
 
 const C = {
   guinda: '#7B1F2C', guindaDark: '#51141D',
@@ -60,30 +61,6 @@ function KPI({ label, value, sub, icon, color }) {
       {sub && <div style={{ fontSize: '0.62rem', color: C.txtMuted, marginTop: 2 }}>{sub}</div>}
     </div>
   )
-}
-
-/* ── Cascada MIR ──────────────────────────────────────────────────────────────
-   nivel_mir viene como texto libre ("Fin", "Proposito", "Componente 2",
-   "Actividad 1.1", con o sin acentos). Se normaliza para agrupar y ordenar
-   Fin → Propósito → Componentes → Actividades, y numéricamente dentro de
-   cada grupo (Actividad 1.2 antes que 1.10). */
-const GRUPOS_MIR = [
-  { tipo: 'FIN',        label: 'Fin',         desc: 'Objetivo superior al que contribuye el programa' },
-  { tipo: 'PROPOSITO',  label: 'Propósito',   desc: 'Resultado directo esperado en la población objetivo' },
-  { tipo: 'COMPONENTE', label: 'Componentes', desc: 'Bienes y servicios que entrega el programa' },
-  { tipo: 'ACTIVIDAD',  label: 'Actividades', desc: 'Acciones para producir los componentes' },
-  { tipo: 'OTRO',       label: 'Otros',       desc: null },
-]
-
-function parseNivelMir(nivel) {
-  const plano = (nivel || '').normalize('NFD').replace(/\p{M}/gu, '').trim().toUpperCase()
-  const tipo = plano.startsWith('FIN') ? 'FIN'
-    : plano.startsWith('PROPOSITO') ? 'PROPOSITO'
-    : plano.startsWith('COMPONENTE') ? 'COMPONENTE'
-    : plano.startsWith('ACTIVIDAD') ? 'ACTIVIDAD'
-    : 'OTRO'
-  const nums = (plano.match(/\d+/g) || []).map(Number)
-  return { tipo, orden: [(nums[0] ?? 0), (nums[1] ?? 0)] }
 }
 
 function FichaIndicador({ i }) {
@@ -165,18 +142,7 @@ function DetalleIndicadores({ programaId, mes, anio }) {
     return () => { cancel = true }
   }, [programaId, mes, anio])
 
-  const grupos = useMemo(() => {
-    if (!data?.length) return []
-    const conNivel = data.map(i => ({ ...i, _mir: parseNivelMir(i.nivel_mir) }))
-    return GRUPOS_MIR
-      .map(g => ({
-        ...g,
-        indicadores: conNivel
-          .filter(i => i._mir.tipo === g.tipo)
-          .sort((a, b) => (a._mir.orden[0] - b._mir.orden[0]) || (a._mir.orden[1] - b._mir.orden[1]) || a.nombre.localeCompare(b.nombre)),
-      }))
-      .filter(g => g.indicadores.length)
-  }, [data])
+  const grupos = useMemo(() => agruparPorNivelMir(data), [data])
 
   if (loading) return <div style={{ fontSize: '0.75rem', color: C.txtMuted, padding: '0.75rem' }}>Cargando indicadores…</div>
   if (error)   return <div style={{ fontSize: '0.75rem', color: '#C00000', padding: '0.75rem' }}>⚠️ {error}</div>
@@ -258,14 +224,15 @@ export default function PantallaPMD() {
     if (!data?.length) return
     setGenerandoPDF(true); setPdfError(null)
     try {
-      const [detallePorPrograma, ejes] = await Promise.all([
+      const [detallePorPrograma, presupuestarioPorPrograma, ejes] = await Promise.all([
         incluirDetalle ? getDetalleIndicadoresPMD(mesActual, anioActual) : Promise.resolve({}),
+        incluirDetalle ? getProgramasPresupuestariosPorPmd(anioActual) : Promise.resolve({}),
         getNombresEjes(),
       ])
       generarReportePMD({
         programas: data,
         mesActual, anioActual, periodoLabel,
-        incluirDetalle, detallePorPrograma, ejes,
+        incluirDetalle, detallePorPrograma, presupuestarioPorPrograma, ejes,
       })
     } catch (e) {
       setPdfError(e.message)
