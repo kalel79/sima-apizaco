@@ -4,7 +4,7 @@ import { useConfiguracionCtx } from '../contexts/ConfiguracionContext'
 import { formatPeriodoLabel } from '../utils/periodo'
 import { generarExcelASM } from '../utils/reportesExcelASM'
 import { useAuth } from '../hooks/useAuth'
-import { actualizarHallazgo, ORIGENES_ASM, TIPOS_ASM_CONEVAL } from '../lib/asm.js'
+import { actualizarHallazgo, actualizarAccionMejora, ORIGENES_ASM, TIPOS_ASM_CONEVAL } from '../lib/asm.js'
 import { C } from '../theme.js'
 import { Spinner, ErrMsg, KPI } from '../components/ui.jsx'
 import CapturaASM from './CapturaASM.jsx'
@@ -178,6 +178,10 @@ function FilaASM({ f, puedeEditar, onEditado }) {
   const [textoJustificacion, setTextoJustificacion] = useState(f.justificacion || '')
   const [origenAsm, setOrigenAsm] = useState(f.origen_asm || '')
   const [tipoAsmConeval, setTipoAsmConeval] = useState(f.tipo_asm_coneval || '')
+  const [textoAccion, setTextoAccion] = useState(f.accion)
+  const [responsableNombre, setResponsableNombre] = useState(f.responsable_nombre || '')
+  const [fechaInicio, setFechaInicio] = useState(f.fecha_inicio || '')
+  const [fechaCompromiso, setFechaCompromiso] = useState(f.fecha_compromiso || '')
   const [guardandoEdicion, setGuardandoEdicion] = useState(false)
   const [errorEdicion, setErrorEdicion] = useState(null)
   const col = SEM_COLOR[f.tipo_hallazgo] || C.txtMuted
@@ -188,20 +192,32 @@ function FilaASM({ f, puedeEditar, onEditado }) {
     setTextoJustificacion(f.justificacion || '')
     setOrigenAsm(f.origen_asm || '')
     setTipoAsmConeval(f.tipo_asm_coneval || '')
+    setTextoAccion(f.accion)
+    setResponsableNombre(f.responsable_nombre || '')
+    setFechaInicio(f.fecha_inicio || '')
+    setFechaCompromiso(f.fecha_compromiso || '')
     setErrorEdicion(null)
     setEditando(false)
   }
 
   async function handleGuardarEdicion() {
-    if (!textoHallazgo.trim()) return
+    if (!textoHallazgo.trim() || !textoAccion.trim() || !fechaCompromiso) return
     setGuardandoEdicion(true); setErrorEdicion(null)
     try {
-      await actualizarHallazgo(f.hallazgo_id, {
-        hallazgo: textoHallazgo.trim(),
-        justificacion: textoJustificacion.trim(),
-        origenAsm,
-        tipoAsmConeval,
-      })
+      await Promise.all([
+        actualizarHallazgo(f.hallazgo_id, {
+          hallazgo: textoHallazgo.trim(),
+          justificacion: textoJustificacion.trim(),
+          origenAsm,
+          tipoAsmConeval,
+        }),
+        actualizarAccionMejora(f.accion_id, {
+          accion: textoAccion.trim(),
+          responsableNombre: responsableNombre.trim(),
+          fechaInicio,
+          fechaCompromiso,
+        }),
+      ])
       setEditando(false)
       onEditado?.()
     } catch (e) {
@@ -248,9 +264,30 @@ function FilaASM({ f, puedeEditar, onEditado }) {
           <label style={{ fontSize: '0.6rem', color: C.txtMuted, textTransform: 'uppercase', letterSpacing: 1, display: 'block', margin: '6px 0 2px' }}>Justificación</label>
           <textarea rows={2} value={textoJustificacion} onChange={e => setTextoJustificacion(e.target.value)}
             style={{ width: '100%', background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 6, color: C.txt, padding: '0.5rem 0.75rem', fontSize: '0.75rem', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
+
+          <label style={{ fontSize: '0.6rem', color: C.txtMuted, textTransform: 'uppercase', letterSpacing: 1, display: 'block', margin: '10px 0 2px' }}>Acción de mejora</label>
+          <textarea rows={2} value={textoAccion} onChange={e => setTextoAccion(e.target.value)}
+            style={{ width: '100%', background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 6, color: C.txt, padding: '0.5rem 0.75rem', fontSize: '0.75rem', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginTop: 6 }}>
+            <div>
+              <label style={{ fontSize: '0.6rem', color: C.txtMuted, textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 2 }}>Responsable</label>
+              <input type="text" value={responsableNombre} onChange={e => setResponsableNombre(e.target.value)}
+                style={{ width: '100%', background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 6, color: C.txt, padding: '0.4rem 0.6rem', fontSize: '0.72rem', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: '0.6rem', color: C.txtMuted, textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 2 }}>Fecha inicio</label>
+              <input type="date" value={fechaInicio || ''} onChange={e => setFechaInicio(e.target.value)}
+                style={{ width: '100%', background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 6, color: C.txt, padding: '0.4rem 0.6rem', fontSize: '0.72rem', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: '0.6rem', color: C.txtMuted, textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 2 }}>Fecha compromiso</label>
+              <input type="date" value={fechaCompromiso || ''} onChange={e => setFechaCompromiso(e.target.value)}
+                style={{ width: '100%', background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 6, color: C.txt, padding: '0.4rem 0.6rem', fontSize: '0.72rem', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            </div>
+          </div>
           {errorEdicion && <div style={{ fontSize: '0.65rem', color: C.criticoB, marginTop: 4 }}>❌ {errorEdicion}</div>}
           <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-            <button onClick={handleGuardarEdicion} disabled={guardandoEdicion || !textoHallazgo.trim()}
+            <button onClick={handleGuardarEdicion} disabled={guardandoEdicion || !textoHallazgo.trim() || !textoAccion.trim() || !fechaCompromiso}
               style={{ background: C.guinda, border: 'none', borderRadius: 6, color: '#fff', padding: '0.35rem 0.7rem', fontSize: '0.65rem', fontWeight: 700, fontFamily: 'inherit', cursor: guardandoEdicion ? 'not-allowed' : 'pointer' }}>
               {guardandoEdicion ? '⏳ Guardando…' : '💾 Guardar'}
             </button>
@@ -271,7 +308,7 @@ function FilaASM({ f, puedeEditar, onEditado }) {
           )}
         </div>
       )}
-      <div style={{ fontSize: '0.74rem', color: C.txt, marginBottom: 4 }}>➡️ {f.accion}</div>
+      {!editando && <div style={{ fontSize: '0.74rem', color: C.txt, marginBottom: 4 }}>➡️ {f.accion}</div>}
       <div style={{ display: 'flex', gap: 12, fontSize: '0.65rem', color: C.txtMuted, flexWrap: 'wrap', alignItems: 'center' }}>
         <span>👤 {f.responsable_nombre || '—'}</span>
         <span>📅 Compromiso: {f.fecha_compromiso}</span>

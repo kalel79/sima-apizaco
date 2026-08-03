@@ -43,7 +43,7 @@ export {
 
 export {
   getAsmConsolidado, getAccionesAbiertas, getPctCumplimientoIndicador,
-  crearHallazgo, actualizarHallazgo, crearAccionMejora, actualizarAvanceAccion, crearRecurso,
+  crearHallazgo, actualizarHallazgo, crearAccionMejora, actualizarAccionMejora, actualizarAvanceAccion, crearRecurso,
 } from './asm.js'
 
 export {

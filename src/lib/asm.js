@@ -90,6 +90,23 @@ export async function crearAccionMejora({ hallazgoId, accion, responsableNombre,
   return data
 }
 
+export async function actualizarAccionMejora(accionId, { accion, responsableNombre, fechaInicio, fechaCompromiso } = {}) {
+  const patch = {}
+  if (accion != null) patch.accion = accion
+  if (responsableNombre !== undefined) patch.responsable_nombre = responsableNombre || null
+  if (fechaInicio !== undefined) patch.fecha_inicio = fechaInicio || null
+  if (fechaCompromiso != null) patch.fecha_compromiso = fechaCompromiso
+
+  const { data, error } = await supabase
+    .from('asm_acciones_mejora')
+    .update(patch)
+    .eq('id', accionId)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
 export async function actualizarAvanceAccion(accionId, { porcentajeAvance, fechaRealCierre } = {}) {
   const patch = {}
   if (porcentajeAvance != null) patch.porcentaje_avance = porcentajeAvance
