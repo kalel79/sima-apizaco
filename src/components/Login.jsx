@@ -12,6 +12,7 @@ const C = {
 export default function Login() {
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState(null)
 
@@ -111,16 +112,39 @@ export default function Login() {
             <label style={{ fontSize: '0.68rem', color: C.doradoLight, textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 6 }}>
               Contraseña
             </label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              style={inp}
-              onFocus={e => e.target.style.borderColor = C.dorado}
-              onBlur={e  => e.target.style.borderColor = C.border}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                style={{ ...inp, paddingRight: '2.6rem' }}
+                onFocus={e => e.target.style.borderColor = C.dorado}
+                onBlur={e  => e.target.style.borderColor = C.border}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(v => !v)}
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                title={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                style={{
+                  position: 'absolute',
+                  right: 4,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'transparent',
+                  border: 'none',
+                  color: C.doradoLight,
+                  cursor: 'pointer',
+                  fontSize: '0.95rem',
+                  padding: '0.4rem 0.5rem',
+                  lineHeight: 1,
+                }}
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
           </div>
 
           {error && (

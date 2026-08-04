@@ -17,11 +17,13 @@ export default function GestionUsuarios() {
   const [form,    setForm]    = useState({ nombre: '', email: '', rol_codigo: 'enlace', area_id: '', password: '' })
   const [saving,  setSaving]  = useState(false)
   const [status,  setStatus]  = useState(null)
+  const [showPassword, setShowPassword] = useState(false)
 
   const [usuarios,   setUsuarios]   = useState([])
   const [resetForm,  setResetForm]  = useState({ usuario_id: '', password: '' })
   const [resetSaving, setResetSaving] = useState(false)
   const [resetStatus, setResetStatus] = useState(null)
+  const [showResetPassword, setShowResetPassword] = useState(false)
 
   useEffect(() => {
     supabase.from('areas').select('id, nombre').order('nombre').then(({ data }) => setAreas(data || []))
@@ -163,14 +165,29 @@ export default function GestionUsuarios() {
             <label style={{ fontSize: '0.65rem', color: C.txtSub, textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 5 }}>
               Contraseña temporal
             </label>
-            <input
-              type="text"
-              value={form.password}
-              onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-              placeholder="Mín. 8 caracteres — la verás tras crear el usuario"
-              required
-              style={inp}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={form.password}
+                onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                placeholder="Mín. 8 caracteres — la verás tras crear el usuario"
+                required
+                style={{ ...inp, paddingRight: '2.6rem' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(v => !v)}
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                title={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                style={{
+                  position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
+                  background: 'transparent', border: 'none', color: C.doradoLight,
+                  cursor: 'pointer', fontSize: '0.95rem', padding: '0.4rem 0.5rem', lineHeight: 1,
+                }}
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
           </div>
 
           <button
@@ -250,13 +267,28 @@ export default function GestionUsuarios() {
             <label style={{ fontSize: '0.65rem', color: C.txtSub, textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 5 }}>
               Nueva contraseña (opcional)
             </label>
-            <input
-              type="text"
-              value={resetForm.password}
-              onChange={e => setResetForm(f => ({ ...f, password: e.target.value }))}
-              placeholder="Déjalo vacío para generar una automáticamente"
-              style={inp}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showResetPassword ? 'text' : 'password'}
+                value={resetForm.password}
+                onChange={e => setResetForm(f => ({ ...f, password: e.target.value }))}
+                placeholder="Déjalo vacío para generar una automáticamente"
+                style={{ ...inp, paddingRight: '2.6rem' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowResetPassword(v => !v)}
+                aria-label={showResetPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                title={showResetPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                style={{
+                  position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
+                  background: 'transparent', border: 'none', color: C.doradoLight,
+                  cursor: 'pointer', fontSize: '0.95rem', padding: '0.4rem 0.5rem', lineHeight: 1,
+                }}
+              >
+                {showResetPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
           </div>
 
           <button
