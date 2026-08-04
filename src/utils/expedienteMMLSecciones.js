@@ -283,17 +283,33 @@ function layoutRow(nodos, W, boxW, margen = ML) {
   return nodos.map((nodo, i) => ({ nodo, x: startX + i * (boxW + GAP_X), w: boxW }))
 }
 
-function drawCaja(doc, x, y, w, h, texto, { destacado, fontSize } = {}) {
+// Alto reservado en la parte inferior de una caja para la etiqueta de área
+// responsable (solo en el árbol de Objetivos/MIR, cuando el nodo trae un
+// indicador vinculado con área) — se resta del alto disponible para el
+// texto principal antes de calcular el ajuste de fuente.
+const AREA_TAG_H = 3.4
+
+function drawCaja(doc, x, y, w, h, texto, { destacado, fontSize, areaTag } = {}) {
   setDraw(doc, GUINDA); doc.setLineWidth(destacado ? 0.5 : 0.3)
   setFill(doc, destacado ? [230, 210, 200] : BLANCO)
   doc.roundedRect(x, y, w, h, 1.2, 1.2, 'FD')
+  const areaH = areaTag ? AREA_TAG_H : 0
+  const hTexto = h - areaH
   const fs = fontSize ?? (destacado ? 6.6 : 6)
   doc.setFontSize(fs)
   doc.setFont('helvetica', destacado ? 'bold' : 'normal'); setColor(doc, [25, 25, 25])
   const lineHeight = fs * RATIO_LINEA
-  const maxLineas = Math.max(1, Math.floor((h - 2) / lineHeight))
+  const maxLineas = Math.max(1, Math.floor((hTexto - 2) / lineHeight))
   const lines = doc.splitTextToSize(texto || '—', w - 3).slice(0, maxLineas)
-  doc.text(lines, x + w / 2, y + h / 2 - (lines.length - 1) * (lineHeight / 2) + fs / 6, { align: 'center' })
+  doc.text(lines, x + w / 2, y + hTexto / 2 - (lines.length - 1) * (lineHeight / 2) + fs / 6, { align: 'center' })
+
+  if (areaTag) {
+    setDraw(doc, DORADO); doc.setLineWidth(0.2)
+    doc.line(x + 1, y + hTexto, x + w - 1, y + hTexto)
+    doc.setFontSize(4); doc.setFont('helvetica', 'bold'); setColor(doc, [130, 100, 20])
+    const lineaArea = doc.splitTextToSize(areaTag, w - 2).slice(0, 1)
+    doc.text(lineaArea, x + w / 2, y + h - 1, { align: 'center' })
+  }
 }
 
 // Fuente más grande posible (hasta fontMax) para que `texto` quepa en una
@@ -365,6 +381,12 @@ export function drawArbolDiagrama(doc, datos, arbolTipo, tipoConfig, folio) {
     .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
   const hijosDe = primario => nodos.filter(n => n.padre_id === primario.id).sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
 
+  // Área responsable del indicador vinculado a un nodo — solo aplica al
+  // árbol de Objetivos (de ahí se deriva la MIR); el árbol del Problema no
+  // lleva indicadores vinculados.
+  const mostrarArea = arbolTipo === 'OBJETIVOS'
+  const areaTag = nodo => (mostrarArea && nodo.indicador?.areas?.nombre) || null
+
   // Margen propio de esta hoja, más angosto que el ML general del resto del
   // documento (a pedido de Hugo) — más ancho útil para que se aprecien mejor
   // todas las cajas del árbol. El encabezado y los datos del programa arriba
@@ -377,7 +399,7 @@ export function drawArbolDiagrama(doc, datos, arbolTipo, tipoConfig, folio) {
   const boxWSuperior = Math.min(BOX_W_MAX, (usableArbol - GAP_X * (nSup - 1)) / nSup)
   const filaSup = layoutRow(superiores, W, boxWSuperior, MARGEN_ARBOL)
   const ySup = y + 6
-  filaSup.forEach(({ nodo, x, w }) => drawCaja(doc, x, ySup, w, BOX_H, nodo.texto))
+  filaSup.forEach(({ nodo, x, w }) => drawCaja(doc, x, ySup, w, BOX_H, nodo.texto, { areaTag: areaTag(nodo) }))
 
   // Fila primaria (Causas/Medios de primer nivel): el ancho de cada caja es
   // proporcional a cuántos hijos (sub-causas/sub-medios) tiene — antes todas
@@ -403,12 +425,12 @@ export function drawArbolDiagrama(doc, datos, arbolTipo, tipoConfig, folio) {
   const totalSuperior = boxWSuperior * nSup + GAP_X * (nSup - 1)
   const raizW = Math.max(totalSuperior, anchoTotalPrim)
   const raizX = (W - raizW) / 2, yRaiz = ySup + BOX_H + 14
-  drawCaja(doc, raizX, yRaiz, raizW, BOX_H, raiz.texto, { destacado: true })
+  drawCaja(doc, raizX, yRaiz, raizW, BOX_H, raiz.texto, { destacado: true, areaTag: areaTag(raiz) })
   filaSup.forEach(({ x, w }) => drawConector(doc, x + w / 2, ySup + BOX_H, raizX + raizW / 2, yRaiz))
 
   const yPrim = yRaiz + BOX_H + 14
   filaPrim.forEach(({ nodo, x, w }) => {
-    drawCaja(doc, x, yPrim, w, BOX_H, nodo.texto)
+    drawCaja(doc, x, yPrim, w, BOX_H, nodo.texto, { areaTag: areaTag(nodo) })
     drawConector(doc, raizX + raizW / 2, yRaiz + BOX_H, x + w / 2, yPrim)
   })
 
@@ -436,11 +458,12 @@ export function drawArbolDiagrama(doc, datos, arbolTipo, tipoConfig, folio) {
 
   if (gruposSecundarios.length) {
     const fontSec = Math.min(6, Math.max(4.2, Math.min(
-      ...gruposSecundarios.flatMap(g => g.cajas.map(({ hijo, w }) => fontAjustadaCaja(doc, hijo.texto, w, BOX_H)))
+      ...gruposSecundarios.flatMap(g => g.cajas.map(({ hijo, w }) =>
+        fontAjustadaCaja(doc, hijo.texto, w, BOX_H - (areaTag(hijo) ? AREA_TAG_H : 0))))
     )))
     gruposSecundarios.forEach(({ xPrim, wPrim, cajas }) => {
       cajas.forEach(({ hijo, x, w }) => {
-        drawCaja(doc, x, ySec, w, BOX_H, hijo.texto, { fontSize: fontSec })
+        drawCaja(doc, x, ySec, w, BOX_H, hijo.texto, { fontSize: fontSec, areaTag: areaTag(hijo) })
         drawConector(doc, xPrim + wPrim / 2, yPrim + BOX_H, x + w / 2, ySec)
       })
     })

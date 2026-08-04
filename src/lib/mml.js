@@ -124,7 +124,7 @@ export async function resolverDatosMML(programaId, anio) {
     supabase.from('diagnostico_programa').select('*').eq('programa_id', programaId).eq('anio', anio).order('orden'),
     supabase.from('arbol_nodos').select('*').eq('programa_id', programaId).eq('anio', anio).eq('arbol', 'PROBLEMA').order('tipo').order('orden'),
     supabase.from('arbol_nodos')
-      .select('*, indicadores(id, clave, nombre, definicion, tipo_indicador, dimension, sentido, linea_base_anio, interpretacion, unidad_medida)')
+      .select('*, indicadores(id, clave, nombre, definicion, tipo_indicador, dimension, sentido, linea_base_anio, interpretacion, unidad_medida, area_id, areas!fk_indicadores_area(nombre))')
       .eq('programa_id', programaId).eq('anio', anio).eq('arbol', 'OBJETIVOS').order('tipo').order('orden'),
     supabase.from('involucrados_programa').select('*').eq('programa_id', programaId).eq('anio', anio).order('categoria').order('orden'),
     supabase.from('acciones_alternativas').select('*').eq('programa_id', programaId).eq('anio', anio).order('orden'),

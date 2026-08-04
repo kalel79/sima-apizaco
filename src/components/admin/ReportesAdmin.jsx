@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { generarPDF, generarExcel, generarExcelEjecutivo, generarPDFPiloto, generarExcelPiloto, generarExcelMetas } from '../../utils/reportes'
 import { generarInformeGobierno } from '../../utils/informeGobierno'
+import { generarArbolProblemaObjetivosMIR } from '../../utils/reporteArbolMIR'
 import {
   getMetasResultados, getAvancesMensualesPDF, getComparativoPMD, getClavesIndicadores,
   getCierresMensuales, getIndicadoresPorEjeCatalogo, getCorreccionesExtemporaneas,
@@ -15,6 +16,7 @@ import { inp } from './estilos.js'
 // reporte desde el padre (instancia única de useDatosReporte).
 export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoading, rError, cargar, mesActual, anioActual, periodoLabel }) {
   const [genStatus, setGenStatus] = useState(null)
+  const [anioArbol, setAnioArbol] = useState(2026)
   const [cierres, setCierres] = useState([])
   const [periodosConDatos, setPeriodosConDatos] = useState([])
   const [periodoSelKey, setPeriodoSelKey] = useState('actual') // 'actual' | `${anio}-${mes}`
@@ -139,6 +141,16 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
     }
   }
 
+  async function handleArbolMIR() {
+    setGenStatus('cargando')
+    try {
+      await generarArbolProblemaObjetivosMIR(anioArbol)
+      setGenStatus('ok')
+    } catch (e) {
+      setGenStatus('error:' + e.message)
+    }
+  }
+
   async function handleExcelMetas() {
     setGenStatus('cargando')
     try {
@@ -245,6 +257,32 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
         >
           📋 Descargar Informe de Gobierno
         </button>
+      </div>
+
+      {/* Árbol Problema-Objetivos MIR (9 programas) */}
+      <div style={{ marginBottom: '1rem' }}>
+        <div style={{ fontSize: '0.62rem', color: C.txtMuted, marginBottom: '0.5rem', letterSpacing: 1 }}>
+          ÁRBOL PROBLEMA-OBJETIVOS (MIR) — los 9 programas presupuestales, con área responsable por nivel:
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <select value={anioArbol} onChange={e => setAnioArbol(+e.target.value)} style={inp}>
+            <option value={2026}>2026</option>
+            <option value={2027}>2027</option>
+          </select>
+          <button
+            onClick={handleArbolMIR}
+            disabled={rLoading || genStatus === 'cargando'}
+            style={{
+              background: rLoading || genStatus === 'cargando' ? '#444' : `linear-gradient(135deg,#1a3a2e,#1e6b4d)`,
+              border: 'none', borderRadius: 8, color: C.txt,
+              padding: '0.75rem 1.2rem', fontSize: '0.82rem', fontWeight: 700,
+              fontFamily: 'inherit', cursor: rLoading || genStatus === 'cargando' ? 'not-allowed' : 'pointer',
+              letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 8,
+            }}
+          >
+            🌳 Árbol Problema-Objetivos MIR (9 programas)
+          </button>
+        </div>
       </div>
 
       {/* Botones piloto (validación antes del reporte completo) */}

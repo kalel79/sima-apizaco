@@ -9,11 +9,11 @@ import {
   drawCronogramaMetas, drawFichaIndicador,
 } from './expedienteMMLSecciones.js'
 
-const TIPO_CONFIG_PROBLEMA = {
+export const TIPO_CONFIG_PROBLEMA = {
   titulo: 'ÁRBOL DEL PROBLEMA', tipoRaiz: 'CENTRAL', tipoSuperior: 'EFECTO', tipoPrimario: 'CAUSA',
   labelRaiz: 'PROBLEMA CENTRAL', labelSuperior: 'EFECTOS', labelPrimario: 'CAUSAS',
 }
-const TIPO_CONFIG_OBJETIVOS = {
+export const TIPO_CONFIG_OBJETIVOS = {
   titulo: 'ÁRBOL DE OBJETIVOS', tipoRaiz: 'OBJETIVO', tipoSuperior: 'FIN', tipoPrimario: 'MEDIO',
   labelRaiz: 'OBJETIVO CENTRAL', labelSuperior: 'FINES', labelPrimario: 'MEDIOS',
 }
