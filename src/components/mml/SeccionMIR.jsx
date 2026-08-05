@@ -276,7 +276,7 @@ function FichaIndicador({ nivel, ind, anio, puedeEditar, conGuardado, setGuardan
         Ficha de indicador — {NIVEL_LABEL[nivel.tipo] || nivel.tipo}{nivel.numero ? ` ${nivel.numero}` : ''} · {ind.nombre}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: '0.6rem', marginBottom: '0.6rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 120px', gap: '0.6rem', marginBottom: '0.6rem' }}>
         <div>
           <label style={lbl}>Definición</label>
           <textarea rows={2} defaultValue={ind.definicion || ''} disabled={!puedeEditar}
@@ -288,6 +288,14 @@ function FichaIndicador({ nivel, ind, anio, puedeEditar, conGuardado, setGuardan
           <input type="number" defaultValue={ind.linea_base_anio || ''} disabled={!puedeEditar}
             onBlur={e => { const v = e.target.value ? +e.target.value : null; if (v !== ind.linea_base_anio) conGuardado('ind-' + ind.id, () => actualizarFichaIndicador(ind.id, { lineaBaseAnio: v })) }}
             style={inp} />
+        </div>
+        <div>
+          <label style={lbl}>Frecuencia</label>
+          <select defaultValue={ind.frecuencia || 'Anual'} disabled={!puedeEditar}
+            onBlur={e => { if (e.target.value !== (ind.frecuencia || '')) conGuardado('ind-' + ind.id, () => actualizarFichaIndicador(ind.id, { frecuencia: e.target.value })) }}
+            style={inp}>
+            {FRECUENCIAS.map(f => <option key={f}>{f}</option>)}
+          </select>
         </div>
       </div>
       <div style={{ marginBottom: '0.8rem' }}>

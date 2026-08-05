@@ -220,8 +220,17 @@ export default function PantallaPMD() {
 
   const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
 
+  // Ocultos temporalmente a pedido de Hugo (2026-08-05): programas sin
+  // indicador vinculado o sin meta capturada para el año en curso, mientras
+  // Planeación termina de alinearlos. Cuando estén listos, basta con quitar
+  // este filtro — la vista sigue trayendo esos programas por si se necesitan.
+  const visibles = useMemo(() => {
+    if (!data) return []
+    return data.filter(p => Number(p.total_indicadores) > 0 && Number(p.indicadores_con_meta_anio) > 0)
+  }, [data])
+
   async function handleDescargarReporte() {
-    if (!data?.length) return
+    if (!visibles.length) return
     setGenerandoPDF(true); setPdfError(null)
     try {
       const [detallePorPrograma, presupuestarioPorPrograma, ejes] = await Promise.all([
@@ -230,7 +239,7 @@ export default function PantallaPMD() {
         getNombresEjes(),
       ])
       generarReportePMD({
-        programas: data,
+        programas: visibles,
         mesActual, anioActual, periodoLabel,
         incluirDetalle, detallePorPrograma, presupuestarioPorPrograma, ejes,
       })
@@ -242,36 +251,34 @@ export default function PantallaPMD() {
   }
 
   const ejesDisponibles = useMemo(() => {
-    if (!data) return []
-    return Array.from(new Set(data.map(p => p.eje).filter(Boolean))).sort()
-  }, [data])
+    return Array.from(new Set(visibles.map(p => p.eje).filter(Boolean))).sort()
+  }, [visibles])
 
   const filtrados = useMemo(() => {
-    if (!data) return []
-    let r = data
+    let r = visibles
     if (eje) r = r.filter(p => p.eje === eje)
     if (busq) {
       const q = busq.toLowerCase()
       r = r.filter(p => p.programa_nombre?.toLowerCase().includes(q))
     }
     return r
-  }, [data, eje, busq])
+  }, [visibles, eje, busq])
 
   const resumen = useMemo(() => {
-    if (!data?.length) return null
-    const conAvance = data.filter(p => p.indicadores_con_avance > 0).length
-    const conPct = data.filter(p => p.pct_promedio != null)
+    if (!visibles.length) return null
+    const conAvance = visibles.filter(p => p.indicadores_con_avance > 0).length
+    const conPct = visibles.filter(p => p.pct_promedio != null)
     const pctGlobal = conPct.length
       ? conPct.reduce((s, p) => s + Number(p.pct_promedio), 0) / conPct.length
       : null
-    const totales = data.reduce((acc, p) => ({
+    const totales = visibles.reduce((acc, p) => ({
       optimo:   acc.optimo   + (p.optimo   || 0),
       adecuado: acc.adecuado + (p.adecuado || 0),
       riesgo:   acc.riesgo   + (p.riesgo   || 0),
       critico:  acc.critico  + (p.critico  || 0),
     }), { optimo: 0, adecuado: 0, riesgo: 0, critico: 0 })
-    return { total: data.length, conAvance, sinAvance: data.length - conAvance, pctGlobal, ...totales }
-  }, [data])
+    return { total: visibles.length, conAvance, sinAvance: visibles.length - conAvance, pctGlobal, ...totales }
+  }, [visibles])
 
   const inp = {
     width: '100%', background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 8,
@@ -299,8 +306,8 @@ export default function PantallaPMD() {
             <input type="checkbox" checked={incluirDetalle} onChange={e => setIncluirDetalle(e.target.checked)}/>
             Incluir detalle por indicador
           </label>
-          <button onClick={handleDescargarReporte} disabled={generandoPDF || !data?.length}
-            style={{ background: generandoPDF ? '#444' : `linear-gradient(135deg,${C.guindaDark},${C.guinda})`, border: 'none', borderRadius: 8, color: C.txt, padding: '0.5rem 0.9rem', fontSize: '0.75rem', fontWeight: 700, fontFamily: 'inherit', cursor: generandoPDF || !data?.length ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
+          <button onClick={handleDescargarReporte} disabled={generandoPDF || !visibles.length}
+            style={{ background: generandoPDF ? '#444' : `linear-gradient(135deg,${C.guindaDark},${C.guinda})`, border: 'none', borderRadius: 8, color: C.txt, padding: '0.5rem 0.9rem', fontSize: '0.75rem', fontWeight: 700, fontFamily: 'inherit', cursor: generandoPDF || !visibles.length ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
             {generandoPDF ? '⏳ Generando…' : '📄 Descargar Reporte PDF'}
           </button>
         </div>
