@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { ClipboardList, CheckCircle2, XCircle, Loader2, Save } from 'lucide-react'
 import { useIndicadoresLista } from '../hooks/useSupabase'
 import { crearHallazgo, crearAccionMejora, getPctCumplimientoIndicador } from '../lib/supabase'
 import { ORIGENES_ASM, TIPOS_ASM_CONEVAL } from '../lib/asm.js'
@@ -85,18 +86,18 @@ export default function CapturaASM() {
   return (
     <div style={{ maxWidth: 640 }}>
       <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '1.2rem' }}>
-        <div style={{ fontSize: '0.62rem', letterSpacing: 3, color: C.dorado, textTransform: 'uppercase', marginBottom: '1rem' }}>
-          📋 Registrar hallazgo ASM
+        <div style={{ fontSize: '0.62rem', letterSpacing: 3, color: C.dorado, textTransform: 'uppercase', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 5 }}>
+          <ClipboardList size={12}/> Registrar hallazgo ASM
         </div>
 
         {status === 'ok' && hallazgoCreado && (
-          <div style={{ background: '#04620522', border: `1px solid ${C.optimoB}`, borderRadius: 8, padding: '0.65rem 1rem', marginBottom: '1rem', fontSize: '0.8rem', color: C.optimoB }}>
-            ✅ Hallazgo <strong>{hallazgoCreado.folio}</strong> registrado — tipo <strong>{hallazgoCreado.tipo_hallazgo}</strong>, prioridad <strong>{hallazgoCreado.prioridad}</strong>. Puedes subir evidencia abajo.
+          <div style={{ background: '#04620522', border: `1px solid ${C.optimoB}`, borderRadius: 8, padding: '0.65rem 1rem', marginBottom: '1rem', fontSize: '0.8rem', color: C.optimoB, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            <CheckCircle2 size={15} style={{flexShrink:0,marginTop:1}}/> Hallazgo <strong>{hallazgoCreado.folio}</strong> registrado — tipo <strong>{hallazgoCreado.tipo_hallazgo}</strong>, prioridad <strong>{hallazgoCreado.prioridad}</strong>. Puedes subir evidencia abajo.
           </div>
         )}
         {status?.startsWith('error') && (
-          <div style={{ background: '#C0000022', border: `1px solid ${C.criticoB}`, borderRadius: 8, padding: '0.65rem 1rem', marginBottom: '1rem', fontSize: '0.8rem', color: C.criticoB }}>
-            ❌ {status.replace('error:', '')}
+          <div style={{ background: '#C0000022', border: `1px solid ${C.criticoB}`, borderRadius: 8, padding: '0.65rem 1rem', marginBottom: '1rem', fontSize: '0.8rem', color: C.criticoB, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <XCircle size={15}/> {status.replace('error:', '')}
           </div>
         )}
 
@@ -206,9 +207,12 @@ export default function CapturaASM() {
           </div>
 
           <button onClick={handleGuardar} disabled={saving || !puedeGuardar}
-            style={{ background: saving ? '#444' : `linear-gradient(135deg,${C.guindaDark},${C.guinda})`, border: 'none', borderRadius: 8, color: C.txt, padding: '0.75rem', fontSize: '0.85rem', fontWeight: 700, fontFamily: 'inherit', cursor: saving ? 'not-allowed' : 'pointer', letterSpacing: 1, opacity: !puedeGuardar ? 0.5 : 1 }}>
-            {saving ? '⏳ Guardando…' : '💾 REGISTRAR HALLAZGO Y ACCIÓN'}
+            style={{ background: saving ? '#444' : `linear-gradient(135deg,${C.guindaDark},${C.guinda})`, border: 'none', borderRadius: 8, color: C.txt, padding: '0.75rem', fontSize: '0.85rem', fontWeight: 700, fontFamily: 'inherit', cursor: saving ? 'not-allowed' : 'pointer', letterSpacing: 1, opacity: !puedeGuardar ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            {saving
+              ? <><Loader2 size={15} style={{animation:'spin 0.8s linear infinite'}}/> Guardando…</>
+              : <><Save size={15}/> REGISTRAR HALLAZGO Y ACCIÓN</>}
           </button>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
       </div>
 

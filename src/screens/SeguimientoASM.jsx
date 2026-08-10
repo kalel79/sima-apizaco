@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { CalendarClock, AlertTriangle, Loader2, CheckCircle2 } from 'lucide-react'
 import { getAccionesAbiertas, actualizarAvanceAccion } from '../lib/supabase'
 import { C } from '../theme.js'
 import { Spinner, ErrMsg } from '../components/ui.jsx'
@@ -47,8 +48,8 @@ export default function SeguimientoASM() {
 
   return (
     <div>
-      <div style={{ fontSize: '0.62rem', letterSpacing: 3, color: C.dorado, textTransform: 'uppercase', marginBottom: '0.8rem' }}>
-        📆 Seguimiento de acciones ASM
+      <div style={{ fontSize: '0.62rem', letterSpacing: 3, color: C.dorado, textTransform: 'uppercase', marginBottom: '0.8rem', display: 'flex', alignItems: 'center', gap: 5 }}>
+        <CalendarClock size={12}/> Seguimiento de acciones ASM
       </div>
 
       {loading && <Spinner />}
@@ -67,8 +68,10 @@ export default function SeguimientoASM() {
               <div key={f.accion_id} style={{ background: C.bgCard, border: `1px solid ${vencida ? C.criticoB : C.border}`, borderRadius: 10, padding: '0.9rem', marginBottom: '0.6rem' }}>
                 <div style={{ fontSize: '0.6rem', color: C.txtSub }}>{f.folio} · {f.area_nombre}</div>
                 <div style={{ fontSize: '0.8rem', fontWeight: 600, color: C.txt, margin: '2px 0 6px' }}>{f.accion}</div>
-                <div style={{ fontSize: '0.68rem', color: vencida ? C.criticoB : C.txtMuted, fontWeight: vencida ? 700 : 400, marginBottom: 8 }}>
-                  {vencida ? `⚠️ Vencida hace ${Math.abs(f.dias_al_vencimiento)} día(s)` : `Vence en ${f.dias_al_vencimiento} día(s)`} · Compromiso: {f.fecha_compromiso}
+                <div style={{ fontSize: '0.68rem', color: vencida ? C.criticoB : C.txtMuted, fontWeight: vencida ? 700 : 400, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  {vencida
+                    ? <><AlertTriangle size={12}/> Vencida hace {Math.abs(f.dias_al_vencimiento)} día(s)</>
+                    : <>Vence en {f.dias_al_vencimiento} día(s)</>} · Compromiso: {f.fecha_compromiso}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <input type="number" min="0" max="100" defaultValue={f.porcentaje_avance}
@@ -80,13 +83,16 @@ export default function SeguimientoASM() {
                     style={{ width: 70, background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 6, color: C.txt, padding: '0.4rem', fontSize: '0.78rem', textAlign: 'center' }} />
                   <span style={{ fontSize: '0.72rem', color: C.txtMuted }}>% avance</span>
                   <button onClick={() => handleCerrar(f.accion_id)} disabled={guardandoEsta}
-                    style={{ marginLeft: 'auto', background: 'none', border: `1px solid ${C.optimoB}`, borderRadius: 6, color: C.optimoB, padding: '0.4rem 0.7rem', fontSize: '0.7rem', cursor: guardandoEsta ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-                    {guardandoEsta ? '⏳' : '✅ Marcar cerrada'}
+                    style={{ marginLeft: 'auto', background: 'none', border: `1px solid ${C.optimoB}`, borderRadius: 6, color: C.optimoB, padding: '0.4rem 0.7rem', fontSize: '0.7rem', cursor: guardandoEsta ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                    {guardandoEsta
+                      ? <Loader2 size={12} style={{animation:'spin 0.8s linear infinite'}}/>
+                      : <><CheckCircle2 size={12}/> Marcar cerrada</>}
                   </button>
                 </div>
               </div>
             )
           })}
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
 
           {!filas.length && (
             <div style={{ fontSize: '0.78rem', color: C.txtMuted, padding: '1rem', textAlign: 'center' }}>

@@ -1,4 +1,9 @@
 import { useState, useMemo } from 'react'
+import {
+  LayoutDashboard, PenLine, CalendarClock, ListChecks, CircleAlert, AlertTriangle,
+  CheckCircle2, Trophy, Clock, RefreshCw, Loader2, FileSpreadsheet, XCircle, Save,
+  Pencil, ArrowRight, User, Calendar, BarChart3, ChevronUp, Paperclip,
+} from 'lucide-react'
 import { useAsmConsolidado } from '../hooks/useSupabase'
 import { useConfiguracionCtx } from '../contexts/ConfiguracionContext'
 import { formatPeriodoLabel } from '../utils/periodo'
@@ -24,10 +29,10 @@ export default function PantallaASM() {
   const [tab, setTab] = useState('dashboard')
 
   const tabs = [
-    { id: 'dashboard', l: '📊 Dashboard' },
+    { id: 'dashboard', l: 'Dashboard', icon: LayoutDashboard },
     ...(puedeCapturarASM ? [
-      { id: 'captura', l: '📝 Registrar hallazgo' },
-      { id: 'seguimiento', l: '📆 Seguimiento' },
+      { id: 'captura', l: 'Registrar hallazgo', icon: PenLine },
+      { id: 'seguimiento', l: 'Seguimiento', icon: CalendarClock },
     ] : []),
   ]
 
@@ -40,8 +45,9 @@ export default function PantallaASM() {
               background: tab === t.id ? C.guinda : C.bgPanel, border: `1px solid ${tab === t.id ? C.guinda : C.border}`,
               borderRadius: 8, color: tab === t.id ? '#fff' : C.txtSub, padding: '0.5rem 0.85rem', fontSize: '0.74rem',
               fontWeight: tab === t.id ? 700 : 400, fontFamily: 'inherit', cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
             }}>
-            {t.l}
+            <t.icon size={13}/> {t.l}
           </button>
         ))}
       </div>
@@ -119,12 +125,12 @@ function DashboardASM() {
   return (
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(130px,1fr))', gap: '0.6rem', marginBottom: '1rem' }}>
-        <KPI label="Hallazgos totales" value={resumen.total} icon="📌" color={C.dorado} />
-        <KPI label="% CRÍTICO" value={`${resumen.pct['CRÍTICO']}%`} icon="🔴" color={C.criticoB} />
-        <KPI label="% RIESGO" value={`${resumen.pct['RIESGO']}%`} icon="🟡" color={C.riesgoB} />
-        <KPI label="% ADECUADO" value={`${resumen.pct['ADECUADO']}%`} icon="🟢" color={C.adecuadoB} />
-        <KPI label="% ÓPTIMO" value={`${resumen.pct['ÓPTIMO']}%`} icon="🏆" color={C.optimoB} />
-        <KPI label="Acciones atrasadas" value={`${resumen.pctAtrasadas}%`} icon="⏰" color={C.criticoB} />
+        <KPI label="Hallazgos totales" value={resumen.total} icon={ListChecks} color={C.dorado} />
+        <KPI label="% CRÍTICO" value={`${resumen.pct['CRÍTICO']}%`} icon={CircleAlert} color={C.criticoB} />
+        <KPI label="% RIESGO" value={`${resumen.pct['RIESGO']}%`} icon={AlertTriangle} color={C.riesgoB} />
+        <KPI label="% ADECUADO" value={`${resumen.pct['ADECUADO']}%`} icon={CheckCircle2} color={C.adecuadoB} />
+        <KPI label="% ÓPTIMO" value={`${resumen.pct['ÓPTIMO']}%`} icon={Trophy} color={C.optimoB} />
+        <KPI label="Acciones atrasadas" value={`${resumen.pctAtrasadas}%`} icon={Clock} color={C.criticoB} />
       </div>
 
       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.8rem' }}>
@@ -144,11 +150,14 @@ function DashboardASM() {
           <option value="">Todos los estatus</option>
           {ESTATUS.map(s => <option key={s}>{s}</option>)}
         </select>
-        <button onClick={refetch} style={{ ...inp, cursor: 'pointer', background: C.bgPanel }}>🔄</button>
+        <button onClick={refetch} style={{ ...inp, cursor: 'pointer', background: C.bgPanel, display: 'flex', alignItems: 'center' }}><RefreshCw size={14}/></button>
         <button onClick={handleExportar} disabled={exportando || !filas.length}
-          style={{ ...inp, cursor: exportando ? 'not-allowed' : 'pointer', background: C.guinda, color: '#fff', fontWeight: 600, opacity: !filas.length ? 0.5 : 1 }}>
-          {exportando ? '⏳ Exportando…' : '📥 Exportar Excel'}
+          style={{ ...inp, cursor: exportando ? 'not-allowed' : 'pointer', background: C.guinda, color: '#fff', fontWeight: 600, opacity: !filas.length ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+          {exportando
+            ? <><Loader2 size={13} style={{animation:'spin 0.8s linear infinite'}}/> Exportando…</>
+            : <><FileSpreadsheet size={13}/> Exportar Excel</>}
         </button>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
 
       {loading && <Spinner />}
@@ -285,11 +294,13 @@ function FilaASM({ f, puedeEditar, onEditado }) {
                 style={{ width: '100%', background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 6, color: C.txt, padding: '0.4rem 0.6rem', fontSize: '0.72rem', fontFamily: 'inherit', boxSizing: 'border-box' }} />
             </div>
           </div>
-          {errorEdicion && <div style={{ fontSize: '0.65rem', color: C.criticoB, marginTop: 4 }}>❌ {errorEdicion}</div>}
+          {errorEdicion && <div style={{ fontSize: '0.65rem', color: C.criticoB, marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}><XCircle size={11}/> {errorEdicion}</div>}
           <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
             <button onClick={handleGuardarEdicion} disabled={guardandoEdicion || !textoHallazgo.trim() || !textoAccion.trim() || !fechaCompromiso}
-              style={{ background: C.guinda, border: 'none', borderRadius: 6, color: '#fff', padding: '0.35rem 0.7rem', fontSize: '0.65rem', fontWeight: 700, fontFamily: 'inherit', cursor: guardandoEdicion ? 'not-allowed' : 'pointer' }}>
-              {guardandoEdicion ? '⏳ Guardando…' : '💾 Guardar'}
+              style={{ background: C.guinda, border: 'none', borderRadius: 6, color: '#fff', padding: '0.35rem 0.7rem', fontSize: '0.65rem', fontWeight: 700, fontFamily: 'inherit', cursor: guardandoEdicion ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              {guardandoEdicion
+                ? <><Loader2 size={11} style={{animation:'spin 0.8s linear infinite'}}/> Guardando…</>
+                : <><Save size={11}/> Guardar</>}
             </button>
             <button onClick={handleCancelarEdicion} disabled={guardandoEdicion}
               style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, color: C.txtSub, padding: '0.35rem 0.7rem', fontSize: '0.65rem', fontFamily: 'inherit', cursor: 'pointer' }}>
@@ -302,23 +313,23 @@ function FilaASM({ f, puedeEditar, onEditado }) {
           <span style={{ flex: 1 }}>{f.hallazgo}</span>
           {puedeEditar && (
             <button onClick={() => setEditando(true)}
-              style={{ background: 'none', border: 'none', color: C.doradoLight, fontSize: '0.65rem', fontFamily: 'inherit', cursor: 'pointer', padding: 0, whiteSpace: 'nowrap' }}>
-              ✏️ Editar
+              style={{ background: 'none', border: 'none', color: C.doradoLight, fontSize: '0.65rem', fontFamily: 'inherit', cursor: 'pointer', padding: 0, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <Pencil size={11}/> Editar
             </button>
           )}
         </div>
       )}
-      {!editando && <div style={{ fontSize: '0.74rem', color: C.txt, marginBottom: 4 }}>➡️ {f.accion}</div>}
+      {!editando && <div style={{ fontSize: '0.74rem', color: C.txt, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 5 }}><ArrowRight size={12}/> {f.accion}</div>}
       <div style={{ display: 'flex', gap: 12, fontSize: '0.65rem', color: C.txtMuted, flexWrap: 'wrap', alignItems: 'center' }}>
-        <span>👤 {f.responsable_nombre || '—'}</span>
-        <span>📅 Compromiso: {f.fecha_compromiso}</span>
-        <span>📊 {f.porcentaje_avance}%</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><User size={11}/> {f.responsable_nombre || '—'}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Calendar size={11}/> Compromiso: {f.fecha_compromiso}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><BarChart3 size={11}/> {f.porcentaje_avance}%</span>
         <span style={{ color: estatusColor, fontWeight: 700 }}>
           {f.estatus}{f.estatus !== 'Cerrado' ? ` (${f.dias_al_vencimiento >= 0 ? f.dias_al_vencimiento + ' días' : Math.abs(f.dias_al_vencimiento) + ' días de retraso'})` : ''}
         </span>
         <button onClick={() => setVerEvidencia(v => !v)}
-          style={{ marginLeft: 'auto', background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, color: C.doradoLight, padding: '0.3rem 0.6rem', fontSize: '0.65rem', fontFamily: 'inherit', cursor: 'pointer' }}>
-          {verEvidencia ? '▲ Ocultar evidencia' : '📎 Evidencia'}
+          style={{ marginLeft: 'auto', background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, color: C.doradoLight, padding: '0.3rem 0.6rem', fontSize: '0.65rem', fontFamily: 'inherit', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          {verEvidencia ? <><ChevronUp size={12}/> Ocultar evidencia</> : <><Paperclip size={12}/> Evidencia</>}
         </button>
       </div>
 

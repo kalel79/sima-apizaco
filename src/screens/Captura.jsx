@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import { PenLine, CheckCircle2, XCircle, Calendar, Loader2, Save, Building2, Lock, FileText } from 'lucide-react'
 import { useIndicadoresLista } from '../hooks/useSupabase'
 import {
   guardarAvance, getAvanceActual, getResumenValidacionArea,
@@ -186,18 +187,18 @@ export default function PantallaCaptura({ areaCoordinador }) {
   return (
     <div style={{maxWidth:640}}>
       <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:'1.2rem',marginBottom:'1rem'}}>
-        <div style={{fontSize:'0.62rem',letterSpacing:3,color:C.dorado,textTransform:'uppercase',marginBottom:'1rem'}}>
-          📝 Captura de Avance · SIMA — {(lista||[]).length} indicadores disponibles
+        <div style={{fontSize:'0.62rem',letterSpacing:3,color:C.dorado,textTransform:'uppercase',marginBottom:'1rem',display:'flex',alignItems:'center',gap:5}}>
+          <PenLine size={12}/> Captura de Avance · SIMA — {(lista||[]).length} indicadores disponibles
         </div>
 
         {status==='ok' && (
-          <div style={{background:'#04620522',border:`1px solid ${C.optimoB}`,borderRadius:8,padding:'0.65rem 1rem',marginBottom:'1rem',fontSize:'0.8rem',color:C.optimoB}}>
-            ✅ Avance guardado correctamente en Supabase
+          <div style={{background:'#04620522',border:`1px solid ${C.optimoB}`,borderRadius:8,padding:'0.65rem 1rem',marginBottom:'1rem',fontSize:'0.8rem',color:C.optimoB,display:'flex',alignItems:'center',gap:8}}>
+            <CheckCircle2 size={15}/> Avance guardado correctamente en Supabase
           </div>
         )}
         {status?.startsWith('error') && (
-          <div style={{background:'#C0000022',border:`1px solid ${C.criticoB}`,borderRadius:8,padding:'0.65rem 1rem',marginBottom:'1rem',fontSize:'0.8rem',color:C.criticoB}}>
-            ❌ {status.replace('error:','')}
+          <div style={{background:'#C0000022',border:`1px solid ${C.criticoB}`,borderRadius:8,padding:'0.65rem 1rem',marginBottom:'1rem',fontSize:'0.8rem',color:C.criticoB,display:'flex',alignItems:'center',gap:8}}>
+            <XCircle size={15}/> {status.replace('error:','')}
           </div>
         )}
 
@@ -242,8 +243,8 @@ export default function PantallaCaptura({ areaCoordinador }) {
           {/* Mes / Año / Trimestre */}
           {isEnlace ? (
             <div style={{background:C.bgPanel,border:`1px solid ${C.border}`,borderRadius:8,padding:'0.65rem 0.85rem'}}>
-              <div style={{fontSize:'0.78rem',color:C.txt}}>
-                🗓 Periodo de captura: <strong style={{color:C.doradoLight}}>{MESES[(form.mes||1)-1]} {form.anio}</strong>
+              <div style={{fontSize:'0.78rem',color:C.txt,display:'flex',alignItems:'center',gap:6}}>
+                <Calendar size={13}/> Periodo de captura: <strong style={{color:C.doradoLight}}>{MESES[(form.mes||1)-1]} {form.anio}</strong>
               </div>
               <div style={{fontSize:'0.62rem',color:C.txtMuted,marginTop:2}}>Definido por Planeación — no editable.</div>
             </div>
@@ -280,8 +281,8 @@ export default function PantallaCaptura({ areaCoordinador }) {
           )}
 
           {bloqueadoPorValidacion && (
-            <div style={{background:'#04620522',border:`1px solid ${C.optimoB}`,borderRadius:8,padding:'0.65rem 1rem',fontSize:'0.78rem',color:C.optimoB}}>
-              ✅ Esta información ya fue validada{estadoAvance?.validado_at ? ` el ${new Date(estadoAvance.validado_at).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'})}` : ''}. No se puede editar — si necesitas corregirla, contacta a Planeación.
+            <div style={{background:'#04620522',border:`1px solid ${C.optimoB}`,borderRadius:8,padding:'0.65rem 1rem',fontSize:'0.78rem',color:C.optimoB,display:'flex',alignItems:'flex-start',gap:8}}>
+              <CheckCircle2 size={15} style={{flexShrink:0,marginTop:1}}/> Esta información ya fue validada{estadoAvance?.validado_at ? ` el ${new Date(estadoAvance.validado_at).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'})}` : ''}. No se puede editar — si necesitas corregirla, contacta a Planeación.
             </div>
           )}
 
@@ -304,9 +305,12 @@ export default function PantallaCaptura({ areaCoordinador }) {
 
           <button onClick={handleGuardar}
             disabled={saving||!form.indicadorId||form.resultado===''||bloqueadoPorValidacion}
-            style={{background:saving?'#444':`linear-gradient(135deg,${C.guindaDark},${C.guinda})`,border:'none',borderRadius:8,color:C.txt,padding:'0.75rem',fontSize:'0.85rem',fontWeight:700,fontFamily:'inherit',cursor:saving?'not-allowed':'pointer',letterSpacing:1,opacity:(!form.indicadorId||form.resultado===''||bloqueadoPorValidacion)?0.5:1}}>
-            {saving?'⏳ Guardando en Supabase…':'💾 GUARDAR AVANCE EN SIMA'}
+            style={{background:saving?'#444':`linear-gradient(135deg,${C.guindaDark},${C.guinda})`,border:'none',borderRadius:8,color:C.txt,padding:'0.75rem',fontSize:'0.85rem',fontWeight:700,fontFamily:'inherit',cursor:saving?'not-allowed':'pointer',letterSpacing:1,opacity:(!form.indicadorId||form.resultado===''||bloqueadoPorValidacion)?0.5:1,display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+            {saving
+              ? <><Loader2 size={15} style={{animation:'spin 0.8s linear infinite'}}/> Guardando en Supabase…</>
+              : <><Save size={15}/> GUARDAR AVANCE EN SIMA</>}
           </button>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
       </div>
 
@@ -333,7 +337,7 @@ export default function PantallaCaptura({ areaCoordinador }) {
       {/* Selector de área para validar/generar acuse (solo admin/planeación, que no tienen área propia) */}
       {puedeElegirArea && (
         <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:10,padding:'1rem',marginTop:'1rem'}}>
-          <div style={{fontSize:'0.62rem',letterSpacing:2,color:C.dorado,textTransform:'uppercase',marginBottom:8}}>🗂 Validar acuse por área</div>
+          <div style={{fontSize:'0.62rem',letterSpacing:2,color:C.dorado,textTransform:'uppercase',marginBottom:8,display:'flex',alignItems:'center',gap:5}}><Building2 size={12}/> Validar acuse por área</div>
           <select
             value={areaValidacion?.id || ''}
             onChange={e=>{
@@ -351,31 +355,34 @@ export default function PantallaCaptura({ areaCoordinador }) {
       {/* Validación del mes (enlace de su área, o admin/planeación del área elegida arriba) */}
       {(isEnlace || (puedeElegirArea && areaIdActivo)) && resumenVal && resumenVal.capturados > 0 && (
         <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:10,padding:'1rem',marginTop:'1rem'}}>
-          <div style={{fontSize:'0.62rem',letterSpacing:2,color:C.dorado,textTransform:'uppercase',marginBottom:8}}>🔒 Validación del mes</div>
+          <div style={{fontSize:'0.62rem',letterSpacing:2,color:C.dorado,textTransform:'uppercase',marginBottom:8,display:'flex',alignItems:'center',gap:5}}><Lock size={12}/> Validación del mes</div>
           <div style={{fontSize:'0.78rem',color:C.txtSub,marginBottom:10}}>
             {resumenVal.validados} de {resumenVal.capturados} indicadores capturados ya validados
             {resumenVal.capturados < resumenVal.totalIndicadores ? ` (${isEnlace ? 'tu área tiene' : `${areaNombreActivo} tiene`} ${resumenVal.totalIndicadores} en total).` : '.'}
           </div>
           {resumenVal.pendientes > 0 ? (
             <button onClick={()=>{ setValidarError(null); setPasswordInput(''); setShowValidarModal(true) }}
-              style={{background:`linear-gradient(135deg,${C.guindaDark},${C.guinda})`,border:'none',borderRadius:8,color:C.txt,padding:'0.6rem 1rem',fontSize:'0.8rem',fontWeight:700,fontFamily:'inherit',cursor:'pointer'}}>
-              🔒 Validar información del mes
+              style={{background:`linear-gradient(135deg,${C.guindaDark},${C.guinda})`,border:'none',borderRadius:8,color:C.txt,padding:'0.6rem 1rem',fontSize:'0.8rem',fontWeight:700,fontFamily:'inherit',cursor:'pointer',display:'inline-flex',alignItems:'center',gap:7}}>
+              <Lock size={14}/> Validar información del mes
             </button>
           ) : (
             <div>
-              <div style={{fontSize:'0.78rem',color:C.optimoB,fontWeight:acuseGenerado?700:400,marginBottom:10}}>
+              <div style={{fontSize:'0.78rem',color:C.optimoB,fontWeight:acuseGenerado?700:400,marginBottom:10,display:'flex',alignItems:'center',gap:7}}>
+                <CheckCircle2 size={15}/>
                 {acuseGenerado
-                  ? '✅ Has completado la captura del mes. Tu acuse se descargó automáticamente.'
-                  : '✅ Toda la información de este mes ya fue validada.'}
+                  ? 'Has completado la captura del mes. Tu acuse se descargó automáticamente.'
+                  : 'Toda la información de este mes ya fue validada.'}
               </div>
               {resumenVal.totalIndicadores > 0 && resumenVal.validados === resumenVal.totalIndicadores && (
                 <button onClick={generarYDescargarAcuse} disabled={acuseDescargando}
-                  style={{background:acuseDescargando?'#444':`linear-gradient(135deg,${C.guindaDark},${C.guinda})`,border:'none',borderRadius:8,color:C.txt,padding:'0.6rem 1rem',fontSize:'0.8rem',fontWeight:700,fontFamily:'inherit',cursor:acuseDescargando?'not-allowed':'pointer'}}>
-                  {acuseDescargando ? '⏳ Generando acuse…' : '📄 Descargar acuse PDF'}
+                  style={{background:acuseDescargando?'#444':`linear-gradient(135deg,${C.guindaDark},${C.guinda})`,border:'none',borderRadius:8,color:C.txt,padding:'0.6rem 1rem',fontSize:'0.8rem',fontWeight:700,fontFamily:'inherit',cursor:acuseDescargando?'not-allowed':'pointer',display:'inline-flex',alignItems:'center',gap:7}}>
+                  {acuseDescargando
+                    ? <><Loader2 size={14} style={{animation:'spin 0.8s linear infinite'}}/> Generando acuse…</>
+                    : <><FileText size={14}/> Descargar acuse PDF</>}
                 </button>
               )}
               {acuseError && (
-                <div style={{fontSize:'0.72rem',color:C.criticoB,marginTop:8}}>❌ {acuseError}</div>
+                <div style={{fontSize:'0.72rem',color:C.criticoB,marginTop:8,display:'flex',alignItems:'center',gap:6}}><XCircle size={13}/> {acuseError}</div>
               )}
             </div>
           )}

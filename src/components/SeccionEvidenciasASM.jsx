@@ -1,14 +1,15 @@
 import { useState, useEffect, useCallback } from 'react'
+import { Paperclip, FileText, Image, FileSpreadsheet, Loader2, Upload, XCircle, Download, Trash2 } from 'lucide-react'
 import {
   listarEvidenciasAsm, subirEvidenciaAsm, borrarEvidenciaAsm, getEvidenciaAsmUrl,
 } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { C } from '../theme.js'
 
-const ICONOS = { pdf: '📕', jpg: '🖼️', jpeg: '🖼️', png: '🖼️', doc: '📄', docx: '📄', xls: '📊', xlsx: '📊' }
+const ICONOS = { pdf: FileText, jpg: Image, jpeg: Image, png: Image, doc: FileText, docx: FileText, xls: FileSpreadsheet, xlsx: FileSpreadsheet }
 function iconoPara(nombre) {
   const ext = nombre?.split('.').pop()?.toLowerCase()
-  return ICONOS[ext] || '📎'
+  return ICONOS[ext] || Paperclip
 }
 function formatFecha(iso) {
   return new Date(iso).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -77,8 +78,8 @@ export default function SeccionEvidenciasASM({ hallazgoId, areaId }) {
 
   return (
     <div>
-      <div style={{ fontSize: '0.62rem', letterSpacing: 2, color: C.dorado, textTransform: 'uppercase', marginBottom: 8 }}>
-        📎 Evidencias del hallazgo
+      <div style={{ fontSize: '0.62rem', letterSpacing: 2, color: C.dorado, textTransform: 'uppercase', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+        <Paperclip size={12}/> Evidencias del hallazgo
       </div>
 
       {loading && <div style={{ fontSize: '0.78rem', color: C.txtMuted }}>Cargando evidencias…</div>}
@@ -94,15 +95,18 @@ export default function SeccionEvidenciasASM({ hallazgoId, areaId }) {
                 style={{ width: '100%', background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 6, color: C.txt, padding: '0.5rem 0.75rem', fontSize: '0.78rem', marginBottom: 8, boxSizing: 'border-box' }}
               />
               <label style={{
-                display: 'inline-block', background: subiendo ? '#444' : `linear-gradient(135deg,${C.guindaDark},${C.guinda})`,
+                display: 'inline-flex', alignItems: 'center', gap: 7, background: subiendo ? '#444' : `linear-gradient(135deg,${C.guindaDark},${C.guinda})`,
                 border: 'none', borderRadius: 8, color: C.txt, padding: '0.55rem 0.9rem', fontSize: '0.78rem',
                 fontWeight: 600, cursor: subiendo ? 'not-allowed' : 'pointer',
               }}>
-                {subiendo ? '⏳ Subiendo…' : '📤 Subir evidencia'}
+                {subiendo
+                  ? <><Loader2 size={14} style={{animation:'spin 0.8s linear infinite'}}/> Subiendo…</>
+                  : <><Upload size={14}/> Subir evidencia</>}
                 <input type="file" multiple disabled={subiendo}
                   accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
                   onChange={handleArchivos} style={{ display: 'none' }} />
               </label>
+              <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
               <div style={{ fontSize: '0.62rem', color: C.txtMuted, marginTop: 4 }}>
                 PDF, JPG, PNG, Word o Excel · máx. 10 MB por archivo
               </div>
@@ -110,8 +114,8 @@ export default function SeccionEvidenciasASM({ hallazgoId, areaId }) {
           )}
 
           {error && (
-            <div style={{ background: '#C0000022', border: `1px solid ${C.criticoB}`, borderRadius: 6, padding: '0.5rem 0.75rem', marginBottom: 8, fontSize: '0.74rem', color: C.criticoB }}>
-              ❌ {error}
+            <div style={{ background: '#C0000022', border: `1px solid ${C.criticoB}`, borderRadius: 6, padding: '0.5rem 0.75rem', marginBottom: 8, fontSize: '0.74rem', color: C.criticoB, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <XCircle size={13}/> {error}
             </div>
           )}
 
@@ -120,9 +124,10 @@ export default function SeccionEvidenciasASM({ hallazgoId, areaId }) {
             : lista.map(ev => {
                 const nombre = ev.archivo_url.split('/').pop()
                 const puedeBorrar = isAdmin || isPlaneacion || ev.uploaded_by === user?.id
+                const IconoArchivo = iconoPara(nombre)
                 return (
                   <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 8, padding: '0.5rem 0.7rem', marginBottom: 6 }}>
-                    <span style={{ fontSize: '1.1rem' }}>{iconoPara(nombre)}</span>
+                    <IconoArchivo size={18} style={{flexShrink:0, color: C.doradoLight}}/>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '0.76rem', color: C.txt, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nombre}</div>
                       <div style={{ fontSize: '0.62rem', color: C.txtMuted }}>
@@ -130,13 +135,13 @@ export default function SeccionEvidenciasASM({ hallazgoId, areaId }) {
                       </div>
                     </div>
                     <button onClick={() => handleDescargar(ev)} title="Descargar"
-                      style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, color: C.doradoLight, padding: '0.35rem 0.5rem', cursor: 'pointer', fontSize: '0.72rem' }}>
-                      ⬇️
+                      style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, color: C.doradoLight, padding: '0.35rem 0.5rem', cursor: 'pointer', display: 'flex' }}>
+                      <Download size={13}/>
                     </button>
                     {puedeBorrar && (
                       <button onClick={() => handleBorrar(ev)} title="Borrar"
-                        style={{ background: 'none', border: `1px solid ${C.criticoB}55`, borderRadius: 6, color: C.criticoB, padding: '0.35rem 0.5rem', cursor: 'pointer', fontSize: '0.72rem' }}>
-                        🗑️
+                        style={{ background: 'none', border: `1px solid ${C.criticoB}55`, borderRadius: 6, color: C.criticoB, padding: '0.35rem 0.5rem', cursor: 'pointer', display: 'flex' }}>
+                        <Trash2 size={13}/>
                       </button>
                     )}
                   </div>
