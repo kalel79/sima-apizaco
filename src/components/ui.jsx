@@ -44,10 +44,10 @@ export function KPI({label, value, sub, icon: Icon, color}) {
   const esTexto = typeof value === 'string' && value.length > 6
   return (
     <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderTop:`3px solid ${color}`,borderRadius:12,padding:'1.1rem',boxShadow:'0 4px 12px rgba(0,0,0,0.3)'}}>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:4}}>
-        {typeof Icon === 'string' ? <span style={{fontSize:20,flexShrink:0}}>{Icon}</span> : Icon && <Icon size={22} color={color} style={{flexShrink:0,marginTop:2}}/>}
-        <span style={{fontSize:esTexto?'1.2rem':'2rem',fontWeight:800,color,textAlign:'right',lineHeight:1.2,wordBreak:'break-word'}}>{value}</span>
+      <div style={{marginBottom:6}}>
+        {typeof Icon === 'string' ? <span style={{fontSize:20}}>{Icon}</span> : Icon && <Icon size={20} color={color}/>}
       </div>
+      <div style={{fontSize:esTexto?'1.05rem':'1.75rem',fontWeight:800,color,lineHeight:1.2,wordBreak:'break-word',marginBottom:3}}>{value}</div>
       <div style={{fontSize:'0.75rem',color:C.txt,fontWeight:600}}>{label}</div>
       {sub && <div style={{fontSize:'0.65rem',color:C.txtMuted,marginTop:2}}>{sub}</div>}
     </div>

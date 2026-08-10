@@ -46,10 +46,10 @@ function KPI({ label, value, icon: Icon, color }) {
   const esTexto = typeof value === 'string' && value.length > 6
   return (
     <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderTop: `3px solid ${color}`, borderRadius: 12, padding: '1rem', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 4 }}>
-        <Icon size={22} color={color} style={{ flexShrink: 0, marginTop: 2 }}/>
-        <span style={{ fontSize: esTexto ? '1.05rem' : '1.5rem', fontWeight: 800, color, textAlign: 'right', lineHeight: 1.2, wordBreak: 'break-word' }}>{value}</span>
+      <div style={{ marginBottom: 6 }}>
+        <Icon size={18} color={color}/>
       </div>
+      <div style={{ fontSize: esTexto ? '0.95rem' : '1.4rem', fontWeight: 800, color, lineHeight: 1.2, wordBreak: 'break-word', marginBottom: 2 }}>{value}</div>
       <div style={{ fontSize: '0.68rem', color: C.txt, fontWeight: 600 }}>{label}</div>
     </div>
   )
