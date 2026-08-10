@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Eye, EyeOff, AlertTriangle, LogIn, Loader2 } from 'lucide-react'
 import { LOGO_BASE64 } from '../logo.js'
 import { signIn } from '../lib/auth'
 
@@ -140,9 +141,10 @@ export default function Login() {
                   fontSize: '0.95rem',
                   padding: '0.4rem 0.5rem',
                   lineHeight: 1,
+                  display: 'flex',
                 }}
               >
-                {showPassword ? '🙈' : '👁️'}
+                {showPassword ? <EyeOff size={16}/> : <Eye size={16}/>}
               </button>
             </div>
           </div>
@@ -155,8 +157,11 @@ export default function Login() {
               padding: '0.65rem 0.9rem',
               fontSize: '0.8rem',
               color: '#ff6b6b',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
             }}>
-              ⚠️ {error}
+              <AlertTriangle size={16} style={{flexShrink: 0}}/> {error}
             </div>
           )}
 
@@ -177,10 +182,17 @@ export default function Login() {
               cursor: loading ? 'not-allowed' : 'pointer',
               marginTop: 4,
               transition: 'opacity 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
             }}
           >
-            {loading ? '⏳ Autenticando…' : '🔐 INICIAR SESIÓN'}
+            {loading
+              ? <><Loader2 size={16} style={{animation: 'spin 0.8s linear infinite'}}/> Autenticando…</>
+              : <><LogIn size={16}/> INICIAR SESIÓN</>}
           </button>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </form>
       </div>
 

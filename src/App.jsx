@@ -1,5 +1,6 @@
 import { LOGO_BASE64 } from './logo.js'
 import { useState, useEffect } from 'react'
+import { LayoutDashboard, Target, Building2, Map, PenLine, ClipboardList, FolderOpen, Bell, Settings } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
 import { useConfiguracion } from './hooks/useConfiguracion'
 import { ConfiguracionContext } from './contexts/ConfiguracionContext'
@@ -21,21 +22,21 @@ import ExpedienteMML from './screens/ExpedienteMML.jsx'
 
 /* ── APP PRINCIPAL ───────────────────────────────────────────── */
 const NAV_ANTES_PMD = [
-  {id:'dashboard',  l:'Dashboard',  icon:'📊'},
-  {id:'indicadores',l:'Indicadores',icon:'🎯'},
-  {id:'areas',      l:'Áreas',      icon:'🏢'},
+  {id:'dashboard',  l:'Dashboard',  icon:LayoutDashboard},
+  {id:'indicadores',l:'Indicadores',icon:Target},
+  {id:'areas',      l:'Áreas',      icon:Building2},
 ]
-const NAV_PMD = {id:'pmd', l:'PMD', icon:'🗺️'}
-const NAV_CAPTURA = {id:'captura', l:'Captura', icon:'✍️'}
-const NAV_ASM = {id:'asm', l:'ASM', icon:'📋'}
-const NAV_MML = {id:'mml', l:'Expediente MML', icon:'📁'}
+const NAV_PMD = {id:'pmd', l:'PMD', icon:Map}
+const NAV_CAPTURA = {id:'captura', l:'Captura', icon:PenLine}
+const NAV_ASM = {id:'asm', l:'ASM', icon:ClipboardList}
+const NAV_MML = {id:'mml', l:'Expediente MML', icon:FolderOpen}
 const NAV_DESPUES_PMD = [
-  {id:'alertas',    l:'Alertas',    icon:'🔔'},
+  {id:'alertas',    l:'Alertas',    icon:Bell},
 ]
 
 export default function App() {
   const [pan, setPan] = useState('dashboard')
-  const { user, profile, loading, error: authError, rol, area, isEnlace, isAdmin, isPlaneacion, isDirectivo, refetchProfile } = useAuth()
+  const { user, profile, loading, error: authError, rol, area, isEnlace, isAdmin, isPlaneacion, isDirectivo, refetchProfile, recoveryMode, clearRecoveryMode } = useAuth()
 
   // PMD: visible para admin/planeación/directivo — el enlace solo captura sus indicadores
   const puedeVerPMD = isAdmin || isPlaneacion || isDirectivo
@@ -92,7 +93,9 @@ export default function App() {
 
   if (!user) return <Login/>
 
-  if (profile?.primer_login) return <CambiarContrasena user={user} onDone={refetchProfile}/>
+  if (profile?.primer_login || recoveryMode) {
+    return <CambiarContrasena user={user} onDone={async () => { await refetchProfile(); clearRecoveryMode() }}/>
+  }
 
   const nombreUsuario = profile?.nombre || user.email
   const labelRol = profile?.cargo || profile?.roles?.nombre || rol
@@ -139,7 +142,7 @@ export default function App() {
                 color:pan===n.id?C.dorado:C.txtMuted,
                 borderBottom:pan===n.id?`2px solid ${C.dorado}`:'2px solid transparent',
                 fontWeight:pan===n.id?700:400}}>
-              <span style={{display:'block',fontSize:15,marginBottom:1}}>{n.icon}</span>{n.l}
+              <n.icon size={16} style={{display:'block',margin:'0 auto 2px'}}/>{n.l}
             </button>
           ))}
           {puedeVerAdmin && (
@@ -148,7 +151,7 @@ export default function App() {
                 color:pan==='admin'?C.dorado:C.txtMuted,
                 borderBottom:pan==='admin'?`2px solid ${C.dorado}`:'2px solid transparent',
                 fontWeight:pan==='admin'?700:400}}>
-              <span style={{display:'block',fontSize:15,marginBottom:1}}>⚙️</span>Admin
+              <Settings size={16} style={{display:'block',margin:'0 auto 2px'}}/>Admin
             </button>
           )}
         </div>

@@ -1,3 +1,4 @@
+import { AlertTriangle } from 'lucide-react'
 import { C } from '../theme.js'
 import { semColor } from '../utils/semaforo.js'
 
@@ -13,8 +14,8 @@ export function Spinner() {
 
 export function ErrMsg({msg, onRetry}) {
   return (
-    <div style={{background:'#1a0505',border:`1px solid ${C.criticoB}`,borderRadius:8,padding:'1rem',color:C.criticoB,fontSize:'0.82rem'}}>
-      ⚠️ {msg}
+    <div style={{background:'#1a0505',border:`1px solid ${C.criticoB}`,borderRadius:8,padding:'1rem',color:C.criticoB,fontSize:'0.82rem',display:'flex',alignItems:'center',gap:8}}>
+      <AlertTriangle size={16} style={{flexShrink:0}}/> {msg}
       {onRetry && <button onClick={onRetry} style={{marginLeft:12,background:C.guinda,border:'none',color:C.txt,padding:'3px 10px',borderRadius:4,cursor:'pointer',fontSize:'0.75rem'}}>Reintentar</button>}
     </div>
   )
