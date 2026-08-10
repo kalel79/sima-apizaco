@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { Gauge, Target, Landmark, CircleAlert, CheckCircle2, BarChart3, TrendingUp } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, PieChart, Pie, ResponsiveContainer } from 'recharts'
 import { useDashboardGlobal, useResumenEjes, useIndicadores } from '../hooks/useSupabase'
 import { useConfiguracionCtx } from '../contexts/ConfiguracionContext'
@@ -41,11 +42,11 @@ export default function PantallaDashboard() {
     <div>
       {/* KPIs */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'0.65rem',marginBottom:'1.2rem'}}>
-        <KPI label="Cumplimiento global" value={`${pctPct}%`}              sub={periodoLabel}         icon="📊" color={colG}/>
-        <KPI label="Con avance"          value={g?.total_indicadores||0}   sub="indicadores capturados" icon="🎯" color={C.dorado}/>
-        <KPI label="Ejes estratégicos"   value={(ejes||[]).length}          sub="MIR 2024–2027"       icon="🏛️" color={C.guinda}/>
-        <KPI label="Riesgo / Crítico"    value={(g?.riesgo||0)+(g?.critico||0)} sub="requieren atención" icon="🔴" color={C.criticoB}/>
-        <KPI label="Óptimo / Adecuado"   value={(g?.optimo||0)+(g?.adecuado||0)} sub="buen desempeño" icon="✅" color={C.optimoB}/>
+        <KPI label="Cumplimiento global" value={`${pctPct}%`}              sub={periodoLabel}         icon={Gauge} color={colG}/>
+        <KPI label="Con avance"          value={g?.total_indicadores||0}   sub="indicadores capturados" icon={Target} color={C.dorado}/>
+        <KPI label="Ejes estratégicos"   value={(ejes||[]).length}          sub="MIR 2024–2027"       icon={Landmark} color={C.guinda}/>
+        <KPI label="Riesgo / Crítico"    value={(g?.riesgo||0)+(g?.critico||0)} sub="requieren atención" icon={CircleAlert} color={C.criticoB}/>
+        <KPI label="Óptimo / Adecuado"   value={(g?.optimo||0)+(g?.adecuado||0)} sub="buen desempeño" icon={CheckCircle2} color={C.optimoB}/>
       </div>
 
       {/* Gauge + Pie + Barras */}
@@ -118,12 +119,12 @@ export default function PantallaDashboard() {
                 <Barra pct={Math.min(p,1.0)} color={col} h={8}/>
                 <span style={{fontSize:'1rem',fontWeight:800,color:col,minWidth:44,textAlign:'right'}}>{(p*100).toFixed(1)}%</span>
               </div>
-              <div style={{display:'flex',gap:10,fontSize:'0.63rem',color:C.txtMuted,flexWrap:'wrap'}}>
-                <span>📊 {eje.total_indicadores} ind.</span>
-                <span style={{color:C.optimoB}}>🟢 {eje.optimo}</span>
-                <span style={{color:C.adecuadoB}}>🟩 {eje.adecuado}</span>
-                {eje.riesgo >0 && <span style={{color:C.riesgoB}}>🟡 {eje.riesgo}</span>}
-                {eje.critico>0 && <span style={{color:C.criticoB}}>🔴 {eje.critico}</span>}
+              <div style={{display:'flex',gap:10,fontSize:'0.63rem',color:C.txtMuted,flexWrap:'wrap',alignItems:'center'}}>
+                <span style={{display:'flex',alignItems:'center',gap:3}}><BarChart3 size={11}/> {eje.total_indicadores} ind.</span>
+                <span style={{display:'flex',alignItems:'center',gap:3,color:C.optimoB}}><span style={{width:7,height:7,borderRadius:'50%',background:C.optimoB,display:'inline-block'}}/> {eje.optimo}</span>
+                <span style={{display:'flex',alignItems:'center',gap:3,color:C.adecuadoB}}><span style={{width:7,height:7,borderRadius:'50%',background:C.adecuadoB,display:'inline-block'}}/> {eje.adecuado}</span>
+                {eje.riesgo >0 && <span style={{display:'flex',alignItems:'center',gap:3,color:C.riesgoB}}><span style={{width:7,height:7,borderRadius:'50%',background:C.riesgoB,display:'inline-block'}}/> {eje.riesgo}</span>}
+                {eje.critico>0 && <span style={{display:'flex',alignItems:'center',gap:3,color:C.criticoB}}><span style={{width:7,height:7,borderRadius:'50%',background:C.criticoB,display:'inline-block'}}/> {eje.critico}</span>}
               </div>
             </div>
           )
@@ -163,8 +164,8 @@ function DetalleEje({ejeId, color}) {
             </div>
             <div style={{display:'flex',justifyContent:'flex-end',marginTop:5}}>
               <button onClick={()=>setFichaRow(row)}
-                style={{background:'none',border:`1px solid ${C.border}`,borderRadius:6,color:C.doradoLight,padding:'0.25rem 0.55rem',cursor:'pointer',fontSize:'0.65rem'}}>
-                📈 Ver ficha
+                style={{background:'none',border:`1px solid ${C.border}`,borderRadius:6,color:C.doradoLight,padding:'0.25rem 0.55rem',cursor:'pointer',fontSize:'0.65rem',display:'flex',alignItems:'center',gap:4}}>
+                <TrendingUp size={12}/> Ver ficha
               </button>
             </div>
           </div>

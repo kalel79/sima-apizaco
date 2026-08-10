@@ -40,11 +40,11 @@ export function Barra({pct, color, h=6}) {
   )
 }
 
-export function KPI({label, value, sub, icon, color}) {
+export function KPI({label, value, sub, icon: Icon, color}) {
   return (
     <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderTop:`3px solid ${color}`,borderRadius:12,padding:'1.1rem',boxShadow:'0 4px 12px rgba(0,0,0,0.3)'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
-        <span style={{fontSize:20}}>{icon}</span>
+        {typeof Icon === 'string' ? <span style={{fontSize:20}}>{Icon}</span> : Icon && <Icon size={20} color={color}/>}
         <span style={{fontSize:'2rem',fontWeight:800,color}}>{value}</span>
       </div>
       <div style={{fontSize:'0.75rem',color:C.txt,fontWeight:600}}>{label}</div>

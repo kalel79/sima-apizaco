@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { TrendingUp, X, Loader2, Image, FileText, Target, Calendar, CheckCircle2 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { jsPDF } from 'jspdf'
 import { useAuth } from '../hooks/useAuth'
@@ -108,12 +109,12 @@ export default function FichaIndicador({ indicadorId, nombre, area, ejeCodigo, n
       <div style={modalBox} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: '0.4rem' }}>
           <div>
-            <div style={{ fontSize: '0.62rem', letterSpacing: 2, color: C.dorado, textTransform: 'uppercase' }}>
-              📈 Ficha del indicador · {ejeCodigo} · {area} · {nivelMir}
+            <div style={{ fontSize: '0.62rem', letterSpacing: 2, color: C.dorado, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <TrendingUp size={12}/> Ficha del indicador · {ejeCodigo} · {area} · {nivelMir}
             </div>
             <div style={{ fontSize: '0.95rem', fontWeight: 700, color: C.txt, marginTop: 4, lineHeight: 1.3 }}>{nombre}</div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, color: C.txtMuted, padding: '0.3rem 0.6rem', cursor: 'pointer', fontSize: '0.9rem' }}>✕</button>
+          <button onClick={onClose} style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, color: C.txtMuted, padding: '0.3rem 0.6rem', cursor: 'pointer', display: 'flex' }}><X size={16}/></button>
         </div>
 
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', margin: '0.9rem 0' }}>
@@ -130,14 +131,15 @@ export default function FichaIndicador({ indicadorId, nombre, area, ejeCodigo, n
           <div style={{ flex: 1 }} />
           {!isCoordinador && (
             <button onClick={() => exportar('png')} disabled={!!exportando} style={btnExport}>
-              {exportando === 'png' ? '⏳' : '🖼️'} PNG
+              {exportando === 'png' ? <Loader2 size={13} style={{animation:'spin 0.8s linear infinite',display:'inline-block',verticalAlign:'-2px'}}/> : <Image size={13} style={{display:'inline-block',verticalAlign:'-2px'}}/>} PNG
             </button>
           )}
           {!isCoordinador && (
             <button onClick={() => exportar('pdf')} disabled={!!exportando} style={btnExport}>
-              {exportando === 'pdf' ? '⏳' : '📄'} PDF
+              {exportando === 'pdf' ? <Loader2 size={13} style={{animation:'spin 0.8s linear infinite',display:'inline-block',verticalAlign:'-2px'}}/> : <FileText size={13} style={{display:'inline-block',verticalAlign:'-2px'}}/>} PDF
             </button>
           )}
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
 
         {error && <ErrMsg msg={error} />}
@@ -146,8 +148,8 @@ export default function FichaIndicador({ indicadorId, nombre, area, ejeCodigo, n
         {!loading && principal && (
           <div ref={contenidoRef} style={{ background: C.bg, padding: '0.4rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: '0.65rem', marginBottom: '1rem' }}>
-              <KPI label={`Acumulado ${anioPrincipal}`} value={principal.pctAcumuladoAnual != null ? `${(principal.pctAcumuladoAnual * 100).toFixed(1)}%` : 'Sin datos'} sub={principal.semaforoAcumulado || ''} icon="🎯" color={principal.semaforoAcumulado ? semColor(principal.semaforoAcumulado) : C.txtMuted} />
-              <KPI label="Meses capturados" value={principal.meses.filter(m => m.resultado != null).length} sub="de 12 meses" icon="📅" color={C.dorado} />
+              <KPI label={`Acumulado ${anioPrincipal}`} value={principal.pctAcumuladoAnual != null ? `${(principal.pctAcumuladoAnual * 100).toFixed(1)}%` : 'Sin datos'} sub={principal.semaforoAcumulado || ''} icon={Target} color={principal.semaforoAcumulado ? semColor(principal.semaforoAcumulado) : C.txtMuted} />
+              <KPI label="Meses capturados" value={principal.meses.filter(m => m.resultado != null).length} sub="de 12 meses" icon={Calendar} color={C.dorado} />
             </div>
 
             <ResponsiveContainer width="100%" height={260}>
@@ -184,7 +186,7 @@ export default function FichaIndicador({ indicadorId, nombre, area, ejeCodigo, n
                       <td style={{ padding: '0.3rem 0.5rem', color: C.txt, borderBottom: `1px solid ${C.border}` }}>{m.resultado ?? '—'}</td>
                       <td style={{ padding: '0.3rem 0.5rem', borderBottom: `1px solid ${C.border}` }}>{m.semaforo ? <Pill sem={m.semaforo} /> : <span style={{ color: C.txtMuted }}>—</span>}</td>
                       <td style={{ padding: '0.3rem 0.5rem', color: C.txtSub, borderBottom: `1px solid ${C.border}` }}>{m.capturado_por ?? '—'}</td>
-                      <td style={{ padding: '0.3rem 0.5rem', color: m.validado ? C.optimoB : C.txtMuted, borderBottom: `1px solid ${C.border}` }}>{m.resultado == null ? '—' : (m.validado ? '✔ validado' : 'pendiente')}</td>
+                      <td style={{ padding: '0.3rem 0.5rem', color: m.validado ? C.optimoB : C.txtMuted, borderBottom: `1px solid ${C.border}` }}>{m.resultado == null ? '—' : (m.validado ? <span style={{display:'flex',alignItems:'center',gap:4}}><CheckCircle2 size={12}/> validado</span> : 'pendiente')}</td>
                       <td style={{ padding: '0.3rem 0.5rem', color: C.txtSub, borderBottom: `1px solid ${C.border}` }}>{m.validado_por ?? '—'}</td>
                     </tr>
                   ))}

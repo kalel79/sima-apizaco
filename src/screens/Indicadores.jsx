@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { Search, RefreshCw, Flag, BarChart3, TrendingUp } from 'lucide-react'
 import { useIndicadores, useSparklines } from '../hooks/useSupabase'
 import { useConfiguracionCtx } from '../contexts/ConfiguracionContext'
 import { formatPeriodoLabel } from '../utils/periodo'
@@ -26,13 +27,16 @@ export default function PantallaIndicadores() {
   return (
     <div>
       <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap',marginBottom:'0.8rem'}}>
-        <input placeholder="🔍 Buscar indicador o área…" value={busqueda}
-          onChange={e=>setBusqueda(e.target.value)} style={{...inp,flex:'1 1 200px'}}/>
+        <div style={{position:'relative',flex:'1 1 200px'}}>
+          <Search size={14} style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:C.txtMuted}}/>
+          <input placeholder="Buscar indicador o área…" value={busqueda}
+            onChange={e=>setBusqueda(e.target.value)} style={{...inp,width:'100%',boxSizing:'border-box',paddingLeft:'2rem'}}/>
+        </div>
         <select value={semaforo} onChange={e=>setSemaforo(e.target.value)} style={inp}>
           <option value="">Todos los semáforos</option>
           {['ÓPTIMO','ADECUADO','RIESGO','CRÍTICO'].map(s=><option key={s}>{s}</option>)}
         </select>
-        <button onClick={refetch} style={{...inp,cursor:'pointer',background:C.bgPanel}}>🔄</button>
+        <button onClick={refetch} style={{...inp,cursor:'pointer',background:C.bgPanel,display:'flex',alignItems:'center'}}><RefreshCw size={14}/></button>
       </div>
 
       {loading && <Spinner/>}
@@ -70,14 +74,14 @@ export default function PantallaIndicadores() {
                   <span style={{fontSize:'0.82rem',fontWeight:700,color:col,minWidth:44,textAlign:'right'}}>{((row.pct_cumplimiento||0)*100).toFixed(1)}%</span>
                 </div>
                 <div style={{display:'flex',gap:14,marginTop:5,fontSize:'0.65rem',color:C.txtMuted}}>
-                  <span>📌 Meta: <strong style={{color:C.doradoLight}}>{row.meta_evaluable}</strong></span>
-                  <span>📊 Real: <strong style={{color:col}}>{row.resultado}</strong></span>
+                  <span style={{display:'flex',alignItems:'center',gap:4}}><Flag size={11}/> Meta: <strong style={{color:C.doradoLight}}>{row.meta_evaluable}</strong></span>
+                  <span style={{display:'flex',alignItems:'center',gap:4}}><BarChart3 size={11}/> Real: <strong style={{color:col}}>{row.resultado}</strong></span>
                 </div>
                 <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:6}}>
                   <Sparkline valores={sparklines?.get(row.indicador_id) || []} color={col}/>
                   <button onClick={e=>{e.stopPropagation(); setFichaRow(row)}}
-                    style={{background:'none',border:`1px solid ${C.border}`,borderRadius:6,color:C.doradoLight,padding:'0.25rem 0.55rem',cursor:'pointer',fontSize:'0.68rem'}}>
-                    📈 Ver ficha
+                    style={{background:'none',border:`1px solid ${C.border}`,borderRadius:6,color:C.doradoLight,padding:'0.25rem 0.55rem',cursor:'pointer',fontSize:'0.68rem',display:'flex',alignItems:'center',gap:4}}>
+                    <TrendingUp size={12}/> Ver ficha
                   </button>
                 </div>
                 {abierto && (

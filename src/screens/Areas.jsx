@@ -1,3 +1,4 @@
+import { CheckCircle2, AlertTriangle, XCircle } from 'lucide-react'
 import { useResumenAreas } from '../hooks/useSupabase'
 import { useConfiguracionCtx } from '../contexts/ConfiguracionContext'
 import { formatPeriodoLabel } from '../utils/periodo'
@@ -38,9 +39,9 @@ export default function PantallaAreas() {
                   {((area.pct_promedio||0)*100).toFixed(1)}%
                 </div>
                 <div style={{display:'flex',gap:5,justifyContent:'flex-end',fontSize:'0.6rem',marginTop:2}}>
-                  {area.en_ok  >0 && <span style={{color:C.optimoB}}>✓{area.en_ok}</span>}
-                  {area.riesgo >0 && <span style={{color:C.riesgoB}}>⚠{area.riesgo}</span>}
-                  {area.critico>0 && <span style={{color:C.criticoB}}>✖{area.critico}</span>}
+                  {area.en_ok  >0 && <span style={{display:'flex',alignItems:'center',gap:2,color:C.optimoB}}><CheckCircle2 size={11}/>{area.en_ok}</span>}
+                  {area.riesgo >0 && <span style={{display:'flex',alignItems:'center',gap:2,color:C.riesgoB}}><AlertTriangle size={11}/>{area.riesgo}</span>}
+                  {area.critico>0 && <span style={{display:'flex',alignItems:'center',gap:2,color:C.criticoB}}><XCircle size={11}/>{area.critico}</span>}
                 </div>
               </div>
             </div>

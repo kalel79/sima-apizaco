@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { AlertTriangle, BarChart3, Loader2, FileSpreadsheet, Building2, CheckCircle2, Clock, Calendar, Search, X, Pencil, Undo2 } from 'lucide-react'
 import { useAvanceCapturaAreas } from '../hooks/useSupabase'
 import { useConfiguracionCtx } from '../contexts/ConfiguracionContext'
 import { useAuth } from '../hooks/useAuth'
@@ -41,11 +42,11 @@ function Badge({ estado }) {
   )
 }
 
-function KPI({ label, value, icon, color }) {
+function KPI({ label, value, icon: Icon, color }) {
   return (
     <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderTop: `3px solid ${color}`, borderRadius: 12, padding: '1rem', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-        <span style={{ fontSize: 18 }}>{icon}</span>
+        <Icon size={18} color={color}/>
         <span style={{ fontSize: '1.5rem', fontWeight: 800, color }}>{value}</span>
       </div>
       <div style={{ fontSize: '0.68rem', color: C.txt, fontWeight: 600 }}>{label}</div>
@@ -196,8 +197,8 @@ export default function AvanceCaptura() {
   if (loading) return <div style={{ fontSize: '0.85rem', color: C.txtMuted, padding: '2rem', textAlign: 'center' }}>Cargando avance de captura…</div>
   if (error) {
     return (
-      <div style={{ background: '#1a0505', border: '1px solid #C00000', borderRadius: 8, padding: '1rem', color: '#C00000', fontSize: '0.82rem' }}>
-        ⚠️ {error}
+      <div style={{ background: '#1a0505', border: '1px solid #C00000', borderRadius: 8, padding: '1rem', color: '#C00000', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <AlertTriangle size={16} style={{flexShrink:0}}/> {error}
         <button onClick={refetch} style={{ marginLeft: 12, background: C.guinda, border: 'none', color: C.txt, padding: '3px 10px', borderRadius: 4, cursor: 'pointer', fontSize: '0.75rem' }}>Reintentar</button>
       </div>
     )
@@ -206,25 +207,26 @@ export default function AvanceCaptura() {
   return (
     <div>
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-        <div style={{ fontSize: '0.62rem', letterSpacing: 3, color: C.dorado, textTransform: 'uppercase' }}>
-          📊 Avance de Captura del Mes por Área
+        <div style={{ fontSize: '0.62rem', letterSpacing: 3, color: C.dorado, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 5 }}>
+          <BarChart3 size={12}/> Avance de Captura del Mes por Área
         </div>
         <button onClick={handleExportar} disabled={exportando || !data?.length}
-          style={{ background: exportando ? '#444' : `linear-gradient(135deg,#1a3a1a,#1e6b1e)`, border: 'none', borderRadius: 8, color: C.txt, padding: '0.5rem 0.9rem', fontSize: '0.75rem', fontWeight: 700, fontFamily: 'inherit', cursor: exportando || !data?.length ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
-          {exportando ? '⏳ Generando…' : '📊 Exportar Excel'}
+          style={{ background: exportando ? '#444' : `linear-gradient(135deg,#1a3a1a,#1e6b1e)`, border: 'none', borderRadius: 8, color: C.txt, padding: '0.5rem 0.9rem', fontSize: '0.75rem', fontWeight: 700, fontFamily: 'inherit', cursor: exportando || !data?.length ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
+          {exportando ? <><Loader2 size={13} style={{animation:'spin 0.8s linear infinite'}}/> Generando…</> : <><FileSpreadsheet size={13}/> Exportar Excel</>}
         </button>
       </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       {exportError && (
-        <div style={{ fontSize: '0.72rem', color: '#C00000', marginBottom: '1rem' }}>⚠️ {exportError}</div>
+        <div style={{ fontSize: '0.72rem', color: '#C00000', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={13}/> {exportError}</div>
       )}
 
       {resumen && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', marginBottom: '1.2rem' }}>
-          <KPI label="Total de áreas" value={resumen.total} icon="🏢" color={C.dorado}/>
-          <KPI label="Captura completa" value={resumen.completas} icon="✅" color={ESTADO_COLOR.COMPLETO}/>
-          <KPI label="En progreso" value={resumen.enProgreso} icon="🕓" color={ESTADO_COLOR['EN PROGRESO']}/>
-          <KPI label="Sin captura" value={resumen.pendientes} icon="⚠️" color={ESTADO_COLOR.PENDIENTE}/>
-          <KPI label="Periodo actual" value={periodoLabel} icon="📅" color={C.doradoLight}/>
+          <KPI label="Total de áreas" value={resumen.total} icon={Building2} color={C.dorado}/>
+          <KPI label="Captura completa" value={resumen.completas} icon={CheckCircle2} color={ESTADO_COLOR.COMPLETO}/>
+          <KPI label="En progreso" value={resumen.enProgreso} icon={Clock} color={ESTADO_COLOR['EN PROGRESO']}/>
+          <KPI label="Sin captura" value={resumen.pendientes} icon={AlertTriangle} color={ESTADO_COLOR.PENDIENTE}/>
+          <KPI label="Periodo actual" value={periodoLabel} icon={Calendar} color={C.doradoLight}/>
         </div>
       )}
 
@@ -250,8 +252,8 @@ export default function AvanceCaptura() {
                   <td style={{ padding: '0.55rem 0.7rem', textAlign: 'center' }}><Badge estado={a.estado_captura}/></td>
                   <td style={{ padding: '0.55rem 0.7rem', textAlign: 'center' }}>
                     <button onClick={() => abrirDetalle(a)}
-                      style={{ background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 6, color: C.doradoLight, padding: '0.35rem 0.7rem', fontSize: '0.68rem', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                      🔍 Ver indicadores
+                      style={{ background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 6, color: C.doradoLight, padding: '0.35rem 0.7rem', fontSize: '0.68rem', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                      <Search size={12}/> Ver indicadores
                     </button>
                   </td>
                 </tr>
@@ -271,15 +273,15 @@ export default function AvanceCaptura() {
                 <div style={{ fontSize: '0.68rem', color: C.txtMuted }}>Indicadores · {periodoLabel}</div>
               </div>
               <button onClick={() => setDetalleArea(null)}
-                style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 6, color: C.txtMuted, padding: '0.3rem 0.7rem', cursor: 'pointer', fontSize: '0.8rem' }}>
-                ✕ Cerrar
+                style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 6, color: C.txtMuted, padding: '0.3rem 0.7rem', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <X size={13}/> Cerrar
               </button>
             </div>
 
             {detalleLoading && <div style={{ fontSize: '0.8rem', color: C.txtMuted, padding: '1rem', textAlign: 'center' }}>Cargando indicadores…</div>}
             {detalleError && (
-              <div style={{ background: '#1a0505', border: `1px solid ${ACCION.error}`, borderRadius: 8, padding: '0.75rem 1rem', color: ACCION.error, fontSize: '0.78rem', marginBottom: '0.75rem' }}>
-                ⚠️ {detalleError}
+              <div style={{ background: '#1a0505', border: `1px solid ${ACCION.error}`, borderRadius: 8, padding: '0.75rem 1rem', color: ACCION.error, fontSize: '0.78rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <AlertTriangle size={14}/> {detalleError}
               </div>
             )}
 
@@ -306,17 +308,17 @@ export default function AvanceCaptura() {
                             ? <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#fff', background: SEM_COLOR[row.semaforo] || '#555', padding: '2px 7px', borderRadius: 6 }}>{row.semaforo}</span>
                             : <span style={{ color: C.txtMuted }}>—</span>}
                         </td>
-                        <td style={{ padding: '0.5rem 0.6rem', textAlign: 'center' }}>{row.validado ? '✅' : '—'}</td>
+                        <td style={{ padding: '0.5rem 0.6rem', textAlign: 'center' }}>{row.validado ? <CheckCircle2 size={14} style={{color:C.optimoB}}/> : '—'}</td>
                         <td style={{ padding: '0.5rem 0.6rem', textAlign: 'center', whiteSpace: 'nowrap' }}>
                           {row.validado && row.avance_id ? (
                             <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
                               <button onClick={() => abrirCorregir(row)}
-                                style={{ background: ACCION.correccion, border: 'none', borderRadius: 6, color: '#241a05', padding: '0.3rem 0.55rem', fontSize: '0.65rem', fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer' }}>
-                                ✏️ Corregir
+                                style={{ background: ACCION.correccion, border: 'none', borderRadius: 6, color: '#241a05', padding: '0.3rem 0.55rem', fontSize: '0.65rem', fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                <Pencil size={11}/> Corregir
                               </button>
                               <button onClick={() => abrirDesvalidar(row)}
-                                style={{ background: ACCION.desvalidar, border: 'none', borderRadius: 6, color: '#2a1600', padding: '0.3rem 0.55rem', fontSize: '0.65rem', fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer' }}>
-                                ↩️ Desvalidar
+                                style={{ background: ACCION.desvalidar, border: 'none', borderRadius: 6, color: '#2a1600', padding: '0.3rem 0.55rem', fontSize: '0.65rem', fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                <Undo2 size={11}/> Desvalidar
                               </button>
                             </div>
                           ) : <span style={{ color: C.txtMuted }}>—</span>}
