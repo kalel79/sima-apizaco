@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { XCircle, Loader2, Zap, Trash2, Plus } from 'lucide-react'
 import { upsertAccionAlternativa, eliminarAccionAlternativa, generarAccionesDesdeMedios } from '../../lib/supabase'
 import { C } from '../../theme.js'
 
@@ -74,16 +75,19 @@ export default function SeccionAccionesAlternativas({ programaId, anio, acciones
         Acciones (PP-FM-08) y Alternativas (PP-FM-09)
       </div>
       {error && (
-        <div style={{ background: '#C0000022', border: `1px solid ${C.criticoB}`, borderRadius: 6, padding: '0.5rem 0.75rem', marginBottom: 8, fontSize: '0.74rem', color: C.criticoB }}>
-          ❌ {error}
+        <div style={{ background: '#C0000022', border: `1px solid ${C.criticoB}`, borderRadius: 6, padding: '0.5rem 0.75rem', marginBottom: 8, fontSize: '0.74rem', color: C.criticoB, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <XCircle size={13}/> {error}
         </div>
       )}
       {puedeEditar && mediosSinAccion.length > 0 && (
         <button onClick={handleGenerar} disabled={guardando === 'generar'}
-          style={{ display: 'block', width: '100%', background: `${C.dorado}22`, border: `1px solid ${C.dorado}`, borderRadius: 8, color: C.doradoLight, padding: '0.6rem 0.9rem', fontSize: '0.76rem', fontWeight: 700, cursor: guardando === 'generar' ? 'not-allowed' : 'pointer', fontFamily: 'inherit', marginBottom: '0.8rem' }}>
-          {guardando === 'generar' ? '⏳ Generando…' : `⚡ Generar ${mediosSinAccion.length} acción(es) pendiente(s) de los Medios`}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, width: '100%', background: `${C.dorado}22`, border: `1px solid ${C.dorado}`, borderRadius: 8, color: C.doradoLight, padding: '0.6rem 0.9rem', fontSize: '0.76rem', fontWeight: 700, cursor: guardando === 'generar' ? 'not-allowed' : 'pointer', fontFamily: 'inherit', marginBottom: '0.8rem' }}>
+          {guardando === 'generar'
+            ? <><Loader2 size={14} style={{animation:'spin 0.8s linear infinite'}}/> Generando…</>
+            : <><Zap size={14}/> Generar {mediosSinAccion.length} acción(es) pendiente(s) de los Medios</>}
         </button>
       )}
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       {acciones.map(fila => (
         <div key={fila.id} style={{ background: C.bgCard, border: `1px solid ${fila.seleccionada ? C.optimoB : C.border}`, borderRadius: 8, padding: '0.7rem', marginBottom: '0.5rem' }}>
           <textarea rows={2} defaultValue={fila.texto} disabled={!puedeEditar}
@@ -106,8 +110,8 @@ export default function SeccionAccionesAlternativas({ programaId, anio, acciones
           </label>
           {puedeEditar && (
             <button onClick={() => handleEliminar(fila.id)} disabled={guardando === fila.id}
-              style={{ marginTop: 6, background: 'none', border: `1px solid ${C.criticoB}55`, borderRadius: 6, color: C.criticoB, padding: '0.3rem 0.6rem', fontSize: '0.68rem', cursor: 'pointer', fontFamily: 'inherit' }}>
-              🗑️ Quitar
+              style={{ marginTop: 6, background: 'none', border: `1px solid ${C.criticoB}55`, borderRadius: 6, color: C.criticoB, padding: '0.3rem 0.6rem', fontSize: '0.68rem', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <Trash2 size={11}/> Quitar
             </button>
           )}
         </div>
@@ -119,8 +123,10 @@ export default function SeccionAccionesAlternativas({ programaId, anio, acciones
       )}
       {puedeEditar && (
         <button onClick={handleAgregar} disabled={guardando === 'nuevo'}
-          style={{ background: C.bgPanel, border: `1px dashed ${C.border}`, borderRadius: 8, color: C.doradoLight, padding: '0.55rem 0.9rem', fontSize: '0.76rem', cursor: 'pointer', fontFamily: 'inherit' }}>
-          {guardando === 'nuevo' ? '⏳ Agregando…' : '➕ Agregar acción'}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.bgPanel, border: `1px dashed ${C.border}`, borderRadius: 8, color: C.doradoLight, padding: '0.55rem 0.9rem', fontSize: '0.76rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+          {guardando === 'nuevo'
+            ? <><Loader2 size={13} style={{animation:'spin 0.8s linear infinite'}}/> Agregando…</>
+            : <><Plus size={13}/> Agregar acción</>}
         </button>
       )}
     </div>

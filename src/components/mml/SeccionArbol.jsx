@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { XCircle, Loader2, Trash2, Plus } from 'lucide-react'
 import { upsertArbolNodo, eliminarArbolNodo } from '../../lib/supabase'
 import { C } from '../../theme.js'
 
@@ -71,8 +72,8 @@ export default function SeccionArbol({ programaId, anio, arbol, nodos, puedeEdit
         {TITULO_POR_ARBOL[arbol]}
       </div>
       {error && (
-        <div style={{ background: '#C0000022', border: `1px solid ${C.criticoB}`, borderRadius: 6, padding: '0.5rem 0.75rem', marginBottom: 8, fontSize: '0.74rem', color: C.criticoB }}>
-          ❌ {error}
+        <div style={{ background: '#C0000022', border: `1px solid ${C.criticoB}`, borderRadius: 6, padding: '0.5rem 0.75rem', marginBottom: 8, fontSize: '0.74rem', color: C.criticoB, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <XCircle size={13}/> {error}
         </div>
       )}
       {nodos.map(nodo => (
@@ -95,8 +96,8 @@ export default function SeccionArbol({ programaId, anio, arbol, nodos, puedeEdit
           </div>
           {puedeEditar && (
             <button onClick={() => handleEliminar(nodo.id)} disabled={guardando === nodo.id}
-              style={{ background: 'none', border: `1px solid ${C.criticoB}55`, borderRadius: 6, color: C.criticoB, padding: '0.3rem 0.6rem', fontSize: '0.68rem', cursor: 'pointer', fontFamily: 'inherit' }}>
-              🗑️ Quitar
+              style={{ background: 'none', border: `1px solid ${C.criticoB}55`, borderRadius: 6, color: C.criticoB, padding: '0.3rem 0.6rem', fontSize: '0.68rem', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <Trash2 size={11}/> Quitar
             </button>
           )}
         </div>
@@ -108,10 +109,13 @@ export default function SeccionArbol({ programaId, anio, arbol, nodos, puedeEdit
       )}
       {puedeEditar && (
         <button onClick={handleAgregar} disabled={guardando === 'nuevo'}
-          style={{ background: C.bgPanel, border: `1px dashed ${C.border}`, borderRadius: 8, color: C.doradoLight, padding: '0.55rem 0.9rem', fontSize: '0.76rem', cursor: 'pointer', fontFamily: 'inherit' }}>
-          {guardando === 'nuevo' ? '⏳ Agregando…' : '➕ Agregar nodo'}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.bgPanel, border: `1px dashed ${C.border}`, borderRadius: 8, color: C.doradoLight, padding: '0.55rem 0.9rem', fontSize: '0.76rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+          {guardando === 'nuevo'
+            ? <><Loader2 size={13} style={{animation:'spin 0.8s linear infinite'}}/> Agregando…</>
+            : <><Plus size={13}/> Agregar nodo</>}
         </button>
       )}
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
 }

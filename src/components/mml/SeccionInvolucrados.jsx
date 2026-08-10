@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { XCircle, Trash2, Plus } from 'lucide-react'
 import { upsertInvolucrado, eliminarInvolucrado } from '../../lib/supabase'
 import { C } from '../../theme.js'
 
@@ -55,8 +56,8 @@ export default function SeccionInvolucrados({ programaId, anio, involucrados, pu
         Mapa de Relaciones / Análisis de Involucrados (PP-FM-05)
       </div>
       {error && (
-        <div style={{ background: '#C0000022', border: `1px solid ${C.criticoB}`, borderRadius: 6, padding: '0.5rem 0.75rem', marginBottom: 8, fontSize: '0.74rem', color: C.criticoB }}>
-          ❌ {error}
+        <div style={{ background: '#C0000022', border: `1px solid ${C.criticoB}`, borderRadius: 6, padding: '0.5rem 0.75rem', marginBottom: 8, fontSize: '0.74rem', color: C.criticoB, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <XCircle size={13}/> {error}
         </div>
       )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: '0.7rem' }}>
@@ -72,8 +73,8 @@ export default function SeccionInvolucrados({ programaId, anio, involucrados, pu
                     style={{ ...inp, opacity: guardando === fila.id ? 0.5 : 1 }} />
                   {puedeEditar && (
                     <button onClick={() => handleEliminar(fila.id)} disabled={guardando === fila.id}
-                      style={{ background: 'none', border: `1px solid ${C.criticoB}55`, borderRadius: 6, color: C.criticoB, padding: '0.3rem 0.4rem', fontSize: '0.65rem', cursor: 'pointer', fontFamily: 'inherit' }}>
-                      🗑️
+                      style={{ background: 'none', border: `1px solid ${C.criticoB}55`, borderRadius: 6, color: C.criticoB, padding: '0.3rem 0.4rem', fontSize: '0.65rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex' }}>
+                      <Trash2 size={12}/>
                     </button>
                   )}
                 </div>
@@ -81,8 +82,8 @@ export default function SeccionInvolucrados({ programaId, anio, involucrados, pu
               {!filas.length && <div style={{ fontSize: '0.68rem', color: C.txtMuted, marginBottom: 6 }}>Sin actores.</div>}
               {puedeEditar && (
                 <button onClick={() => handleAgregar(cat)} disabled={guardando === 'nuevo-' + cat}
-                  style={{ background: 'none', border: `1px dashed ${C.border}`, borderRadius: 6, color: C.doradoLight, padding: '0.35rem 0.6rem', fontSize: '0.68rem', cursor: 'pointer', fontFamily: 'inherit', width: '100%' }}>
-                  ➕ Agregar
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'none', border: `1px dashed ${C.border}`, borderRadius: 6, color: C.doradoLight, padding: '0.35rem 0.6rem', fontSize: '0.68rem', cursor: 'pointer', fontFamily: 'inherit', width: '100%' }}>
+                  <Plus size={12}/> Agregar
                 </button>
               )}
             </div>

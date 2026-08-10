@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Users, BarChart3, FileText, Settings } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useConfiguracionCtx } from '../contexts/ConfiguracionContext'
 import { formatPeriodoLabel } from '../utils/periodo'
@@ -14,9 +15,9 @@ export default function AdminUsuarios() {
   const { isAdmin, isPlaneacion, isDirectivo } = useAuth()
   const puedeVerReportesAdmin = isAdmin || isPlaneacion || isDirectivo
   const TABS = [
-    ...(isAdmin ? [{ id: 'usuarios', label: '👥 Gestión de Usuarios' }] : []),
-    ...((isAdmin || isPlaneacion) ? [{ id: 'captura', label: '📊 Avance de Captura' }] : []),
-    ...(puedeVerReportesAdmin ? [{ id: 'reportes', label: '📄 Reportes' }] : []),
+    ...(isAdmin ? [{ id: 'usuarios', label: 'Gestión de Usuarios', icon: Users }] : []),
+    ...((isAdmin || isPlaneacion) ? [{ id: 'captura', label: 'Avance de Captura', icon: BarChart3 }] : []),
+    ...(puedeVerReportesAdmin ? [{ id: 'reportes', label: 'Reportes', icon: FileText }] : []),
   ]
   const [adminTab, setAdminTab] = useState(isAdmin ? 'usuarios' : (isPlaneacion ? 'captura' : 'reportes'))
 
@@ -41,8 +42,9 @@ export default function AdminUsuarios() {
                 borderRadius: 8, color: adminTab === t.id ? C.txt : C.txtSub,
                 padding: '0.55rem 1rem', fontSize: '0.75rem', fontWeight: 700,
                 fontFamily: 'inherit', cursor: 'pointer', letterSpacing: 1,
+                display: 'inline-flex', alignItems: 'center', gap: 6,
               }}>
-              {t.label}
+              <t.icon size={13}/> {t.label}
             </button>
           ))}
         </div>
@@ -52,8 +54,8 @@ export default function AdminUsuarios() {
 
       {adminTab === 'usuarios' && isAdmin && (
         <div style={{ maxWidth: 560 }}>
-          <div style={{ fontSize: '0.62rem', letterSpacing: 3, color: C.dorado, textTransform: 'uppercase', marginBottom: '1.2rem' }}>
-            ⚙️ Administración de Usuarios · Solo Administrador
+          <div style={{ fontSize: '0.62rem', letterSpacing: 3, color: C.dorado, textTransform: 'uppercase', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', gap: 5 }}>
+            <Settings size={12}/> Administración de Usuarios · Solo Administrador
           </div>
 
           <GestionUsuarios/>

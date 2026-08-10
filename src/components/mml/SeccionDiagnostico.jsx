@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { XCircle, Loader2, Trash2, Plus } from 'lucide-react'
 import { upsertDiagnostico, eliminarDiagnostico } from '../../lib/supabase'
 import { C } from '../../theme.js'
 
@@ -59,8 +60,8 @@ export default function SeccionDiagnostico({ programaId, anio, diagnostico, pued
         Transformación Deseada (PP-FM-03)
       </div>
       {error && (
-        <div style={{ background: '#C0000022', border: `1px solid ${C.criticoB}`, borderRadius: 6, padding: '0.5rem 0.75rem', marginBottom: 8, fontSize: '0.74rem', color: C.criticoB }}>
-          ❌ {error}
+        <div style={{ background: '#C0000022', border: `1px solid ${C.criticoB}`, borderRadius: 6, padding: '0.5rem 0.75rem', marginBottom: 8, fontSize: '0.74rem', color: C.criticoB, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <XCircle size={13}/> {error}
         </div>
       )}
       {diagnostico.map(fila => (
@@ -81,8 +82,8 @@ export default function SeccionDiagnostico({ programaId, anio, diagnostico, pued
           </div>
           {puedeEditar && (
             <button onClick={() => handleEliminar(fila.id)} disabled={guardando === fila.id}
-              style={{ marginTop: 6, background: 'none', border: `1px solid ${C.criticoB}55`, borderRadius: 6, color: C.criticoB, padding: '0.3rem 0.6rem', fontSize: '0.68rem', cursor: 'pointer', fontFamily: 'inherit' }}>
-              🗑️ Quitar
+              style={{ marginTop: 6, background: 'none', border: `1px solid ${C.criticoB}55`, borderRadius: 6, color: C.criticoB, padding: '0.3rem 0.6rem', fontSize: '0.68rem', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <Trash2 size={11}/> Quitar
             </button>
           )}
         </div>
@@ -94,10 +95,13 @@ export default function SeccionDiagnostico({ programaId, anio, diagnostico, pued
       )}
       {puedeEditar && (
         <button onClick={handleAgregar} disabled={guardando === 'nuevo'}
-          style={{ background: C.bgPanel, border: `1px dashed ${C.border}`, borderRadius: 8, color: C.doradoLight, padding: '0.55rem 0.9rem', fontSize: '0.76rem', cursor: 'pointer', fontFamily: 'inherit' }}>
-          {guardando === 'nuevo' ? '⏳ Agregando…' : '➕ Agregar problema/transformación'}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.bgPanel, border: `1px dashed ${C.border}`, borderRadius: 8, color: C.doradoLight, padding: '0.55rem 0.9rem', fontSize: '0.76rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+          {guardando === 'nuevo'
+            ? <><Loader2 size={13} style={{animation:'spin 0.8s linear infinite'}}/> Agregando…</>
+            : <><Plus size={13}/> Agregar problema/transformación</>}
         </button>
       )}
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
 }

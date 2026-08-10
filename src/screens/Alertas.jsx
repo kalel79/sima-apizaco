@@ -1,3 +1,4 @@
+import { CircleAlert, AlertTriangle, Trophy } from 'lucide-react'
 import { useAlertasLogros } from '../hooks/useSupabase'
 import { C } from '../theme.js'
 import { Spinner, ErrMsg, Barra } from '../components/ui.jsx'
@@ -13,10 +14,10 @@ export default function PantallaAlertas() {
   const riesgo   = (data||[]).filter(r=>r.semaforo==='RIESGO').sort(porPctAsc).slice(0,20)
   const logros   = (data||[]).filter(r=>r.semaforo==='ÓPTIMO').sort(porPctAsc).slice(0,20)
 
-  const Grupo = ({titulo, items, color}) => (
+  const Grupo = ({titulo, icon: Icon, items, color}) => (
     <div style={{marginBottom:'1.5rem'}}>
-      <div style={{fontSize:'0.65rem',letterSpacing:2,color,textTransform:'uppercase',borderBottom:`1px solid ${color}44`,paddingBottom:6,marginBottom:'0.6rem'}}>
-        {titulo} ({items.length})
+      <div style={{fontSize:'0.65rem',letterSpacing:2,color,textTransform:'uppercase',borderBottom:`1px solid ${color}44`,paddingBottom:6,marginBottom:'0.6rem',display:'flex',alignItems:'center',gap:6}}>
+        <Icon size={13}/> {titulo} ({items.length})
       </div>
       {items.length===0
         ? <div style={{fontSize:'0.78rem',color:C.txtMuted}}>Sin registros</div>
@@ -41,9 +42,9 @@ export default function PantallaAlertas() {
 
   return (
     <div>
-      <Grupo titulo="🔴 Indicadores críticos" items={criticos} color={C.criticoB}/>
-      <Grupo titulo="🟡 En riesgo"            items={riesgo}   color={C.riesgoB}/>
-      <Grupo titulo="🏆 Logros destacados"    items={logros}   color={C.optimoB}/>
+      <Grupo titulo="Indicadores críticos" icon={CircleAlert}  items={criticos} color={C.criticoB}/>
+      <Grupo titulo="En riesgo"            icon={AlertTriangle} items={riesgo}   color={C.riesgoB}/>
+      <Grupo titulo="Logros destacados"    icon={Trophy}        items={logros}   color={C.optimoB}/>
     </div>
   )
 }

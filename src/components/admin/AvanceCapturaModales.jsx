@@ -1,3 +1,4 @@
+import { Pencil, Undo2, AlertTriangle, Loader2, Save } from 'lucide-react'
 import { C } from '../../theme.js'
 
 // Colores de acción propios del flujo de corrección/desvalidación
@@ -26,14 +27,14 @@ export function ModalCorregir({ row, periodoLabel, form, setForm, error, saving,
   return (
     <div style={overlay} onClick={() => !saving && onClose()}>
       <div style={{ ...modalBox, maxWidth: 460 }} onClick={e => e.stopPropagation()}>
-        <div style={{ fontSize: '0.85rem', fontWeight: 800, color: ACCION.correccion, marginBottom: 4 }}>✏️ Corregir avance validado</div>
+        <div style={{ fontSize: '0.85rem', fontWeight: 800, color: ACCION.correccion, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 7 }}><Pencil size={15}/> Corregir avance validado</div>
         <div style={{ fontSize: '0.72rem', color: C.txtMuted, marginBottom: '1rem' }}>
           {row.clave} · {row.nombre} · {periodoLabel}
         </div>
 
         {error && (
-          <div style={{ background: '#1a0505', border: `1px solid ${ACCION.error}`, borderRadius: 8, padding: '0.6rem 0.85rem', color: ACCION.error, fontSize: '0.75rem', marginBottom: '0.85rem' }}>
-            ⚠️ {error}
+          <div style={{ background: '#1a0505', border: `1px solid ${ACCION.error}`, borderRadius: 8, padding: '0.6rem 0.85rem', color: ACCION.error, fontSize: '0.75rem', marginBottom: '0.85rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <AlertTriangle size={14}/> {error}
           </div>
         )}
 
@@ -58,14 +59,17 @@ export function ModalCorregir({ row, periodoLabel, form, setForm, error, saving,
 
         <div style={{ display: 'flex', gap: '0.6rem', marginTop: '1.2rem' }}>
           <button onClick={onGuardar} disabled={saving}
-            style={{ flex: 1, background: saving ? '#444' : ACCION.correccion, border: 'none', borderRadius: 8, color: '#241a05', padding: '0.65rem', fontSize: '0.8rem', fontWeight: 800, fontFamily: 'inherit', cursor: saving ? 'not-allowed' : 'pointer' }}>
-            {saving ? '⏳ Guardando…' : '💾 Guardar corrección'}
+            style={{ flex: 1, background: saving ? '#444' : ACCION.correccion, border: 'none', borderRadius: 8, color: '#241a05', padding: '0.65rem', fontSize: '0.8rem', fontWeight: 800, fontFamily: 'inherit', cursor: saving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+            {saving
+              ? <><Loader2 size={14} style={{animation:'spin 0.8s linear infinite'}}/> Guardando…</>
+              : <><Save size={14}/> Guardar corrección</>}
           </button>
           <button onClick={onClose} disabled={saving}
             style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, color: C.txtMuted, padding: '0.65rem 1rem', fontSize: '0.8rem', fontFamily: 'inherit', cursor: 'pointer' }}>
             Cancelar
           </button>
         </div>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     </div>
   )
@@ -76,7 +80,7 @@ export function ModalDesvalidar({ row, periodoLabel, motivo, setMotivo, error, s
   return (
     <div style={overlay} onClick={() => !saving && onClose()}>
       <div style={{ ...modalBox, maxWidth: 460 }} onClick={e => e.stopPropagation()}>
-        <div style={{ fontSize: '0.85rem', fontWeight: 800, color: ACCION.desvalidar, marginBottom: 4 }}>↩️ Desvalidar avance</div>
+        <div style={{ fontSize: '0.85rem', fontWeight: 800, color: ACCION.desvalidar, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 7 }}><Undo2 size={15}/> Desvalidar avance</div>
         <div style={{ fontSize: '0.72rem', color: C.txtMuted, marginBottom: '1rem' }}>
           {row.clave} · {row.nombre} · {periodoLabel}
         </div>
@@ -86,8 +90,8 @@ export function ModalDesvalidar({ row, periodoLabel, motivo, setMotivo, error, s
         </div>
 
         {error && (
-          <div style={{ background: '#1a0505', border: `1px solid ${ACCION.error}`, borderRadius: 8, padding: '0.6rem 0.85rem', color: ACCION.error, fontSize: '0.75rem', marginBottom: '0.85rem' }}>
-            ⚠️ {error}
+          <div style={{ background: '#1a0505', border: `1px solid ${ACCION.error}`, borderRadius: 8, padding: '0.6rem 0.85rem', color: ACCION.error, fontSize: '0.75rem', marginBottom: '0.85rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <AlertTriangle size={14}/> {error}
           </div>
         )}
 
@@ -97,14 +101,17 @@ export function ModalDesvalidar({ row, periodoLabel, motivo, setMotivo, error, s
 
         <div style={{ display: 'flex', gap: '0.6rem', marginTop: '1.2rem' }}>
           <button onClick={onConfirmar} disabled={saving}
-            style={{ flex: 1, background: saving ? '#444' : ACCION.desvalidar, border: 'none', borderRadius: 8, color: '#2a1600', padding: '0.65rem', fontSize: '0.8rem', fontWeight: 800, fontFamily: 'inherit', cursor: saving ? 'not-allowed' : 'pointer' }}>
-            {saving ? '⏳ Procesando…' : '↩️ Confirmar desvalidación'}
+            style={{ flex: 1, background: saving ? '#444' : ACCION.desvalidar, border: 'none', borderRadius: 8, color: '#2a1600', padding: '0.65rem', fontSize: '0.8rem', fontWeight: 800, fontFamily: 'inherit', cursor: saving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+            {saving
+              ? <><Loader2 size={14} style={{animation:'spin 0.8s linear infinite'}}/> Procesando…</>
+              : <><Undo2 size={14}/> Confirmar desvalidación</>}
           </button>
           <button onClick={onClose} disabled={saving}
             style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, color: C.txtMuted, padding: '0.65rem 1rem', fontSize: '0.8rem', fontFamily: 'inherit', cursor: 'pointer' }}>
             Cancelar
           </button>
         </div>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     </div>
   )

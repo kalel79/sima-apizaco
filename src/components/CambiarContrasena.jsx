@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Eye, EyeOff, Check, Circle, X, AlertTriangle, Loader2, Lock } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { LOGO_BASE64 } from '../logo.js'
 
@@ -73,9 +74,9 @@ export default function CambiarContrasena({ user, onDone }) {
     <button type="button" onClick={onClick} style={{
       position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
       background: 'none', border: 'none', cursor: 'pointer',
-      color: C.txtMuted, fontSize: '1rem', padding: 0, lineHeight: 1,
+      color: C.txtMuted, padding: 0, lineHeight: 1, display: 'flex',
     }}>
-      {visible ? '🙈' : '👁'}
+      {visible ? <EyeOff size={16}/> : <Eye size={16}/>}
     </button>
   )
 
@@ -127,8 +128,11 @@ export default function CambiarContrasena({ user, onDone }) {
           fontSize: '0.82rem',
           color: C.txt,
           lineHeight: 1.55,
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 8,
         }}>
-          🔐 Bienvenido/a. Por seguridad, debes cambiar tu contraseña antes de continuar.
+          <Lock size={16} style={{flexShrink:0,marginTop:1}}/> Bienvenido/a. Por seguridad, debes cambiar tu contraseña antes de continuar.
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
@@ -179,14 +183,14 @@ export default function CambiarContrasena({ user, onDone }) {
                 const cumple = fn(nueva)
                 return (
                   <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '0.72rem', color: cumple ? C.ok : C.txtMuted }}>
-                    <span style={{ fontSize: '0.8rem' }}>{cumple ? '✓' : '○'}</span>
+                    {cumple ? <Check size={13}/> : <Circle size={13}/>}
                     <span>{label}</span>
                   </div>
                 )
               })}
               {confirmar && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '0.72rem', color: coinciden ? C.ok : C.err }}>
-                  <span style={{ fontSize: '0.8rem' }}>{coinciden ? '✓' : '✗'}</span>
+                  {coinciden ? <Check size={13}/> : <X size={13}/>}
                   <span>Las contraseñas coinciden</span>
                 </div>
               )}
@@ -198,8 +202,9 @@ export default function CambiarContrasena({ user, onDone }) {
               background: '#C0000022', border: '1px solid #C00000',
               borderRadius: 8, padding: '0.65rem 0.9rem',
               fontSize: '0.8rem', color: '#ff6b6b',
+              display: 'flex', alignItems: 'center', gap: 8,
             }}>
-              ⚠️ {errorMsg}
+              <AlertTriangle size={16} style={{flexShrink:0}}/> {errorMsg}
             </div>
           )}
 
@@ -218,10 +223,14 @@ export default function CambiarContrasena({ user, onDone }) {
               textTransform: 'uppercase',
               cursor: saving || !puedeGuardar ? 'not-allowed' : 'pointer',
               marginTop: 4, transition: 'all 0.2s',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}
           >
-            {saving ? '⏳ Guardando…' : '🔐 CAMBIAR CONTRASEÑA'}
+            {saving
+              ? <><Loader2 size={15} style={{animation:'spin 0.8s linear infinite'}}/> Guardando…</>
+              : <><Lock size={15}/> CAMBIAR CONTRASEÑA</>}
           </button>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </form>
       </div>
 

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { XCircle } from 'lucide-react'
 import { upsertMeta } from '../../lib/supabase'
 import { C } from '../../theme.js'
 
@@ -54,8 +55,8 @@ export default function SeccionMetas({ anio, mirNiveles, puedeEditar, onChange }
         Metas calendarizadas · POA (PP-FM-0F) · {anio}
       </div>
       {error && (
-        <div style={{ background: '#C0000022', border: `1px solid ${C.criticoB}`, borderRadius: 6, padding: '0.5rem 0.75rem', marginBottom: 8, fontSize: '0.74rem', color: C.criticoB }}>
-          ❌ {error}
+        <div style={{ background: '#C0000022', border: `1px solid ${C.criticoB}`, borderRadius: 6, padding: '0.5rem 0.75rem', marginBottom: 8, fontSize: '0.74rem', color: C.criticoB, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <XCircle size={13}/> {error}
         </div>
       )}
       {!puedeEditar && (

@@ -1,4 +1,8 @@
 import { useState, useMemo, useEffect, Fragment } from 'react'
+import {
+  ClipboardList, TrendingUp, Target, Gauge, AlertTriangle, ChevronUp,
+  Map, Loader2, FileText,
+} from 'lucide-react'
 import { useComparativoPMD } from '../hooks/useSupabase'
 import { getIndicadoresPorPrograma, getDetalleIndicadoresPMD, getNombresEjes, getProgramasPresupuestariosDePmd, getProgramasPresupuestariosPorPmd } from '../lib/supabase'
 import { useConfiguracionCtx } from '../contexts/ConfiguracionContext'
@@ -50,13 +54,14 @@ function Pill({ sem }) {
   )
 }
 
-function KPI({ label, value, sub, icon, color }) {
+function KPI({ label, value, sub, icon: Icon, color }) {
+  const esTexto = typeof value === 'string' && value.length > 6
   return (
     <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderTop: `3px solid ${color}`, borderRadius: 12, padding: '1.1rem', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-        <span style={{ fontSize: 20 }}>{icon}</span>
-        <span style={{ fontSize: '1.6rem', fontWeight: 800, color }}>{value}</span>
+      <div style={{ marginBottom: 6 }}>
+        <Icon size={18} color={color}/>
       </div>
+      <div style={{ fontSize: esTexto ? '1.1rem' : '1.6rem', fontWeight: 800, color, lineHeight: 1.2, wordBreak: 'break-word', marginBottom: 2 }}>{value}</div>
       <div style={{ fontSize: '0.72rem', color: C.txt, fontWeight: 600 }}>{label}</div>
       {sub && <div style={{ fontSize: '0.62rem', color: C.txtMuted, marginTop: 2 }}>{sub}</div>}
     </div>
@@ -145,7 +150,7 @@ function DetalleIndicadores({ programaId, mes, anio }) {
   const grupos = useMemo(() => agruparPorNivelMir(data), [data])
 
   if (loading) return <div style={{ fontSize: '0.75rem', color: C.txtMuted, padding: '0.75rem' }}>Cargando indicadores…</div>
-  if (error)   return <div style={{ fontSize: '0.75rem', color: '#C00000', padding: '0.75rem' }}>⚠️ {error}</div>
+  if (error)   return <div style={{ fontSize: '0.75rem', color: '#C00000', padding: '0.75rem', display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={13}/> {error}</div>
   if (!data?.length) return <div style={{ fontSize: '0.75rem', color: C.txtMuted, padding: '0.75rem' }}>Este programa no tiene indicadores MIR vinculados.</div>
 
   return (
@@ -185,8 +190,8 @@ function DetalleIndicadores({ programaId, mes, anio }) {
                       <td style={{ padding: '0.4rem 0.5rem' }}><Pill sem={i.semaforo}/></td>
                       <td style={{ padding: '0.4rem 0.5rem' }}>
                         <button onClick={() => setFichaAbierta(abierta ? null : i.clave)}
-                          style={{ background: abierta ? C.guinda : 'none', border: `1px solid ${C.border}`, borderRadius: 6, color: abierta ? C.txt : C.doradoLight, padding: '0.25rem 0.55rem', fontSize: '0.62rem', fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                          {abierta ? '▲ Ficha' : '📋 Ficha'}
+                          style={{ background: abierta ? C.guinda : 'none', border: `1px solid ${C.border}`, borderRadius: 6, color: abierta ? C.txt : C.doradoLight, padding: '0.25rem 0.55rem', fontSize: '0.62rem', fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          {abierta ? <><ChevronUp size={11}/> Ficha</> : <><ClipboardList size={11}/> Ficha</>}
                         </button>
                       </td>
                     </tr>
@@ -288,8 +293,8 @@ export default function PantallaPMD() {
   if (loading) return <div style={{ fontSize: '0.85rem', color: C.txtMuted, padding: '2rem', textAlign: 'center' }}>Cargando comparativo PMD…</div>
   if (error) {
     return (
-      <div style={{ background: '#1a0505', border: '1px solid #C00000', borderRadius: 8, padding: '1rem', color: '#C00000', fontSize: '0.82rem' }}>
-        ⚠️ {error}
+      <div style={{ background: '#1a0505', border: '1px solid #C00000', borderRadius: 8, padding: '1rem', color: '#C00000', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <AlertTriangle size={16} style={{flexShrink:0}}/> {error}
         <button onClick={refetch} style={{ marginLeft: 12, background: C.guinda, border: 'none', color: C.txt, padding: '3px 10px', borderRadius: 4, cursor: 'pointer', fontSize: '0.75rem' }}>Reintentar</button>
       </div>
     )
@@ -298,8 +303,8 @@ export default function PantallaPMD() {
   return (
     <div>
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-        <div style={{ fontSize: '0.62rem', letterSpacing: 3, color: C.dorado, textTransform: 'uppercase' }}>
-          🗺️ Plan Municipal de Desarrollo · Comparativo vs. avance MIR
+        <div style={{ fontSize: '0.62rem', letterSpacing: 3, color: C.dorado, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 5 }}>
+          <Map size={12}/> Plan Municipal de Desarrollo · Comparativo vs. avance MIR
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.68rem', color: C.txtSub, cursor: 'pointer' }}>
@@ -307,22 +312,25 @@ export default function PantallaPMD() {
             Incluir detalle por indicador
           </label>
           <button onClick={handleDescargarReporte} disabled={generandoPDF || !visibles.length}
-            style={{ background: generandoPDF ? '#444' : `linear-gradient(135deg,${C.guindaDark},${C.guinda})`, border: 'none', borderRadius: 8, color: C.txt, padding: '0.5rem 0.9rem', fontSize: '0.75rem', fontWeight: 700, fontFamily: 'inherit', cursor: generandoPDF || !visibles.length ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
-            {generandoPDF ? '⏳ Generando…' : '📄 Descargar Reporte PDF'}
+            style={{ background: generandoPDF ? '#444' : `linear-gradient(135deg,${C.guindaDark},${C.guinda})`, border: 'none', borderRadius: 8, color: C.txt, padding: '0.5rem 0.9rem', fontSize: '0.75rem', fontWeight: 700, fontFamily: 'inherit', cursor: generandoPDF || !visibles.length ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
+            {generandoPDF
+              ? <><Loader2 size={13} style={{animation:'spin 0.8s linear infinite'}}/> Generando…</>
+              : <><FileText size={13}/> Descargar Reporte PDF</>}
           </button>
         </div>
       </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       {pdfError && (
-        <div style={{ fontSize: '0.72rem', color: '#C00000', marginBottom: '1rem' }}>⚠️ {pdfError}</div>
+        <div style={{ fontSize: '0.72rem', color: '#C00000', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={13}/> {pdfError}</div>
       )}
 
       {/* Resumen ejecutivo */}
       {resumen && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.75rem', marginBottom: '1.2rem' }}>
-          <KPI label="Programas PMD" value={resumen.total} icon="📋" color={C.dorado}/>
-          <KPI label="Con avance registrado" value={resumen.conAvance} sub={`${resumen.sinAvance} sin datos`} icon="📈" color="#00B050"/>
-          <KPI label="% Promedio global" value={resumen.pctGlobal != null ? `${resumen.pctGlobal.toFixed(1)}%` : '—'} icon="🎯" color={C.doradoLight}/>
-          <KPI label="Óptimo / Adecuado" value={`${resumen.optimo} / ${resumen.adecuado}`} sub={`Riesgo: ${resumen.riesgo} · Crítico: ${resumen.critico}`} icon="🚦" color="#046205"/>
+          <KPI label="Programas PMD" value={resumen.total} icon={ClipboardList} color={C.dorado}/>
+          <KPI label="Con avance registrado" value={resumen.conAvance} sub={`${resumen.sinAvance} sin datos`} icon={TrendingUp} color="#00B050"/>
+          <KPI label="% Promedio global" value={resumen.pctGlobal != null ? `${resumen.pctGlobal.toFixed(1)}%` : '—'} icon={Target} color={C.doradoLight}/>
+          <KPI label="Óptimo / Adecuado" value={`${resumen.optimo} / ${resumen.adecuado}`} sub={`Riesgo: ${resumen.riesgo} · Crítico: ${resumen.critico}`} icon={Gauge} color="#046205"/>
         </div>
       )}
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { Inbox } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { LOGO_BASE64 } from '../logo.js'
 import { getTransparenciaPublica } from '../lib/cierres.js'
@@ -57,8 +58,8 @@ export default function Transparencia() {
         {error && <ErrMsg msg={error} onRetry={() => window.location.reload()} />}
 
         {meses && meses.length === 0 && (
-          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '1.6rem', textAlign: 'center', color: C.txtMuted, fontSize: '0.85rem' }}>
-            📭 Todavía no hay un mes publicado en este portal. Vuelve pronto.
+          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '1.6rem', textAlign: 'center', color: C.txtMuted, fontSize: '0.85rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+            <Inbox size={22}/> Todavía no hay un mes publicado en este portal. Vuelve pronto.
           </div>
         )}
 
@@ -109,10 +110,10 @@ function ResumenMes({ cierre }) {
         {' '}{frases[sem]}.
       </p>
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 14, fontSize: '0.72rem', color: C.txtMuted }}>
-        <span style={{ color: C.optimoB }}>🟢 {g.optimo || 0} óptimos</span>
-        <span style={{ color: C.adecuadoB }}>🟩 {g.adecuado || 0} adecuados</span>
-        <span style={{ color: C.riesgoB }}>🟡 {g.riesgo || 0} en riesgo</span>
-        <span style={{ color: C.criticoB }}>🔴 {g.critico || 0} críticos</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: C.optimoB }}><span style={{width:8,height:8,borderRadius:'50%',background:C.optimoB,display:'inline-block'}}/> {g.optimo || 0} óptimos</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: C.adecuadoB }}><span style={{width:8,height:8,borderRadius:'50%',background:C.adecuadoB,display:'inline-block'}}/> {g.adecuado || 0} adecuados</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: C.riesgoB }}><span style={{width:8,height:8,borderRadius:'50%',background:C.riesgoB,display:'inline-block'}}/> {g.riesgo || 0} en riesgo</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: C.criticoB }}><span style={{width:8,height:8,borderRadius:'50%',background:C.criticoB,display:'inline-block'}}/> {g.critico || 0} críticos</span>
       </div>
     </section>
   )

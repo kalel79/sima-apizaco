@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { FolderOpen, RefreshCw, Loader2, FileText, PenLine, BookOpen, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { getProgramaIdDeArea, getProgramasLista, resolverDatosMML } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { C } from '../theme.js'
@@ -129,8 +130,8 @@ export default function ExpedienteMML() {
 
   return (
     <div>
-      <div style={{ fontSize: '0.62rem', letterSpacing: 3, color: C.dorado, textTransform: 'uppercase', marginBottom: '0.8rem' }}>
-        📁 Expediente MML
+      <div style={{ fontSize: '0.62rem', letterSpacing: 3, color: C.dorado, textTransform: 'uppercase', marginBottom: '0.8rem', display: 'flex', alignItems: 'center', gap: 5 }}>
+        <FolderOpen size={12}/> Expediente MML
       </div>
 
       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
@@ -140,20 +141,23 @@ export default function ExpedienteMML() {
         <select value={anio} onChange={e => setAnio(+e.target.value)} style={inp}>
           {ANIOS.map(a => <option key={a} value={a}>{a}</option>)}
         </select>
-        <button onClick={cargar} style={{ ...inp, cursor: 'pointer', background: C.bgPanel }}>🔄</button>
+        <button onClick={cargar} style={{ ...inp, cursor: 'pointer', background: C.bgPanel, display: 'flex', alignItems: 'center' }}><RefreshCw size={14}/></button>
         <button onClick={handleGenerarPdf} disabled={!datos || generandoPdf}
-          style={{ ...inp, cursor: !datos || generandoPdf ? 'default' : 'pointer', background: C.guinda, color: '#fff', fontWeight: 700, opacity: !datos || generandoPdf ? 0.6 : 1 }}>
-          {generandoPdf ? 'Generando…' : '📄 Generar PDF del Expediente'}
+          style={{ ...inp, cursor: !datos || generandoPdf ? 'default' : 'pointer', background: C.guinda, color: '#fff', fontWeight: 700, opacity: !datos || generandoPdf ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+          {generandoPdf
+            ? <><Loader2 size={13} style={{animation:'spin 0.8s linear infinite'}}/> Generando…</>
+            : <><FileText size={13}/> Generar PDF del Expediente</>}
         </button>
         {puedeEditarContenido && (
-          <button onClick={handleGenerarPlantilla} style={{ ...inp, cursor: 'pointer', background: C.bgPanel }}>
-            📝 Plantilla en blanco (enlaces)
+          <button onClick={handleGenerarPlantilla} style={{ ...inp, cursor: 'pointer', background: C.bgPanel, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <PenLine size={13}/> Plantilla en blanco (enlaces)
           </button>
         )}
-        <button onClick={generarInstructivoExpedienteMML} style={{ ...inp, cursor: 'pointer', background: C.bgPanel }}>
-          📘 Instructivo de llenado
+        <button onClick={generarInstructivoExpedienteMML} style={{ ...inp, cursor: 'pointer', background: C.bgPanel, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <BookOpen size={13}/> Instructivo de llenado
         </button>
       </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
 
       {isEnlace && !programaId && !cargandoInicial && (
         <div style={{ fontSize: '0.78rem', color: C.txtMuted, padding: '1rem', textAlign: 'center' }}>
@@ -177,7 +181,7 @@ export default function ExpedienteMML() {
                     borderRadius: 8, color: tab === t.id ? '#fff' : C.txtSub, padding: '0.45rem 0.7rem', fontSize: '0.68rem',
                     fontWeight: tab === t.id ? 700 : 400, fontFamily: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
                   }}>
-                  <span>{ok ? '✅' : '⚠️'}</span>{t.l}{pct != null && ` (${pct}%)`}
+                  {ok ? <CheckCircle2 size={12}/> : <AlertTriangle size={12}/>}{t.l}{pct != null && ` (${pct}%)`}
                 </button>
               )
             })}

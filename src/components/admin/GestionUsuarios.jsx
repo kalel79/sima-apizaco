@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { CheckCircle2, AlertTriangle, Mail, KeyRound, Eye, EyeOff, Loader2, UserPlus } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { invitarUsuario, resetearPassword } from '../../lib/auth'
 import { C } from '../../theme.js'
@@ -90,13 +91,14 @@ export default function GestionUsuarios() {
             marginBottom: '1rem',
             fontSize: '0.8rem',
             color: status.ok ? C.optimoB : '#ff6b6b',
+            display: 'block',
           }}>
-            {status.ok ? '✅' : '⚠️'} {status.msg}
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{status.ok ? <CheckCircle2 size={15}/> : <AlertTriangle size={15}/>} {status.msg}</span>
             {status.ok && status.password && (
               <div style={{ marginTop: 8, background: '#000000aa', borderRadius: 6, padding: '0.5rem 0.75rem' }}>
                 <div style={{ fontSize: '0.65rem', color: C.txtMuted, marginBottom: 4, letterSpacing: 1 }}>CREDENCIALES PARA COMPARTIR</div>
-                <div style={{ color: C.txt, fontSize: '0.78rem' }}>📧 <strong>{status.email}</strong></div>
-                <div style={{ color: C.doradoLight, fontSize: '0.78rem', marginTop: 2 }}>🔑 Contraseña: <strong style={{ letterSpacing: 2 }}>{status.password}</strong></div>
+                <div style={{ color: C.txt, fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: 6 }}><Mail size={13}/> <strong>{status.email}</strong></div>
+                <div style={{ color: C.doradoLight, fontSize: '0.78rem', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}><KeyRound size={13}/> Contraseña: <strong style={{ letterSpacing: 2 }}>{status.password}</strong></div>
                 <div style={{ fontSize: '0.62rem', color: C.txtMuted, marginTop: 4 }}>Comparte estas credenciales con el usuario. Puede cambiar su contraseña desde su perfil.</div>
               </div>
             )}
@@ -182,10 +184,10 @@ export default function GestionUsuarios() {
                 style={{
                   position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
                   background: 'transparent', border: 'none', color: C.doradoLight,
-                  cursor: 'pointer', fontSize: '0.95rem', padding: '0.4rem 0.5rem', lineHeight: 1,
+                  cursor: 'pointer', padding: '0.4rem 0.5rem', lineHeight: 1, display: 'flex',
                 }}
               >
-                {showPassword ? '🙈' : '👁️'}
+                {showPassword ? <EyeOff size={16}/> : <Eye size={16}/>}
               </button>
             </div>
           </div>
@@ -207,9 +209,12 @@ export default function GestionUsuarios() {
               textTransform: 'uppercase',
               opacity: !form.nombre || !form.email || !form.password ? 0.5 : 1,
               marginTop: 4,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}
           >
-            {saving ? '⏳ Creando usuario…' : '👤 CREAR USUARIO'}
+            {saving
+              ? <><Loader2 size={15} style={{animation:'spin 0.8s linear infinite'}}/> Creando usuario…</>
+              : <><UserPlus size={15}/> CREAR USUARIO</>}
           </button>
         </form>
       </div>
@@ -234,13 +239,14 @@ export default function GestionUsuarios() {
             marginBottom: '1rem',
             fontSize: '0.8rem',
             color: resetStatus.ok ? C.optimoB : '#ff6b6b',
+            display: 'block',
           }}>
-            {resetStatus.ok ? '✅' : '⚠️'} {resetStatus.msg}
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{resetStatus.ok ? <CheckCircle2 size={15}/> : <AlertTriangle size={15}/>} {resetStatus.msg}</span>
             {resetStatus.ok && resetStatus.password && (
               <div style={{ marginTop: 8, background: '#000000aa', borderRadius: 6, padding: '0.5rem 0.75rem' }}>
                 <div style={{ fontSize: '0.65rem', color: C.txtMuted, marginBottom: 4, letterSpacing: 1 }}>NUEVAS CREDENCIALES PARA COMPARTIR</div>
-                <div style={{ color: C.txt, fontSize: '0.78rem' }}>📧 <strong>{resetStatus.email}</strong></div>
-                <div style={{ color: C.doradoLight, fontSize: '0.78rem', marginTop: 2 }}>🔑 Contraseña: <strong style={{ letterSpacing: 2 }}>{resetStatus.password}</strong></div>
+                <div style={{ color: C.txt, fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: 6 }}><Mail size={13}/> <strong>{resetStatus.email}</strong></div>
+                <div style={{ color: C.doradoLight, fontSize: '0.78rem', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}><KeyRound size={13}/> Contraseña: <strong style={{ letterSpacing: 2 }}>{resetStatus.password}</strong></div>
                 <div style={{ fontSize: '0.62rem', color: C.txtMuted, marginTop: 4 }}>El usuario deberá cambiarla en su próximo inicio de sesión.</div>
               </div>
             )}
@@ -283,10 +289,10 @@ export default function GestionUsuarios() {
                 style={{
                   position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
                   background: 'transparent', border: 'none', color: C.doradoLight,
-                  cursor: 'pointer', fontSize: '0.95rem', padding: '0.4rem 0.5rem', lineHeight: 1,
+                  cursor: 'pointer', padding: '0.4rem 0.5rem', lineHeight: 1, display: 'flex',
                 }}
               >
-                {showResetPassword ? '🙈' : '👁️'}
+                {showResetPassword ? <EyeOff size={16}/> : <Eye size={16}/>}
               </button>
             </div>
           </div>
@@ -308,12 +314,16 @@ export default function GestionUsuarios() {
               textTransform: 'uppercase',
               opacity: !resetForm.usuario_id ? 0.5 : 1,
               marginTop: 4,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}
           >
-            {resetSaving ? '⏳ Actualizando…' : '🔑 RESETEAR CONTRASEÑA'}
+            {resetSaving
+              ? <><Loader2 size={15} style={{animation:'spin 0.8s linear infinite'}}/> Actualizando…</>
+              : <><KeyRound size={15}/> RESETEAR CONTRASEÑA</>}
           </button>
         </form>
       </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </>
   )
 }

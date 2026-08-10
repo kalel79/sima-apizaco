@@ -1,4 +1,8 @@
 import { useState, useEffect } from 'react'
+import {
+  Lock, Clock, AlertTriangle, CheckCircle2, XCircle, Table2, Landmark,
+  TreePine, Search, FileText, FileSpreadsheet, FileBarChart2,
+} from 'lucide-react'
 import { generarPDF, generarExcel, generarExcelEjecutivo, generarPDFPiloto, generarExcelPiloto, generarExcelMetas } from '../../utils/reportes'
 import { generarInformeGobierno } from '../../utils/informeGobierno'
 import { generarArbolProblemaObjetivosMIR } from '../../utils/reporteArbolMIR'
@@ -178,10 +182,10 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
       <div style={{ fontSize: '0.75rem', fontWeight: 700, color: C.doradoLight, marginBottom: '0.3rem', letterSpacing: 1 }}>
         Reportes
       </div>
-      <div style={{ fontSize: '0.65rem', color: C.txtMuted, marginBottom: '0.8rem' }}>
-        Periodo: {periodoSel
-          ? `${formatPeriodoLabel(periodoSel.mes, periodoSel.anio)} ${cierreSel ? '🔒 cerrado' : '🕓 recalculado'}`
-          : periodoLabel} · {rLoading ? 'Cargando datos…' : `${ejes.length} ejes`}
+      <div style={{ fontSize: '0.65rem', color: C.txtMuted, marginBottom: '0.8rem', display: 'flex', alignItems: 'center', gap: 5 }}>
+        {periodoSel ? (
+          <>Periodo: {formatPeriodoLabel(periodoSel.mes, periodoSel.anio)} {cierreSel ? <><Lock size={11}/> cerrado</> : <><Clock size={11}/> recalculado</>}</>
+        ) : `Periodo: ${periodoLabel}`} · {rLoading ? 'Cargando datos…' : `${ejes.length} ejes`}
       </div>
 
       <div style={{ marginBottom: '1.2rem' }}>
@@ -195,7 +199,7 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
             const c = cierresMap[key]
             return (
               <option key={key} value={key}>
-                {c ? '🔒' : '🕓'} {formatPeriodoLabel(p.mes, p.anio)} · {c ? `cerrado ${new Date(c.cerrado_at).toLocaleDateString('es-MX')}` : 'recalculado'}
+                {formatPeriodoLabel(p.mes, p.anio)} · {c ? `cerrado ${new Date(c.cerrado_at).toLocaleDateString('es-MX')}` : 'recalculado'}
               </option>
             )
           })}
@@ -203,19 +207,19 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
       </div>
 
       {rError && (
-        <div style={{ background: '#C0000022', border: `1px solid ${C.criticoB}`, borderRadius: 8, padding: '0.6rem 1rem', marginBottom: '1rem', fontSize: '0.78rem', color: '#ff6b6b' }}>
-          ⚠️ Error al cargar datos: {rError}
+        <div style={{ background: '#C0000022', border: `1px solid ${C.criticoB}`, borderRadius: 8, padding: '0.6rem 1rem', marginBottom: '1rem', fontSize: '0.78rem', color: '#ff6b6b', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <AlertTriangle size={14}/> Error al cargar datos: {rError}
         </div>
       )}
 
       {genStatus === 'ok' && (
-        <div style={{ background: '#04620520', border: `1px solid ${C.optimoB}`, borderRadius: 8, padding: '0.6rem 1rem', marginBottom: '1rem', fontSize: '0.78rem', color: C.optimoB }}>
-          ✅ Archivo generado y descargado correctamente.
+        <div style={{ background: '#04620520', border: `1px solid ${C.optimoB}`, borderRadius: 8, padding: '0.6rem 1rem', marginBottom: '1rem', fontSize: '0.78rem', color: C.optimoB, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <CheckCircle2 size={14}/> Archivo generado y descargado correctamente.
         </div>
       )}
       {genStatus?.startsWith('error') && (
-        <div style={{ background: '#C0000022', border: `1px solid ${C.criticoB}`, borderRadius: 8, padding: '0.6rem 1rem', marginBottom: '1rem', fontSize: '0.78rem', color: '#ff6b6b' }}>
-          ❌ {genStatus.replace('error:', '')}
+        <div style={{ background: '#C0000022', border: `1px solid ${C.criticoB}`, borderRadius: 8, padding: '0.6rem 1rem', marginBottom: '1rem', fontSize: '0.78rem', color: '#ff6b6b', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <XCircle size={14}/> {genStatus.replace('error:', '')}
         </div>
       )}
 
@@ -235,7 +239,7 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
             letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 8,
           }}
         >
-          📋 Descargar Tabla Metas y Resultados
+          <Table2 size={15}/> Descargar Tabla Metas y Resultados
         </button>
       </div>
 
@@ -255,7 +259,7 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
             letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 8,
           }}
         >
-          📋 Descargar Informe de Gobierno
+          <Landmark size={15}/> Descargar Informe de Gobierno
         </button>
       </div>
 
@@ -280,7 +284,7 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
               letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 8,
             }}
           >
-            🌳 Árbol Problema-Objetivos MIR (9 programas)
+            <TreePine size={15}/> Árbol Problema-Objetivos MIR (9 programas)
           </button>
         </div>
       </div>
@@ -292,8 +296,8 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           {[
-            { label: '🔍 PDF Piloto', fn: handlePilotoPDF },
-            { label: '🔍 Excel Piloto', fn: handlePilotoExcel },
+            { label: 'PDF Piloto', fn: handlePilotoPDF },
+            { label: 'Excel Piloto', fn: handlePilotoExcel },
           ].map(btn => (
             <button key={btn.label} onClick={btn.fn}
               disabled={rLoading || genStatus === 'cargando'}
@@ -303,8 +307,9 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
                 color: C.txtMuted, padding: '0.45rem 0.85rem',
                 fontSize: '0.72rem', fontFamily: 'inherit',
                 cursor: rLoading || genStatus === 'cargando' ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', gap: 6,
               }}>
-              {btn.label}
+              <Search size={12}/> {btn.label}
             </button>
           ))}
         </div>
@@ -329,7 +334,7 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
               <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid #ffffff44', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}/>
               Generando…
             </>
-          ) : '📄 Descargar PDF Ejecutivo'}
+          ) : <><FileText size={15}/> Descargar PDF Ejecutivo</>}
         </button>
 
         <button
@@ -350,7 +355,7 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
               <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid #ffffff44', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}/>
               Generando…
             </>
-          ) : '📊 Descargar Excel de Detalle'}
+          ) : <><FileSpreadsheet size={15}/> Descargar Excel de Detalle</>}
         </button>
 
         <button
@@ -371,7 +376,7 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
               <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid #ffffff44', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}/>
               Generando…
             </>
-          ) : '📈 Descargar Excel Ejecutivo'}
+          ) : <><FileBarChart2 size={15}/> Descargar Excel Ejecutivo</>}
         </button>
       </div>
     </div>

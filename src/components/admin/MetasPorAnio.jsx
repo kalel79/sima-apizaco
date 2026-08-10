@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { Download, Upload, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react'
 import ExcelJS from 'exceljs'
 import { supabase, getMetasArea, upsertMeta, upsertMetasLote, getIndicadoresOrdenados, getClavesIndicadores } from '../../lib/supabase'
 import { XL, descargarExcel, MESES_NOMBRES } from '../../utils/reportesBase.js'
@@ -225,19 +226,24 @@ export default function MetasPorAnio() {
           <button onClick={handleDescargarPlantilla} style={{
             background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, color: C.txtSub,
             padding: '0.55rem 1rem', fontSize: '0.75rem', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 6,
           }}>
-            ⬇ Descargar plantilla {anio}
+            <Download size={14}/> Descargar plantilla {anio}
           </button>
           <label style={{
             background: importing ? '#444' : `linear-gradient(135deg,${C.guindaDark},${C.guinda})`,
             border: 'none', borderRadius: 8, color: C.txt,
             padding: '0.55rem 1rem', fontSize: '0.75rem', fontWeight: 700, fontFamily: 'inherit',
             cursor: importing ? 'not-allowed' : 'pointer',
+            display: 'flex', alignItems: 'center', gap: 6,
           }}>
-            {importing ? '⏳ Importando…' : '⬆ Importar Excel'}
+            {importing
+              ? <><Loader2 size={14} style={{animation:'spin 0.8s linear infinite'}}/> Importando…</>
+              : <><Upload size={14}/> Importar Excel</>}
             <input type="file" accept=".xlsx" onChange={handleImportar} disabled={importing} style={{ display: 'none' }} />
           </label>
         </div>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
 
         {importStatus && (
           <div style={{
@@ -248,10 +254,10 @@ export default function MetasPorAnio() {
           }}>
             {importStatus.ok ? (
               <>
-                ✅ {importStatus.insertadas} valores importados.
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><CheckCircle2 size={14}/> {importStatus.insertadas} valores importados.</span>
                 {importStatus.rechazadas.length > 0 && (
                   <div style={{ marginTop: 6, color: '#ff6b6b' }}>
-                    ⚠️ {importStatus.rechazadas.length} filas con problemas:
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={13}/> {importStatus.rechazadas.length} filas con problemas:</span>
                     <ul style={{ margin: '4px 0 0 18px', padding: 0 }}>
                       {importStatus.rechazadas.slice(0, 10).map((r, i) => (
                         <li key={i}>Fila {r.fila}: {r.motivo}</li>
@@ -260,7 +266,7 @@ export default function MetasPorAnio() {
                   </div>
                 )}
               </>
-            ) : `⚠️ ${importStatus.msg}`}
+            ) : <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={13}/> {importStatus.msg}</span>}
           </div>
         )}
       </div>

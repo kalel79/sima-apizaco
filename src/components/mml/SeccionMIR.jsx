@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { XCircle, Loader2, CheckCircle2, ChevronUp, ChevronDown, Plus, Trash2 } from 'lucide-react'
 import {
   getIndicadoresDePrograma, getAreasDePrograma, crearIndicador,
   actualizarNodoMIR, actualizarFichaIndicador,
@@ -76,8 +77,8 @@ export default function SeccionMIR({ programaId, anio, mirNiveles, puedeEditar, 
         El resumen narrativo se edita en la pestaña "Árbol de Objetivos" — aquí solo se muestra.
       </div>
       {error && (
-        <div style={{ background: '#C0000022', border: `1px solid ${C.criticoB}`, borderRadius: 6, padding: '0.5rem 0.75rem', marginBottom: 8, fontSize: '0.74rem', color: C.criticoB }}>
-          ❌ {error}
+        <div style={{ background: '#C0000022', border: `1px solid ${C.criticoB}`, borderRadius: 6, padding: '0.5rem 0.75rem', marginBottom: 8, fontSize: '0.74rem', color: C.criticoB, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <XCircle size={13}/> {error}
         </div>
       )}
       {!mirNiveles.length && (
@@ -122,6 +123,7 @@ export default function SeccionMIR({ programaId, anio, mirNiveles, puedeEditar, 
             setGuardando={setGuardando} setError={setError} onChange={onChange} />
         )
       })}
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
 }
@@ -180,7 +182,7 @@ function FilaMIR({ nivel, abierto, onToggle, indicadores, areas, programaId, pue
             style={inp}>
             <option value="">— sin vincular —</option>
             {indicadores.map(i => <option key={i.id} value={i.id}>{i.nombre}</option>)}
-            {puedeEditar && <option value={CREAR_NUEVO}>➕ Crear nuevo indicador…</option>}
+            {puedeEditar && <option value={CREAR_NUEVO}>+ Crear nuevo indicador…</option>}
           </select>
         </td>
         <td style={td}>
@@ -220,8 +222,8 @@ function FilaMIR({ nivel, abierto, onToggle, indicadores, areas, programaId, pue
         <td style={td}>
           {ind && (
             <button onClick={onToggle}
-              style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, color: C.doradoLight, padding: '0.25rem 0.4rem', cursor: 'pointer', fontSize: '0.7rem', fontFamily: 'inherit' }}>
-              {abierto ? '▲' : '▼'}
+              style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, color: C.doradoLight, padding: '0.25rem 0.4rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex' }}>
+              {abierto ? <ChevronUp size={13}/> : <ChevronDown size={13}/>}
             </button>
           )}
         </td>
@@ -252,15 +254,17 @@ function FilaMIR({ nivel, abierto, onToggle, indicadores, areas, programaId, pue
                 </select>
               </div>
               <button onClick={handleCrear} disabled={creandoGuardando}
-                style={{ background: `linear-gradient(135deg,${C.guindaDark},${C.guinda})`, border: 'none', borderRadius: 6, color: C.txt, padding: '0.4rem 0.7rem', fontSize: '0.7rem', fontWeight: 700, cursor: creandoGuardando ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-                {creandoGuardando ? '⏳' : '✅ Crear y vincular'}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: `linear-gradient(135deg,${C.guindaDark},${C.guinda})`, border: 'none', borderRadius: 6, color: C.txt, padding: '0.4rem 0.7rem', fontSize: '0.7rem', fontWeight: 700, cursor: creandoGuardando ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                {creandoGuardando
+                  ? <Loader2 size={13} style={{animation:'spin 0.8s linear infinite'}}/>
+                  : <><CheckCircle2 size={13}/> Crear y vincular</>}
               </button>
               <button onClick={() => setCreando(false)} disabled={creandoGuardando}
                 style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, color: C.txtSub, padding: '0.4rem 0.7rem', fontSize: '0.7rem', cursor: 'pointer', fontFamily: 'inherit' }}>
                 Cancelar
               </button>
             </div>
-            {creandoError && <div style={{ fontSize: '0.68rem', color: C.criticoB, marginTop: 6 }}>❌ {creandoError}</div>}
+            {creandoError && <div style={{ fontSize: '0.68rem', color: C.criticoB, marginTop: 6, display: 'flex', alignItems: 'center', gap: 5 }}><XCircle size={12}/> {creandoError}</div>}
             {!areas.length && <div style={{ fontSize: '0.66rem', color: C.txtMuted, marginTop: 6 }}>Este programa no tiene áreas asignadas (areas.programa_id) — pide a Planeación que las asigne antes de crear el indicador.</div>}
           </td>
         </tr>
@@ -351,8 +355,8 @@ function VariablesIndicador({ indicadorId, anio, variables, puedeEditar, onChang
             style={inp} />
           {puedeEditar && (
             <button onClick={() => conGuardado('var-del-' + v.id, () => eliminarVariable(v.id))}
-              style={{ background: 'none', border: `1px solid ${C.criticoB}55`, borderRadius: 6, color: C.criticoB, padding: '0.3rem', fontSize: '0.65rem', cursor: 'pointer', fontFamily: 'inherit' }}>
-              🗑️
+              style={{ background: 'none', border: `1px solid ${C.criticoB}55`, borderRadius: 6, color: C.criticoB, padding: '0.3rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', justifyContent: 'center' }}>
+              <Trash2 size={12}/>
             </button>
           )}
         </div>
@@ -360,8 +364,8 @@ function VariablesIndicador({ indicadorId, anio, variables, puedeEditar, onChang
       {!variables.length && <div style={{ fontSize: '0.68rem', color: C.txtMuted, marginBottom: 6 }}>Sin variables capturadas.</div>}
       {puedeEditar && (
         <button onClick={handleAgregar}
-          style={{ background: 'none', border: `1px dashed ${C.border}`, borderRadius: 6, color: C.doradoLight, padding: '0.35rem 0.6rem', fontSize: '0.68rem', cursor: 'pointer', fontFamily: 'inherit' }}>
-          ➕ Agregar variable
+          style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: `1px dashed ${C.border}`, borderRadius: 6, color: C.doradoLight, padding: '0.35rem 0.6rem', fontSize: '0.68rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+          <Plus size={12}/> Agregar variable
         </button>
       )}
     </div>

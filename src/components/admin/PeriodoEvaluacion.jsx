@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { AlertTriangle, Lock, Loader2, Check, Globe, CheckCircle2, Calendar } from 'lucide-react'
 import {
   actualizarPeriodo, getCierreMensual, cerrarMesActual,
   getPublicacionesTransparencia, publicarTransparencia, despublicarTransparencia,
@@ -130,7 +131,7 @@ export default function PeriodoEvaluacion({ mesActual, anioActual, periodoLabel,
         </div>
 
         {cierreError && (
-          <div style={{ color: '#ff6b6b', fontSize: '0.74rem', marginBottom: 8 }}>⚠️ {cierreError}</div>
+          <div style={{ color: '#ff6b6b', fontSize: '0.74rem', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={13}/> {cierreError}</div>
         )}
 
         {cierre === undefined && (
@@ -148,9 +149,10 @@ export default function PeriodoEvaluacion({ mesActual, anioActual, periodoLabel,
                 background: `linear-gradient(135deg,#1a3a1a,#1e6b1e)`, border: 'none', borderRadius: 8,
                 color: C.txt, padding: '0.55rem 1rem', fontSize: '0.78rem', fontWeight: 700,
                 fontFamily: 'inherit', cursor: 'pointer', letterSpacing: 1,
+                display: 'flex', alignItems: 'center', gap: 7,
               }}
             >
-              🔒 Cerrar mes actual
+              <Lock size={14}/> Cerrar mes actual
             </button>
           </>
         )}
@@ -168,9 +170,12 @@ export default function PeriodoEvaluacion({ mesActual, anioActual, periodoLabel,
                   background: cierreSaving ? '#444' : C.criticoB, border: 'none', borderRadius: 6, color: '#fff',
                   padding: '0.5rem 1.1rem', fontSize: '0.78rem', fontWeight: 700,
                   fontFamily: 'inherit', cursor: cierreSaving ? 'not-allowed' : 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 }}
               >
-                {cierreSaving ? '⏳ Cerrando…' : '✔ Confirmar cierre'}
+                {cierreSaving
+                  ? <><Loader2 size={13} style={{animation:'spin 0.8s linear infinite'}}/> Cerrando…</>
+                  : <><Check size={13}/> Confirmar cierre</>}
               </button>
               <button
                 onClick={() => setCierrePending(false)}
@@ -186,8 +191,8 @@ export default function PeriodoEvaluacion({ mesActual, anioActual, periodoLabel,
         )}
 
         {cierre && (
-          <div style={{ fontSize: '0.76rem', color: C.optimoB, marginBottom: '0.8rem' }}>
-            🔒 Cerrado el {formatFecha(cierre.cerrado_at)}{cierre.cerrado_por?.nombre ? ` por ${cierre.cerrado_por.nombre}` : ''}.
+          <div style={{ fontSize: '0.76rem', color: C.optimoB, marginBottom: '0.8rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Lock size={13}/> Cerrado el {formatFecha(cierre.cerrado_at)}{cierre.cerrado_por?.nombre ? ` por ${cierre.cerrado_por.nombre}` : ''}.
           </div>
         )}
 
@@ -198,7 +203,7 @@ export default function PeriodoEvaluacion({ mesActual, anioActual, periodoLabel,
             </div>
 
             {publicadoError && (
-              <div style={{ color: '#ff6b6b', fontSize: '0.74rem', marginBottom: 8 }}>⚠️ {publicadoError}</div>
+              <div style={{ color: '#ff6b6b', fontSize: '0.74rem', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={13}/> {publicadoError}</div>
             )}
 
             {publicado === undefined && (
@@ -207,8 +212,8 @@ export default function PeriodoEvaluacion({ mesActual, anioActual, periodoLabel,
 
             {publicado === true && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
-                <div style={{ fontSize: '0.74rem', color: C.optimoB }}>
-                  🌐 Publicado — cualquier persona puede ver el resumen de {periodoLabel} en /transparencia, sin iniciar sesión.
+                <div style={{ fontSize: '0.74rem', color: C.optimoB, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Globe size={13}/> Publicado — cualquier persona puede ver el resumen de {periodoLabel} en /transparencia, sin iniciar sesión.
                 </div>
                 <button
                   onClick={handleDespublicar}
@@ -217,9 +222,10 @@ export default function PeriodoEvaluacion({ mesActual, anioActual, periodoLabel,
                     background: 'transparent', border: `1px solid ${C.criticoB}`, borderRadius: 6, color: '#ff6b6b',
                     padding: '0.45rem 0.9rem', fontSize: '0.72rem', fontWeight: 700,
                     fontFamily: 'inherit', cursor: publicadoSaving ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                   }}
                 >
-                  {publicadoSaving ? '⏳…' : 'Retirar del portal'}
+                  {publicadoSaving ? <Loader2 size={13} style={{animation:'spin 0.8s linear infinite'}}/> : 'Retirar del portal'}
                 </button>
               </div>
             )}
@@ -237,9 +243,12 @@ export default function PeriodoEvaluacion({ mesActual, anioActual, periodoLabel,
                     border: 'none', borderRadius: 6, color: '#fff',
                     padding: '0.45rem 0.9rem', fontSize: '0.72rem', fontWeight: 700,
                     fontFamily: 'inherit', cursor: publicadoSaving ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                   }}
                 >
-                  {publicadoSaving ? '⏳…' : '🌐 Publicar en Transparencia'}
+                  {publicadoSaving
+                    ? <Loader2 size={13} style={{animation:'spin 0.8s linear infinite'}}/>
+                    : <><Globe size={13}/> Publicar en Transparencia</>}
                 </button>
               </div>
             )}
@@ -253,8 +262,9 @@ export default function PeriodoEvaluacion({ mesActual, anioActual, periodoLabel,
           border: `1px solid ${cfgStatus.ok ? C.optimoB : C.criticoB}`,
           borderRadius: 8, padding: '0.6rem 1rem', marginBottom: '1rem',
           fontSize: '0.78rem', color: cfgStatus.ok ? C.optimoB : '#ff6b6b',
+          display: 'flex', alignItems: 'center', gap: 6,
         }}>
-          {cfgStatus.ok ? '✅' : '⚠️'} {cfgStatus.msg}
+          {cfgStatus.ok ? <CheckCircle2 size={14}/> : <AlertTriangle size={14}/>} {cfgStatus.msg}
         </div>
       )}
 
@@ -289,8 +299,8 @@ export default function PeriodoEvaluacion({ mesActual, anioActual, periodoLabel,
 
       {/* Advertencia cuando mes=1 y año no cambió */}
       {cfgMes === 1 && cfgAnio === anioActual && (
-        <div style={{ background: '#FFC00018', border: '1px solid #FFC000', borderRadius: 8, padding: '0.6rem 1rem', marginBottom: '1rem', fontSize: '0.75rem', color: '#a07800' }}>
-          ⚠️ Estás seleccionando enero. Si estás avanzando al siguiente año, recuerda cambiar también el año.
+        <div style={{ background: '#FFC00018', border: '1px solid #FFC000', borderRadius: 8, padding: '0.6rem 1rem', marginBottom: '1rem', fontSize: '0.75rem', color: '#a07800', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <AlertTriangle size={14}/> Estás seleccionando enero. Si estás avanzando al siguiente año, recuerda cambiar también el año.
         </div>
       )}
 
@@ -310,9 +320,12 @@ export default function PeriodoEvaluacion({ mesActual, anioActual, periodoLabel,
                 border: 'none', borderRadius: 6, color: '#fff',
                 padding: '0.5rem 1.2rem', fontSize: '0.8rem', fontWeight: 700,
                 fontFamily: 'inherit', cursor: cfgSaving ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}
             >
-              {cfgSaving ? '⏳ Guardando…' : '✔ Confirmar cambio'}
+              {cfgSaving
+                ? <><Loader2 size={14} style={{animation:'spin 0.8s linear infinite'}}/> Guardando…</>
+                : <><Check size={14}/> Confirmar cambio</>}
             </button>
             <button
               onClick={() => setCfgPending(false)}
@@ -339,11 +352,13 @@ export default function PeriodoEvaluacion({ mesActual, anioActual, periodoLabel,
             fontFamily: 'inherit', letterSpacing: 1,
             cursor: (cfgMes === mesActual && cfgAnio === anioActual) ? 'not-allowed' : 'pointer',
             opacity: (cfgMes === mesActual && cfgAnio === anioActual) ? 0.4 : 1,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
           }}
         >
-          📅 Actualizar Periodo
+          <Calendar size={14}/> Actualizar Periodo
         </button>
       )}
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
 }
