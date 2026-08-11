@@ -1,7 +1,17 @@
 import { useState } from 'react'
-import { AlertTriangle, Loader2 } from 'lucide-react'
+import { AlertTriangle, Loader2, ChevronsUp, Check, CircleAlert } from 'lucide-react'
 import { C, BOTON_VARIANTES } from '../theme.js'
 import { semColor } from '../utils/semaforo.js'
+
+/* ── Ícono por nivel de semáforo — ÓPTIMO/ADECUADO son ambos verdes y
+   antes solo se distinguían por tono (problema de accesibilidad para
+   daltonismo); ahora cada nivel también tiene una forma propia. ────── */
+const SEM_ICON = {
+  'ÓPTIMO':   ChevronsUp,
+  'ADECUADO': Check,
+  'RIESGO':   AlertTriangle,
+  'CRÍTICO':  CircleAlert,
+}
 
 /* ── COMPONENTES BASE ───────────────────────────────────────── */
 export function Spinner() {
@@ -25,11 +35,21 @@ export function ErrMsg({msg, onRetry}) {
 export function Pill({sem}) {
   const color = semColor(sem)
   const textColor = sem === 'RIESGO' ? '#7A5800' : '#fff'
+  const Icon = SEM_ICON[sem]
   return (
-    <span style={{fontSize:'0.65rem',fontWeight:800,letterSpacing:2,background:color,color:textColor,padding:'2px 8px',borderRadius:6,textTransform:'uppercase',whiteSpace:'nowrap'}}>
-      {sem}
+    <span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:'0.65rem',fontWeight:800,letterSpacing:2,background:color,color:textColor,padding:'2px 8px',borderRadius:6,textTransform:'uppercase',whiteSpace:'nowrap'}}>
+      {Icon && <Icon size={11}/>} {sem}
     </span>
   )
+}
+
+/* ── Punto de color de semáforo con forma propia — reemplaza el patrón
+   suelto `<span style={{borderRadius:'50%',background:color}}/>` que se
+   repetía en varias pantallas sin distinguir ÓPTIMO de ADECUADO. ────── */
+export function SemDot({sem, size=8}) {
+  const Icon = SEM_ICON[sem]
+  if (!Icon) return <span style={{width:size,height:size,borderRadius:'50%',background:semColor(sem),display:'inline-block'}}/>
+  return <Icon size={size} color={semColor(sem)} style={{flexShrink:0}}/>
 }
 
 export function Barra({pct, color, h=6}) {

@@ -5,7 +5,7 @@ import { LOGO_BASE64 } from '../logo.js'
 import { getTransparenciaPublica } from '../lib/cierres.js'
 import { getSemaforo, semColor } from '../utils/semaforo.js'
 import { C } from '../theme.js'
-import { Spinner, ErrMsg, Pill, Barra } from '../components/ui.jsx'
+import { Spinner, ErrMsg, Pill, Barra, SemDot } from '../components/ui.jsx'
 
 const MESES_FULL = [
   'enero','febrero','marzo','abril','mayo','junio',
@@ -110,10 +110,10 @@ function ResumenMes({ cierre }) {
         {' '}{frases[sem]}.
       </p>
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 14, fontSize: '0.72rem', color: C.txtMuted }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: C.optimoB }}><span style={{width:8,height:8,borderRadius:'50%',background:C.optimoB,display:'inline-block'}}/> {g.optimo || 0} óptimos</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: C.adecuadoB }}><span style={{width:8,height:8,borderRadius:'50%',background:C.adecuadoB,display:'inline-block'}}/> {g.adecuado || 0} adecuados</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: C.riesgoB }}><span style={{width:8,height:8,borderRadius:'50%',background:C.riesgoB,display:'inline-block'}}/> {g.riesgo || 0} en riesgo</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: C.criticoB }}><span style={{width:8,height:8,borderRadius:'50%',background:C.criticoB,display:'inline-block'}}/> {g.critico || 0} críticos</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: C.optimoB }}><SemDot sem="ÓPTIMO"/> {g.optimo || 0} óptimos</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: C.adecuadoB }}><SemDot sem="ADECUADO"/> {g.adecuado || 0} adecuados</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: C.riesgoB }}><SemDot sem="RIESGO"/> {g.riesgo || 0} en riesgo</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: C.criticoB }}><SemDot sem="CRÍTICO"/> {g.critico || 0} críticos</span>
       </div>
     </section>
   )

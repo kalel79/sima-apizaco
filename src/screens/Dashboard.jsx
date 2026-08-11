@@ -6,7 +6,7 @@ import { useConfiguracionCtx } from '../contexts/ConfiguracionContext'
 import { formatPeriodoLabel } from '../utils/periodo'
 import { getSemaforo, semColor } from '../utils/semaforo.js'
 import { C } from '../theme.js'
-import { Spinner, ErrMsg, Pill, Barra, KPI } from '../components/ui.jsx'
+import { Spinner, ErrMsg, Pill, Barra, KPI, SemDot } from '../components/ui.jsx'
 import FichaIndicador from '../components/FichaIndicador'
 
 /* ── DASHBOARD ───────────────────────────────────────────────── */
@@ -27,10 +27,10 @@ export default function PantallaDashboard() {
   const colG   = semColor(semG)
 
   const pieData = [
-    {name:'Óptimo',  value:g?.optimo  ||0, fill:C.optimoB},
-    {name:'Adecuado',value:g?.adecuado||0, fill:C.adecuadoB},
-    {name:'Riesgo',  value:g?.riesgo  ||0, fill:C.riesgoB},
-    {name:'Crítico', value:g?.critico ||0, fill:C.criticoB},
+    {name:'Óptimo',  sem:'ÓPTIMO',  value:g?.optimo  ||0, fill:C.optimoB},
+    {name:'Adecuado',sem:'ADECUADO',value:g?.adecuado||0, fill:C.adecuadoB},
+    {name:'Riesgo',  sem:'RIESGO',  value:g?.riesgo  ||0, fill:C.riesgoB},
+    {name:'Crítico', sem:'CRÍTICO', value:g?.critico ||0, fill:C.criticoB},
   ]
   const barData = (ejes||[]).map(e=>({
     name: e.codigo,
@@ -78,7 +78,7 @@ export default function PantallaDashboard() {
           <div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:4}}>
             {pieData.map(p=>(
               <div key={p.name} style={{display:'flex',alignItems:'center',gap:4}}>
-                <div style={{width:8,height:8,borderRadius:'50%',background:p.fill}}/>
+                <SemDot sem={p.sem}/>
                 <span style={{fontSize:'0.63rem',color:C.txtMuted}}>{p.name}: <strong style={{color:p.fill}}>{p.value}</strong></span>
               </div>
             ))}
@@ -121,10 +121,10 @@ export default function PantallaDashboard() {
               </div>
               <div style={{display:'flex',gap:10,fontSize:'0.63rem',color:C.txtMuted,flexWrap:'wrap',alignItems:'center'}}>
                 <span style={{display:'flex',alignItems:'center',gap:3}}><BarChart3 size={11}/> {eje.total_indicadores} ind.</span>
-                <span style={{display:'flex',alignItems:'center',gap:3,color:C.optimoB}}><span style={{width:7,height:7,borderRadius:'50%',background:C.optimoB,display:'inline-block'}}/> {eje.optimo}</span>
-                <span style={{display:'flex',alignItems:'center',gap:3,color:C.adecuadoB}}><span style={{width:7,height:7,borderRadius:'50%',background:C.adecuadoB,display:'inline-block'}}/> {eje.adecuado}</span>
-                {eje.riesgo >0 && <span style={{display:'flex',alignItems:'center',gap:3,color:C.riesgoB}}><span style={{width:7,height:7,borderRadius:'50%',background:C.riesgoB,display:'inline-block'}}/> {eje.riesgo}</span>}
-                {eje.critico>0 && <span style={{display:'flex',alignItems:'center',gap:3,color:C.criticoB}}><span style={{width:7,height:7,borderRadius:'50%',background:C.criticoB,display:'inline-block'}}/> {eje.critico}</span>}
+                <span style={{display:'flex',alignItems:'center',gap:3,color:C.optimoB}}><SemDot sem="ÓPTIMO" size={7}/> {eje.optimo}</span>
+                <span style={{display:'flex',alignItems:'center',gap:3,color:C.adecuadoB}}><SemDot sem="ADECUADO" size={7}/> {eje.adecuado}</span>
+                {eje.riesgo >0 && <span style={{display:'flex',alignItems:'center',gap:3,color:C.riesgoB}}><SemDot sem="RIESGO" size={7}/> {eje.riesgo}</span>}
+                {eje.critico>0 && <span style={{display:'flex',alignItems:'center',gap:3,color:C.criticoB}}><SemDot sem="CRÍTICO" size={7}/> {eje.critico}</span>}
               </div>
             </div>
           )
