@@ -22,3 +22,16 @@ export const BOTON_VARIANTES = {
   morado:       ['#2a1a3a', '#5a2e7a'],
   ambar:        ['#3d3010', '#7a5f1c'],
 }
+
+/* ── Escala tipográfica — 422 usos de fontSize inline en el proyecto
+   tenían 28 valores casi duplicados entre 0.6 y 0.85rem sin ningún
+   token. Estos 6 escalones son el valor más representativo de cada
+   agrupación natural encontrada; se adoptan primero en ui.jsx. ────── */
+export const FS = {
+  xxs: '0.62rem', // eyebrows uppercase, labels, encabezados de tabla, badges
+  xs:  '0.68rem', // texto secundario, celdas de tabla
+  sm:  '0.75rem', // cuerpo de texto, botones/inputs de tamaño estándar
+  md:  '0.82rem', // subtítulos, botones primarios
+  lg:  '0.95rem', // cifras destacadas, headers de sección
+  xl:  '1.1rem',  // hero/splash
+}

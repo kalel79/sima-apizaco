@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AlertTriangle, Loader2, ChevronsUp, Check, CircleAlert } from 'lucide-react'
-import { C, BOTON_VARIANTES } from '../theme.js'
+import { C, BOTON_VARIANTES, FS } from '../theme.js'
 import { semColor } from '../utils/semaforo.js'
 
 /* ── Ícono por nivel de semáforo — ÓPTIMO/ADECUADO son ambos verdes y
@@ -25,9 +25,9 @@ export function Spinner() {
 
 export function ErrMsg({msg, onRetry}) {
   return (
-    <div style={{background:'#1a0505',border:`1px solid ${C.criticoB}`,borderRadius:8,padding:'1rem',color:C.criticoB,fontSize:'0.82rem',display:'flex',alignItems:'center',gap:8}}>
+    <div style={{background:'#1a0505',border:`1px solid ${C.criticoB}`,borderRadius:8,padding:'1rem',color:C.criticoB,fontSize:FS.md,display:'flex',alignItems:'center',gap:8}}>
       <AlertTriangle size={16} style={{flexShrink:0}}/> {msg}
-      {onRetry && <button onClick={onRetry} style={{marginLeft:12,background:C.guinda,border:'none',color:C.txt,padding:'3px 10px',borderRadius:4,cursor:'pointer',fontSize:'0.75rem'}}>Reintentar</button>}
+      {onRetry && <button onClick={onRetry} style={{marginLeft:12,background:C.guinda,border:'none',color:C.txt,padding:'3px 10px',borderRadius:4,cursor:'pointer',fontSize:FS.sm}}>Reintentar</button>}
     </div>
   )
 }
@@ -37,7 +37,7 @@ export function Pill({sem}) {
   const textColor = sem === 'RIESGO' ? '#7A5800' : '#fff'
   const Icon = SEM_ICON[sem]
   return (
-    <span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:'0.65rem',fontWeight:800,letterSpacing:2,background:color,color:textColor,padding:'2px 8px',borderRadius:6,textTransform:'uppercase',whiteSpace:'nowrap'}}>
+    <span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:FS.xxs,fontWeight:800,letterSpacing:2,background:color,color:textColor,padding:'2px 8px',borderRadius:6,textTransform:'uppercase',whiteSpace:'nowrap'}}>
       {Icon && <Icon size={11}/>} {sem}
     </span>
   )
@@ -81,7 +81,7 @@ export function Button({variant='guinda', icon: Icon, loading=false, loadingLabe
         borderRadius: sm ? 6 : 8,
         color: isDisabled ? C.txt : isGhost ? C.txtMuted : C.txt,
         padding: sm ? '0.45rem 0.85rem' : '0.75rem 1.2rem',
-        fontSize: sm ? '0.72rem' : '0.82rem',
+        fontSize: sm ? FS.sm : FS.md,
         fontWeight: 700, fontFamily: 'inherit', letterSpacing: sm ? 0 : 1,
         cursor: isDisabled ? 'not-allowed' : 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -105,7 +105,7 @@ export function Button({variant='guinda', icon: Icon, loading=false, loadingLabe
    de la app — una diferencia de contexto intencional, no inconsistencia. ── */
 export function FieldLabel({children, color = C.txtSub}) {
   return (
-    <label style={{fontSize: '0.65rem', color, textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 5}}>
+    <label style={{fontSize: FS.xxs, color, textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 5}}>
       {children}
     </label>
   )
@@ -130,7 +130,7 @@ export function Input({label, labelColor, textarea=false, endAdornment, style, .
             border: `1px solid ${focused ? C.dorado : C.border}`,
             borderRadius: 8, color: C.txt,
             padding: '0.55rem 0.75rem', paddingRight: endAdornment ? '2.6rem' : undefined,
-            fontSize: '0.8rem', fontFamily: 'inherit', outline: 'none',
+            fontSize: FS.md, fontFamily: 'inherit', outline: 'none',
             boxSizing: 'border-box', transition: 'border-color 0.2s',
             ...(textarea ? {resize: 'vertical'} : {}),
             ...style,
@@ -154,8 +154,8 @@ export function KPI({label, value, sub, icon: Icon, color}) {
         {typeof Icon === 'string' ? <span style={{fontSize:20}}>{Icon}</span> : Icon && <Icon size={20} color={color}/>}
       </div>
       <div style={{fontSize:esTexto?'1.05rem':'1.75rem',fontWeight:800,color,lineHeight:1.2,wordBreak:'break-word',marginBottom:3}}>{value}</div>
-      <div style={{fontSize:'0.75rem',color:C.txt,fontWeight:600}}>{label}</div>
-      {sub && <div style={{fontSize:'0.65rem',color:C.txtMuted,marginTop:2}}>{sub}</div>}
+      <div style={{fontSize:FS.sm,color:C.txt,fontWeight:600}}>{label}</div>
+      {sub && <div style={{fontSize:FS.xxs,color:C.txtMuted,marginTop:2}}>{sub}</div>}
     </div>
   )
 }
