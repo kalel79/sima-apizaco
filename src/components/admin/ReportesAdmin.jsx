@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import {
   Lock, Clock, AlertTriangle, CheckCircle2, XCircle, Table2, Landmark,
-  TreePine, Search, FileText, FileSpreadsheet, FileBarChart2,
+  TreePine, Presentation, Search, FileText, FileSpreadsheet, FileBarChart2,
 } from 'lucide-react'
 import { generarPDF, generarExcel, generarExcelEjecutivo, generarPDFPiloto, generarExcelPiloto, generarExcelMetas } from '../../utils/reportes'
 import { generarInformeGobierno } from '../../utils/informeGobierno'
 import { generarArbolProblemaObjetivosMIR } from '../../utils/reporteArbolMIR'
+import { generarMatrizPMDAreas } from '../../utils/reporteMatrizPMD'
 import {
   getMetasResultados, getAvancesMensualesPDF, getComparativoPMD, getClavesIndicadores,
   getCierresMensuales, getIndicadoresPorEjeCatalogo, getCorreccionesExtemporaneas,
@@ -155,6 +156,16 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
     }
   }
 
+  async function handleMatrizPMD() {
+    setGenStatus('cargando')
+    try {
+      await generarMatrizPMDAreas()
+      setGenStatus('ok')
+    } catch (e) {
+      setGenStatus('error:' + e.message)
+    }
+  }
+
   async function handleExcelMetas() {
     setGenStatus('cargando')
     try {
@@ -287,6 +298,26 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
             <TreePine size={15}/> Árbol Problema-Objetivos MIR (9 programas)
           </button>
         </div>
+      </div>
+
+      {/* Matriz de Programas PMD × Áreas × Indicadores */}
+      <div style={{ marginBottom: '1rem' }}>
+        <div style={{ fontSize: '0.62rem', color: C.txtMuted, marginBottom: '0.5rem', letterSpacing: 1 }}>
+          MATRIZ DE PROGRAMAS PMD — áreas responsables e indicadores por programa, formato presentación:
+        </div>
+        <button
+          onClick={handleMatrizPMD}
+          disabled={rLoading || genStatus === 'cargando'}
+          style={{
+            background: rLoading || genStatus === 'cargando' ? '#444' : `linear-gradient(135deg,#2a1a3a,#5a2e7a)`,
+            border: 'none', borderRadius: 8, color: C.txt,
+            padding: '0.75rem 1.2rem', fontSize: '0.82rem', fontWeight: 700,
+            fontFamily: 'inherit', cursor: rLoading || genStatus === 'cargando' ? 'not-allowed' : 'pointer',
+            letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 8,
+          }}
+        >
+          <Presentation size={15}/> Matriz de Programas PMD (PDF tipo presentación)
+        </button>
       </div>
 
       {/* Botones piloto (validación antes del reporte completo) */}

@@ -10,6 +10,7 @@ export {
   getClavesIndicadores, getIndicadoresPorPrograma, getDetalleIndicadoresPMD,
   getProgramasPresupuestariosDePmd, getProgramasPresupuestariosPorPmd,
   getIndicadoresLista, getMetasResultados, getAvancesMensualesPDF,
+  getMatrizProgramasAreas,
 } from './consultas.js'
 
 export {

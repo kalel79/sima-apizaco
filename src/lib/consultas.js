@@ -289,6 +289,46 @@ export async function getProgramasPresupuestariosPorPmd(anio) {
   return porPmd
 }
 
+// Matriz Programa PMD × Área responsable × indicadores (clave+nombre) —
+// estructural (programa_pmd_id/area_id de `indicadores`), no depende del
+// periodo de evaluación. Los programas sin indicador vinculado devuelven
+// areas:[] (el front los marca "Pendiente de alineación", mismo criterio
+// que ya usa PantallaPMD.jsx).
+export async function getMatrizProgramasAreas() {
+  const [{ data: programas, error: eProg }, { data: inds, error: eInd }, { data: areas, error: eAreas }] = await Promise.all([
+    supabase.from('programas_pmd').select('id, numero, nombre, eje').order('numero'),
+    supabase.from('indicadores').select('clave, nombre, programa_pmd_id, area_id').order('nombre'),
+    supabase.from('areas').select('id, nombre'),
+  ])
+  if (eProg) throw eProg
+  if (eInd) throw eInd
+  if (eAreas) throw eAreas
+
+  const areasMap = Object.fromEntries((areas || []).map(a => [a.id, a.nombre]))
+  const porPrograma = {}
+  ;(inds || []).forEach(i => {
+    if (i.programa_pmd_id == null) return
+    const nombreArea = areasMap[i.area_id] || 'Sin área'
+    if (!porPrograma[i.programa_pmd_id]) porPrograma[i.programa_pmd_id] = {}
+    if (!porPrograma[i.programa_pmd_id][nombreArea]) porPrograma[i.programa_pmd_id][nombreArea] = []
+    porPrograma[i.programa_pmd_id][nombreArea].push({ clave: i.clave || '-', nombre: i.nombre })
+  })
+
+  return (programas || []).map(p => {
+    const porArea = porPrograma[p.id] || {}
+    const areasPrograma = Object.entries(porArea)
+      .map(([area, indicadores]) => ({ area, indicadores, n: indicadores.length }))
+      .sort((a, b) => a.area.localeCompare(b.area, 'es'))
+    return {
+      numero: p.numero,
+      nombre: p.nombre,
+      eje: p.eje,
+      areas: areasPrograma,
+      totalIndicadores: areasPrograma.reduce((s, a) => s + a.n, 0),
+    }
+  })
+}
+
 export async function getIndicadoresLista() {
   const [pages, { data: areas, error: eAreas }] = await Promise.all([
     Promise.all([
