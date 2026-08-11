@@ -147,7 +147,7 @@ export default function FichaIndicador({ indicadorId, nombre, area, ejeCodigo, n
 
         {!loading && principal && (
           <div ref={contenidoRef} style={{ background: C.bg, padding: '0.4rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: '0.65rem', marginBottom: '1rem' }}>
+            <div className="sima-grid-stack" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: '0.65rem', marginBottom: '1rem' }}>
               <KPI label={`Acumulado ${anioPrincipal}`} value={principal.pctAcumuladoAnual != null ? `${(principal.pctAcumuladoAnual * 100).toFixed(1)}%` : 'Sin datos'} sub={principal.semaforoAcumulado || ''} icon={Target} color={principal.semaforoAcumulado ? semColor(principal.semaforoAcumulado) : C.txtMuted} />
               <KPI label="Meses capturados" value={principal.meses.filter(m => m.resultado != null).length} sub="de 12 meses" icon={Calendar} color={C.dorado} />
             </div>

@@ -93,7 +93,7 @@ export default function SeccionAccionesAlternativas({ programaId, anio, acciones
           <textarea rows={2} defaultValue={fila.texto} disabled={!puedeEditar}
             onBlur={e => { if (e.target.value !== fila.texto) handleCampo(fila, 'texto', e.target.value) }}
             style={{ ...inp, marginBottom: 6 }} />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 6 }}>
+          <div className="sima-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 6 }}>
             <select value={fila.medio_id || ''} disabled={!puedeEditar}
               onChange={e => handleCampo(fila, 'medio_id', e.target.value ? +e.target.value : null)} style={inp}>
               <option value="">— sin medio asociado —</option>

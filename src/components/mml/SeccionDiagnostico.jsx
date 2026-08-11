@@ -66,7 +66,7 @@ export default function SeccionDiagnostico({ programaId, anio, diagnostico, pued
       )}
       {diagnostico.map(fila => (
         <div key={fila.id} style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 8, padding: '0.75rem', marginBottom: '0.55rem' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+          <div className="sima-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
             <div>
               <label style={lbl}>Situación actual</label>
               <textarea rows={2} defaultValue={fila.situacion_actual} disabled={!puedeEditar}

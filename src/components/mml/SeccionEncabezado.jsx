@@ -59,7 +59,7 @@ export default function SeccionEncabezado({ programaId, anio, programa, firmas, 
           Solo Administrador puede editar el encabezado institucional.
         </div>
       )}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.6rem', marginBottom: '1rem' }}>
+      <div className="sima-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.6rem', marginBottom: '1rem' }}>
         {campoEncabezado('clave_programatica', programa?.clave_programatica, 'Clave programática', 'claveProgramatica')}
         {campoEncabezado('finalidad', programa?.finalidad, 'Finalidad', 'finalidad')}
         {campoEncabezado('funcion', programa?.funcion, 'Función', 'funcion')}

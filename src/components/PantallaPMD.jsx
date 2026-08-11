@@ -335,7 +335,7 @@ export default function PantallaPMD() {
       )}
 
       {/* Filtros */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '0.75rem', marginBottom: '1rem' }}>
+      <div className="sima-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '0.75rem', marginBottom: '1rem' }}>
         <div>
           <label style={{ fontSize: '0.65rem', color: C.txtSub, textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 4 }}>Eje</label>
           <select value={eje} onChange={e => setEje(e.target.value)} style={inp}>

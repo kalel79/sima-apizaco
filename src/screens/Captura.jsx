@@ -249,7 +249,7 @@ export default function PantallaCaptura({ areaCoordinador }) {
               <div style={{fontSize:'0.62rem',color:C.txtMuted,marginTop:2}}>Definido por Planeación — no editable.</div>
             </div>
           ) : (
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'0.6rem'}}>
+            <div className="sima-grid-stack" style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'0.6rem'}}>
               <div>
                 <label style={{fontSize:'0.68rem',color:C.txtSub,textTransform:'uppercase',letterSpacing:1,display:'block',marginBottom:4}}>Mes</label>
                 <select value={form.mes} onChange={e=>setForm(f=>({...f,mes:+e.target.value}))} style={inp}>
@@ -319,7 +319,7 @@ export default function PantallaCaptura({ areaCoordinador }) {
         <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:10,padding:'1rem'}}>
           <div style={{fontSize:'0.62rem',letterSpacing:2,color:C.dorado,textTransform:'uppercase',marginBottom:6}}>Ficha del indicador seleccionado</div>
           <div style={{fontSize:'0.82rem',fontWeight:600,color:C.txt,marginBottom:8,lineHeight:1.4}}>{selInd.nombre}</div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+          <div className="sima-grid-stack" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
             {[['Área',selInd.area_nombre],['Nivel MIR',selInd.nivel_mir]].map(([l,v])=>(
               <div key={l} style={{background:C.bgPanel,borderRadius:6,padding:'0.5rem 0.6rem'}}>
                 <div style={{fontSize:'0.6rem',color:C.txtMuted}}>{l}</div>

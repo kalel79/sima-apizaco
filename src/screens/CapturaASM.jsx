@@ -152,7 +152,7 @@ export default function CapturaASM() {
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+          <div className="sima-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
             <div>
               <label style={lbl}>Origen ASM</label>
               <select value={form.origenAsm} onChange={e => setForm(f => ({ ...f, origenAsm: e.target.value }))} style={inp}>
@@ -189,7 +189,7 @@ export default function CapturaASM() {
                 <label style={lbl}>Acción</label>
                 <textarea rows={2} value={form.accion} onChange={e => setForm(f => ({ ...f, accion: e.target.value }))} style={{ ...inp, resize: 'vertical' }} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.6rem' }}>
+              <div className="sima-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.6rem' }}>
                 <div>
                   <label style={lbl}>Responsable</label>
                   <input value={form.responsableNombre} onChange={e => setForm(f => ({ ...f, responsableNombre: e.target.value }))} style={inp} />

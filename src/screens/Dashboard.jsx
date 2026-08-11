@@ -41,7 +41,7 @@ export default function PantallaDashboard() {
   return (
     <div>
       {/* KPIs */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'0.65rem',marginBottom:'1.2rem'}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:'0.65rem',marginBottom:'1.2rem'}}>
         <KPI label="Cumplimiento global" value={`${pctPct}%`}              sub={periodoLabel}         icon={Gauge} color={colG}/>
         <KPI label="Con avance"          value={g?.total_indicadores||0}   sub="indicadores capturados" icon={Target} color={C.dorado}/>
         <KPI label="Ejes estratégicos"   value={(ejes||[]).length}          sub="MIR 2024–2027"       icon={Landmark} color={C.guinda}/>
@@ -50,7 +50,7 @@ export default function PantallaDashboard() {
       </div>
 
       {/* Gauge + Pie + Barras */}
-      <div style={{display:'grid',gridTemplateColumns:'120px 1fr 1fr',gap:'1rem',background:C.bgCard,borderRadius:12,padding:'1.2rem',marginBottom:'1.2rem',border:`1px solid ${colG}44`,alignItems:'center'}}>
+      <div className="sima-grid-stack" style={{display:'grid',gridTemplateColumns:'120px 1fr 1fr',gap:'1rem',background:C.bgCard,borderRadius:12,padding:'1.2rem',marginBottom:'1.2rem',border:`1px solid ${colG}44`,alignItems:'center'}}>
         <div style={{textAlign:'center'}}>
           <svg width="110" height="95" viewBox="0 0 110 95">
             <circle cx="55" cy="58" r="42" fill="none" stroke="#ffffff08" strokeWidth={10}

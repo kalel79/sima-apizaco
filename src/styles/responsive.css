@@ -1,0 +1,3 @@
+@media (max-width: 640px) {
+  .sima-grid-stack { grid-template-columns: 1fr !important; }
+}

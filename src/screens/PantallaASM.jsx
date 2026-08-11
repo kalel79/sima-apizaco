@@ -249,7 +249,7 @@ function FilaASM({ f, puedeEditar, onEditado }) {
       </div>
       {editando ? (
         <div style={{ marginBottom: 6 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 6 }}>
+          <div className="sima-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 6 }}>
             <div>
               <label style={{ fontSize: '0.6rem', color: C.txtMuted, textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 2 }}>Origen ASM</label>
               <select value={origenAsm} onChange={e => setOrigenAsm(e.target.value)}
@@ -277,7 +277,7 @@ function FilaASM({ f, puedeEditar, onEditado }) {
           <label style={{ fontSize: '0.6rem', color: C.txtMuted, textTransform: 'uppercase', letterSpacing: 1, display: 'block', margin: '10px 0 2px' }}>Acción de mejora</label>
           <textarea rows={2} value={textoAccion} onChange={e => setTextoAccion(e.target.value)}
             style={{ width: '100%', background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 6, color: C.txt, padding: '0.5rem 0.75rem', fontSize: '0.75rem', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginTop: 6 }}>
+          <div className="sima-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginTop: 6 }}>
             <div>
               <label style={{ fontSize: '0.6rem', color: C.txtMuted, textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 2 }}>Responsable</label>
               <input type="text" value={responsableNombre} onChange={e => setResponsableNombre(e.target.value)}

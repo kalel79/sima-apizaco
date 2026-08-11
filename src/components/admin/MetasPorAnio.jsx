@@ -150,7 +150,7 @@ export default function MetasPorAnio() {
         Edita metas mensuales por indicador para cualquier año — captura 2027 sin tocar código.
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '0.75rem', marginBottom: '1.2rem' }}>
+      <div className="sima-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '0.75rem', marginBottom: '1.2rem' }}>
         <div>
           <label style={{ fontSize: '0.65rem', color: C.txtSub, textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 5 }}>Año</label>
           <select value={anio} onChange={e => setAnio(+e.target.value)} style={inp}>
