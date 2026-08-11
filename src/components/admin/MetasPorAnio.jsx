@@ -247,7 +247,7 @@ export default function MetasPorAnio() {
 
         {importStatus && (
           <div style={{
-            background: importStatus.ok ? '#04620520' : '#C0000022',
+            background: importStatus.ok ? `${C.optimoB}20` : `${C.criticoB}22`,
             border: `1px solid ${importStatus.ok ? C.optimoB : C.criticoB}`,
             borderRadius: 8, padding: '0.6rem 1rem', fontSize: '0.75rem',
             color: importStatus.ok ? C.optimoB : '#ff6b6b',

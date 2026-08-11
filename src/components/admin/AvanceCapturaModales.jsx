@@ -2,7 +2,7 @@ import { Pencil, Undo2, AlertTriangle, Loader2, Save } from 'lucide-react'
 import { C } from '../../theme.js'
 
 // Colores de acción propios del flujo de corrección/desvalidación
-export const ACCION = { correccion: '#C9A961', desvalidar: '#FF8C00', error: '#C00000' }
+export const ACCION = { correccion: '#C9A961', desvalidar: '#FF8C00', error: C.criticoB }
 
 export const overlay = {
   position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',

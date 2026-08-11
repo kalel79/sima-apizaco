@@ -10,21 +10,14 @@ import { formatPeriodoLabel } from '../utils/periodo'
 import { generarReportePMD } from '../utils/reportesPMD'
 import Sparkline from './Sparkline.jsx'
 import { agruparPorNivelMir } from '../utils/nivelMir.js'
+import { C } from '../theme.js'
 
-const C = {
-  guinda: '#7B1F2C', guindaDark: '#51141D',
-  dorado: '#C8A96E', doradoLight: '#E2C998',
-  bg: '#0D0D0D', bgCard: '#161616', bgPanel: '#1C1C1C',
-  border: '#2A2A2A', txt: '#F0EAE0', txtMuted: '#706050', txtSub: '#A09080',
-}
-
-const SEM = {
-  'ÓPTIMO':   '#046205',
-  'ADECUADO': '#00B050',
-  'RIESGO':   '#FFC000',
-  'CRÍTICO':  '#C00000',
-}
-
+// No se usa semColor() de utils/semaforo.js a propósito: ese fallback
+// devuelve el verde de ADECUADO cuando sem es null/undefined (pensado
+// para un sem siempre definido), y aquí semColor(i.semaforo) sí recibe
+// null cuando un indicador no tiene avance capturado (línea ~174) — hace
+// falta el fallback a gris (C.txtMuted), no a verde.
+const SEM = { 'ÓPTIMO': C.optimoB, 'ADECUADO': C.adecuadoB, 'RIESGO': C.riesgoB, 'CRÍTICO': C.criticoB }
 function semColor(sem) { return SEM[sem] || C.txtMuted }
 
 // v_comparativo_pmd devuelve pct_promedio ya en escala de porcentaje (ej. 101.45),
@@ -150,7 +143,7 @@ function DetalleIndicadores({ programaId, mes, anio }) {
   const grupos = useMemo(() => agruparPorNivelMir(data), [data])
 
   if (loading) return <div style={{ fontSize: '0.75rem', color: C.txtMuted, padding: '0.75rem' }}>Cargando indicadores…</div>
-  if (error)   return <div style={{ fontSize: '0.75rem', color: '#C00000', padding: '0.75rem', display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={13}/> {error}</div>
+  if (error)   return <div style={{ fontSize: '0.75rem', color: C.criticoB, padding: '0.75rem', display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={13}/> {error}</div>
   if (!data?.length) return <div style={{ fontSize: '0.75rem', color: C.txtMuted, padding: '0.75rem' }}>Este programa no tiene indicadores MIR vinculados.</div>
 
   return (
@@ -293,7 +286,7 @@ export default function PantallaPMD() {
   if (loading) return <div style={{ fontSize: '0.85rem', color: C.txtMuted, padding: '2rem', textAlign: 'center' }}>Cargando comparativo PMD…</div>
   if (error) {
     return (
-      <div style={{ background: '#1a0505', border: '1px solid #C00000', borderRadius: 8, padding: '1rem', color: '#C00000', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ background: '#1a0505', border: `1px solid ${C.criticoB}`, borderRadius: 8, padding: '1rem', color: C.criticoB, fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 8 }}>
         <AlertTriangle size={16} style={{flexShrink:0}}/> {error}
         <button onClick={refetch} style={{ marginLeft: 12, background: C.guinda, border: 'none', color: C.txt, padding: '3px 10px', borderRadius: 4, cursor: 'pointer', fontSize: '0.75rem' }}>Reintentar</button>
       </div>
@@ -321,7 +314,7 @@ export default function PantallaPMD() {
       </div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       {pdfError && (
-        <div style={{ fontSize: '0.72rem', color: '#C00000', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={13}/> {pdfError}</div>
+        <div style={{ fontSize: '0.72rem', color: C.criticoB, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={13}/> {pdfError}</div>
       )}
 
       {/* Resumen ejecutivo */}

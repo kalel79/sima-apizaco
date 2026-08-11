@@ -164,7 +164,7 @@ export default function CambiarContrasena({ user, onDone }) {
 
           {errorMsg && (
             <div style={{
-              background: '#C0000022', border: '1px solid #C00000',
+              background: `${C.criticoB}22`, border: `1px solid ${C.criticoB}`,
               borderRadius: 8, padding: '0.65rem 0.9rem',
               fontSize: '0.8rem', color: '#ff6b6b',
               display: 'flex', alignItems: 'center', gap: 8,

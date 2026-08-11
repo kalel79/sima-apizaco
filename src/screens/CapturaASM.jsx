@@ -91,12 +91,12 @@ export default function CapturaASM() {
         </div>
 
         {status === 'ok' && hallazgoCreado && (
-          <div style={{ background: '#04620522', border: `1px solid ${C.optimoB}`, borderRadius: 8, padding: '0.65rem 1rem', marginBottom: '1rem', fontSize: '0.8rem', color: C.optimoB, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+          <div style={{ background: `${C.optimoB}22`, border: `1px solid ${C.optimoB}`, borderRadius: 8, padding: '0.65rem 1rem', marginBottom: '1rem', fontSize: '0.8rem', color: C.optimoB, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
             <CheckCircle2 size={15} style={{flexShrink:0,marginTop:1}}/> Hallazgo <strong>{hallazgoCreado.folio}</strong> registrado — tipo <strong>{hallazgoCreado.tipo_hallazgo}</strong>, prioridad <strong>{hallazgoCreado.prioridad}</strong>. Puedes subir evidencia abajo.
           </div>
         )}
         {status?.startsWith('error') && (
-          <div style={{ background: '#C0000022', border: `1px solid ${C.criticoB}`, borderRadius: 8, padding: '0.65rem 1rem', marginBottom: '1rem', fontSize: '0.8rem', color: C.criticoB, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ background: `${C.criticoB}22`, border: `1px solid ${C.criticoB}`, borderRadius: 8, padding: '0.65rem 1rem', marginBottom: '1rem', fontSize: '0.8rem', color: C.criticoB, display: 'flex', alignItems: 'center', gap: 8 }}>
             <XCircle size={15}/> {status.replace('error:', '')}
           </div>
         )}

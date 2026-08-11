@@ -192,12 +192,12 @@ export default function PantallaCaptura({ areaCoordinador }) {
         </div>
 
         {status==='ok' && (
-          <div style={{background:'#04620522',border:`1px solid ${C.optimoB}`,borderRadius:8,padding:'0.65rem 1rem',marginBottom:'1rem',fontSize:'0.8rem',color:C.optimoB,display:'flex',alignItems:'center',gap:8}}>
+          <div style={{background:`${C.optimoB}22`,border:`1px solid ${C.optimoB}`,borderRadius:8,padding:'0.65rem 1rem',marginBottom:'1rem',fontSize:'0.8rem',color:C.optimoB,display:'flex',alignItems:'center',gap:8}}>
             <CheckCircle2 size={15}/> Avance guardado correctamente en Supabase
           </div>
         )}
         {status?.startsWith('error') && (
-          <div style={{background:'#C0000022',border:`1px solid ${C.criticoB}`,borderRadius:8,padding:'0.65rem 1rem',marginBottom:'1rem',fontSize:'0.8rem',color:C.criticoB,display:'flex',alignItems:'center',gap:8}}>
+          <div style={{background:`${C.criticoB}22`,border:`1px solid ${C.criticoB}`,borderRadius:8,padding:'0.65rem 1rem',marginBottom:'1rem',fontSize:'0.8rem',color:C.criticoB,display:'flex',alignItems:'center',gap:8}}>
             <XCircle size={15}/> {status.replace('error:','')}
           </div>
         )}
@@ -281,7 +281,7 @@ export default function PantallaCaptura({ areaCoordinador }) {
           )}
 
           {bloqueadoPorValidacion && (
-            <div style={{background:'#04620522',border:`1px solid ${C.optimoB}`,borderRadius:8,padding:'0.65rem 1rem',fontSize:'0.78rem',color:C.optimoB,display:'flex',alignItems:'flex-start',gap:8}}>
+            <div style={{background:`${C.optimoB}22`,border:`1px solid ${C.optimoB}`,borderRadius:8,padding:'0.65rem 1rem',fontSize:'0.78rem',color:C.optimoB,display:'flex',alignItems:'flex-start',gap:8}}>
               <CheckCircle2 size={15} style={{flexShrink:0,marginTop:1}}/> Esta información ya fue validada{estadoAvance?.validado_at ? ` el ${new Date(estadoAvance.validado_at).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'})}` : ''}. No se puede editar — si necesitas corregirla, contacta a Planeación.
             </div>
           )}

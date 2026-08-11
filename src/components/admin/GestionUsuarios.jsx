@@ -84,7 +84,7 @@ export default function GestionUsuarios() {
 
         {status && (
           <div style={{
-            background: status.ok ? '#04620520' : '#C0000022',
+            background: status.ok ? `${C.optimoB}20` : `${C.criticoB}22`,
             border: `1px solid ${status.ok ? C.optimoB : C.criticoB}`,
             borderRadius: 8,
             padding: '0.75rem 1rem',
@@ -232,7 +232,7 @@ export default function GestionUsuarios() {
 
         {resetStatus && (
           <div style={{
-            background: resetStatus.ok ? '#04620520' : '#C0000022',
+            background: resetStatus.ok ? `${C.optimoB}20` : `${C.criticoB}22`,
             border: `1px solid ${resetStatus.ok ? C.optimoB : C.criticoB}`,
             borderRadius: 8,
             padding: '0.75rem 1rem',

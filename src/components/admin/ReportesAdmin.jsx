@@ -219,18 +219,18 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
       </div>
 
       {rError && (
-        <div style={{ background: '#C0000022', border: `1px solid ${C.criticoB}`, borderRadius: 8, padding: '0.6rem 1rem', marginBottom: '1rem', fontSize: '0.78rem', color: '#ff6b6b', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ background: `${C.criticoB}22`, border: `1px solid ${C.criticoB}`, borderRadius: 8, padding: '0.6rem 1rem', marginBottom: '1rem', fontSize: '0.78rem', color: '#ff6b6b', display: 'flex', alignItems: 'center', gap: 6 }}>
           <AlertTriangle size={14}/> Error al cargar datos: {rError}
         </div>
       )}
 
       {genStatus === 'ok' && (
-        <div style={{ background: '#04620520', border: `1px solid ${C.optimoB}`, borderRadius: 8, padding: '0.6rem 1rem', marginBottom: '1rem', fontSize: '0.78rem', color: C.optimoB, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ background: `${C.optimoB}20`, border: `1px solid ${C.optimoB}`, borderRadius: 8, padding: '0.6rem 1rem', marginBottom: '1rem', fontSize: '0.78rem', color: C.optimoB, display: 'flex', alignItems: 'center', gap: 6 }}>
           <CheckCircle2 size={14}/> Archivo generado y descargado correctamente.
         </div>
       )}
       {genStatus?.startsWith('error') && (
-        <div style={{ background: '#C0000022', border: `1px solid ${C.criticoB}`, borderRadius: 8, padding: '0.6rem 1rem', marginBottom: '1rem', fontSize: '0.78rem', color: '#ff6b6b', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ background: `${C.criticoB}22`, border: `1px solid ${C.criticoB}`, borderRadius: 8, padding: '0.6rem 1rem', marginBottom: '1rem', fontSize: '0.78rem', color: '#ff6b6b', display: 'flex', alignItems: 'center', gap: 6 }}>
           <XCircle size={14}/> {genStatus.replace('error:', '')}
         </div>
       )}

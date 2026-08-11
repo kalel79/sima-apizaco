@@ -10,17 +10,17 @@ import { C } from '../theme.js'
 import { ACCION, overlay, modalBox, ModalCorregir, ModalDesvalidar } from './admin/AvanceCapturaModales.jsx'
 
 const ESTADO_COLOR = {
-  COMPLETO:          '#00B050',
-  'EN PROGRESO':     '#FFC000',
-  PENDIENTE:         '#C00000',
-  'SIN INDICADORES': '#5a5a5a',
+  COMPLETO:          C.adecuadoB,
+  'EN PROGRESO':     C.riesgoB,
+  PENDIENTE:         C.criticoB,
+  'SIN INDICADORES': '#5a5a5a', // sin equivalente en theme.js — gris propio de este estado
 }
 
 const SEM_COLOR = {
-  'ÓPTIMO':   '#046205',
-  'ADECUADO': '#00B050',
-  'RIESGO':   '#FFC000',
-  'CRÍTICO':  '#C00000',
+  'ÓPTIMO':   C.optimoB,
+  'ADECUADO': C.adecuadoB,
+  'RIESGO':   C.riesgoB,
+  'CRÍTICO':  C.criticoB,
 }
 
 function pctStr(val) {
@@ -198,7 +198,7 @@ export default function AvanceCaptura() {
   if (loading) return <div style={{ fontSize: '0.85rem', color: C.txtMuted, padding: '2rem', textAlign: 'center' }}>Cargando avance de captura…</div>
   if (error) {
     return (
-      <div style={{ background: '#1a0505', border: '1px solid #C00000', borderRadius: 8, padding: '1rem', color: '#C00000', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ background: '#1a0505', border: `1px solid ${C.criticoB}`, borderRadius: 8, padding: '1rem', color: C.criticoB, fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 8 }}>
         <AlertTriangle size={16} style={{flexShrink:0}}/> {error}
         <button onClick={refetch} style={{ marginLeft: 12, background: C.guinda, border: 'none', color: C.txt, padding: '3px 10px', borderRadius: 4, cursor: 'pointer', fontSize: '0.75rem' }}>Reintentar</button>
       </div>
@@ -218,7 +218,7 @@ export default function AvanceCaptura() {
       </div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       {exportError && (
-        <div style={{ fontSize: '0.72rem', color: '#C00000', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={13}/> {exportError}</div>
+        <div style={{ fontSize: '0.72rem', color: C.criticoB, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={13}/> {exportError}</div>
       )}
 
       {resumen && (

@@ -77,7 +77,7 @@ export default function SeccionMIR({ programaId, anio, mirNiveles, puedeEditar, 
         El resumen narrativo se edita en la pestaña "Árbol de Objetivos" — aquí solo se muestra.
       </div>
       {error && (
-        <div style={{ background: '#C0000022', border: `1px solid ${C.criticoB}`, borderRadius: 6, padding: '0.5rem 0.75rem', marginBottom: 8, fontSize: '0.74rem', color: C.criticoB, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ background: `${C.criticoB}22`, border: `1px solid ${C.criticoB}`, borderRadius: 6, padding: '0.5rem 0.75rem', marginBottom: 8, fontSize: '0.74rem', color: C.criticoB, display: 'flex', alignItems: 'center', gap: 6 }}>
           <XCircle size={13}/> {error}
         </div>
       )}

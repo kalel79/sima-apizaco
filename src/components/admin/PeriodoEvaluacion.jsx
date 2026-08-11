@@ -158,7 +158,7 @@ export default function PeriodoEvaluacion({ mesActual, anioActual, periodoLabel,
         )}
 
         {cierre === null && cierrePending && (
-          <div style={{ background: '#C0000018', border: `1px solid ${C.criticoB}`, borderRadius: 8, padding: '0.85rem' }}>
+          <div style={{ background: `${C.criticoB}18`, border: `1px solid ${C.criticoB}`, borderRadius: 8, padding: '0.85rem' }}>
             <div style={{ fontSize: '0.78rem', color: C.txt, marginBottom: '0.65rem', lineHeight: 1.5 }}>
               ¿Confirmas cerrar <strong style={{ color: C.dorado }}>{periodoLabel}</strong>? Las cifras de resumen quedarán congeladas para reportes futuros de este mes — no se puede deshacer desde la app.
             </div>
@@ -258,7 +258,7 @@ export default function PeriodoEvaluacion({ mesActual, anioActual, periodoLabel,
 
       {cfgStatus && (
         <div style={{
-          background: cfgStatus.ok ? '#04620520' : '#C0000022',
+          background: cfgStatus.ok ? `${C.optimoB}20` : `${C.criticoB}22`,
           border: `1px solid ${cfgStatus.ok ? C.optimoB : C.criticoB}`,
           borderRadius: 8, padding: '0.6rem 1rem', marginBottom: '1rem',
           fontSize: '0.78rem', color: cfgStatus.ok ? C.optimoB : '#ff6b6b',
@@ -306,7 +306,7 @@ export default function PeriodoEvaluacion({ mesActual, anioActual, periodoLabel,
 
       {/* Panel de confirmación */}
       {cfgPending ? (
-        <div style={{ background: '#C0000018', border: `1px solid ${C.criticoB}`, borderRadius: 8, padding: '1rem', marginBottom: '0.5rem' }}>
+        <div style={{ background: `${C.criticoB}18`, border: `1px solid ${C.criticoB}`, borderRadius: 8, padding: '1rem', marginBottom: '0.5rem' }}>
           <div style={{ fontSize: '0.8rem', color: C.txt, marginBottom: '0.75rem', lineHeight: 1.5 }}>
             ¿Confirmas actualizar el periodo de evaluación a <strong style={{ color: C.dorado }}>{MESES_LABEL[(cfgMes??mesActual)-1]} {cfgAnio??anioActual}</strong>?<br/>
             <span style={{ fontSize: '0.72rem', color: C.txtMuted }}>Asegúrate de que todas las áreas hayan capturado sus avances del mes.</span>

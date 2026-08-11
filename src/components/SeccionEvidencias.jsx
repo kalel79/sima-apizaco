@@ -5,14 +5,7 @@ import {
   subirEvidencia, borrarEvidencia, getEvidenciaUrl,
 } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
-
-const C = {
-  guinda: '#7B1F2C', guindaDark: '#51141D',
-  dorado: '#C8A96E', doradoLight: '#E2C998',
-  bgCard: '#161616', bgPanel: '#1C1C1C',
-  border: '#2A2A2A', txt: '#F0EAE0', txtMuted: '#706050', txtSub: '#A09080',
-  criticoB: '#C00000',
-}
+import { C } from '../theme.js'
 
 const ICONOS = { pdf: FileText, jpg: Image, jpeg: Image, png: Image, doc: FileText, docx: FileText, xls: FileSpreadsheet, xlsx: FileSpreadsheet }
 function iconoPara(nombre) {
@@ -137,7 +130,7 @@ export default function SeccionEvidencias({ indicadorId, mes, anio }) {
           )}
 
           {error && (
-            <div style={{ background: '#C0000022', border: `1px solid ${C.criticoB}`, borderRadius: 6, padding: '0.5rem 0.75rem', marginBottom: 8, fontSize: '0.74rem', color: C.criticoB, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ background: `${C.criticoB}22`, border: `1px solid ${C.criticoB}`, borderRadius: 6, padding: '0.5rem 0.75rem', marginBottom: 8, fontSize: '0.74rem', color: C.criticoB, display: 'flex', alignItems: 'center', gap: 6 }}>
               <XCircle size={13}/> {error}
             </div>
           )}
