@@ -16,6 +16,7 @@ import { formatPeriodoLabel } from '../../utils/periodo'
 import { getSemaforo } from '../../utils/semaforo.js'
 import { C } from '../../theme.js'
 import { inp } from './estilos.js'
+import { Button } from '../ui.jsx'
 
 // Sección de descarga de reportes del panel Admin. Recibe los datos del
 // reporte desde el padre (instancia única de useDatosReporte).
@@ -239,19 +240,9 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
         <div style={{ fontSize: '0.62rem', color: C.txtMuted, marginBottom: '0.5rem', letterSpacing: 1 }}>
           TABLA COMPLETA — 170 indicadores, metas mes a mes + resultados:
         </div>
-        <button
-          onClick={handleExcelMetas}
-          disabled={rLoading || genStatus === 'cargando'}
-          style={{
-            background: rLoading || genStatus === 'cargando' ? '#444' : `linear-gradient(135deg,#1a2e3a,#1e4d6b)`,
-            border: 'none', borderRadius: 8, color: C.txt,
-            padding: '0.75rem 1.2rem', fontSize: '0.82rem', fontWeight: 700,
-            fontFamily: 'inherit', cursor: rLoading || genStatus === 'cargando' ? 'not-allowed' : 'pointer',
-            letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 8,
-          }}
-        >
-          <Table2 size={15}/> Descargar Tabla Metas y Resultados
-        </button>
+        <Button variant="azul" icon={Table2} loading={genStatus === 'cargando'} disabled={rLoading} onClick={handleExcelMetas}>
+          Descargar Tabla Metas y Resultados
+        </Button>
       </div>
 
       {/* Informe de Gobierno */}
@@ -259,19 +250,9 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
         <div style={{ fontSize: '0.62rem', color: C.txtMuted, marginBottom: '0.5rem', letterSpacing: 1 }}>
           SEGUNDO INFORME DE GOBIERNO — Sep 2025 – Ago 2026, portada + 9 ejes:
         </div>
-        <button
-          onClick={handleInformeGobierno}
-          disabled={rLoading || genStatus === 'cargando'}
-          style={{
-            background: rLoading || genStatus === 'cargando' ? '#444' : `linear-gradient(135deg,#3a2000,#7a4800)`,
-            border: 'none', borderRadius: 8, color: C.txt,
-            padding: '0.75rem 1.2rem', fontSize: '0.82rem', fontWeight: 700,
-            fontFamily: 'inherit', cursor: rLoading || genStatus === 'cargando' ? 'not-allowed' : 'pointer',
-            letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 8,
-          }}
-        >
-          <Landmark size={15}/> Descargar Informe de Gobierno
-        </button>
+        <Button variant="doradoOsc" icon={Landmark} loading={genStatus === 'cargando'} disabled={rLoading} onClick={handleInformeGobierno}>
+          Descargar Informe de Gobierno
+        </Button>
       </div>
 
       {/* Árbol Problema-Objetivos MIR (9 programas) */}
@@ -284,19 +265,9 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
             <option value={2026}>2026</option>
             <option value={2027}>2027</option>
           </select>
-          <button
-            onClick={handleArbolMIR}
-            disabled={rLoading || genStatus === 'cargando'}
-            style={{
-              background: rLoading || genStatus === 'cargando' ? '#444' : `linear-gradient(135deg,#1a3a2e,#1e6b4d)`,
-              border: 'none', borderRadius: 8, color: C.txt,
-              padding: '0.75rem 1.2rem', fontSize: '0.82rem', fontWeight: 700,
-              fontFamily: 'inherit', cursor: rLoading || genStatus === 'cargando' ? 'not-allowed' : 'pointer',
-              letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 8,
-            }}
-          >
-            <TreePine size={15}/> Árbol Problema-Objetivos MIR (9 programas)
-          </button>
+          <Button variant="verdeAzulado" icon={TreePine} loading={genStatus === 'cargando'} disabled={rLoading} onClick={handleArbolMIR}>
+            Árbol Problema-Objetivos MIR (9 programas)
+          </Button>
         </div>
       </div>
 
@@ -305,19 +276,9 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
         <div style={{ fontSize: '0.62rem', color: C.txtMuted, marginBottom: '0.5rem', letterSpacing: 1 }}>
           MATRIZ DE PROGRAMAS PMD — áreas responsables e indicadores por programa, formato presentación:
         </div>
-        <button
-          onClick={handleMatrizPMD}
-          disabled={rLoading || genStatus === 'cargando'}
-          style={{
-            background: rLoading || genStatus === 'cargando' ? '#444' : `linear-gradient(135deg,#2a1a3a,#5a2e7a)`,
-            border: 'none', borderRadius: 8, color: C.txt,
-            padding: '0.75rem 1.2rem', fontSize: '0.82rem', fontWeight: 700,
-            fontFamily: 'inherit', cursor: rLoading || genStatus === 'cargando' ? 'not-allowed' : 'pointer',
-            letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 8,
-          }}
-        >
-          <Presentation size={15}/> Matriz de Programas PMD (PDF tipo presentación)
-        </button>
+        <Button variant="morado" icon={Presentation} loading={genStatus === 'cargando'} disabled={rLoading} onClick={handleMatrizPMD}>
+          Matriz de Programas PMD (PDF tipo presentación)
+        </Button>
       </div>
 
       {/* Botones piloto (validación antes del reporte completo) */}
@@ -330,85 +291,25 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
             { label: 'PDF Piloto', fn: handlePilotoPDF },
             { label: 'Excel Piloto', fn: handlePilotoExcel },
           ].map(btn => (
-            <button key={btn.label} onClick={btn.fn}
-              disabled={rLoading || genStatus === 'cargando'}
-              style={{
-                background: rLoading || genStatus === 'cargando' ? '#333' : '#2A2A2A',
-                border: `1px solid ${C.border}`, borderRadius: 6,
-                color: C.txtMuted, padding: '0.45rem 0.85rem',
-                fontSize: '0.72rem', fontFamily: 'inherit',
-                cursor: rLoading || genStatus === 'cargando' ? 'not-allowed' : 'pointer',
-                display: 'flex', alignItems: 'center', gap: 6,
-              }}>
-              <Search size={12}/> {btn.label}
-            </button>
+            <Button key={btn.label} variant="ghost" size="sm" icon={Search} disabled={rLoading || genStatus === 'cargando'} onClick={btn.fn}>
+              {btn.label}
+            </Button>
           ))}
         </div>
       </div>
 
       <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-        <button
-          onClick={handleGenerarPDF}
-          disabled={rLoading || genStatus === 'cargando'}
-          style={{
-            flex: 1, minWidth: 180,
-            background: rLoading || genStatus === 'cargando' ? '#444' : `linear-gradient(135deg,${C.guindaDark},${C.guinda})`,
-            border: 'none', borderRadius: 8, color: C.txt,
-            padding: '0.75rem 1rem', fontSize: '0.82rem', fontWeight: 700,
-            fontFamily: 'inherit', cursor: rLoading || genStatus === 'cargando' ? 'not-allowed' : 'pointer',
-            letterSpacing: 1, opacity: rLoading ? 0.6 : 1,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          }}
-        >
-          {genStatus === 'cargando' ? (
-            <>
-              <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid #ffffff44', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}/>
-              Generando…
-            </>
-          ) : <><FileText size={15}/> Descargar PDF Ejecutivo</>}
-        </button>
+        <Button variant="guinda" icon={FileText} loading={genStatus === 'cargando'} disabled={rLoading} onClick={handleGenerarPDF} style={{ flex: 1, minWidth: 180 }}>
+          Descargar PDF Ejecutivo
+        </Button>
 
-        <button
-          onClick={handleGenerarExcel}
-          disabled={rLoading || genStatus === 'cargando'}
-          style={{
-            flex: 1, minWidth: 180,
-            background: rLoading || genStatus === 'cargando' ? '#444' : `linear-gradient(135deg,#1a3a1a,#1e6b1e)`,
-            border: 'none', borderRadius: 8, color: C.txt,
-            padding: '0.75rem 1rem', fontSize: '0.82rem', fontWeight: 700,
-            fontFamily: 'inherit', cursor: rLoading || genStatus === 'cargando' ? 'not-allowed' : 'pointer',
-            letterSpacing: 1, opacity: rLoading ? 0.6 : 1,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          }}
-        >
-          {genStatus === 'cargando' ? (
-            <>
-              <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid #ffffff44', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}/>
-              Generando…
-            </>
-          ) : <><FileSpreadsheet size={15}/> Descargar Excel de Detalle</>}
-        </button>
+        <Button variant="verde" icon={FileSpreadsheet} loading={genStatus === 'cargando'} disabled={rLoading} onClick={handleGenerarExcel} style={{ flex: 1, minWidth: 180 }}>
+          Descargar Excel de Detalle
+        </Button>
 
-        <button
-          onClick={handleGenerarExcelEjecutivo}
-          disabled={rLoading || genStatus === 'cargando'}
-          style={{
-            flex: 1, minWidth: 180,
-            background: rLoading || genStatus === 'cargando' ? '#444' : `linear-gradient(135deg,#3d3010,#7a5f1c)`,
-            border: 'none', borderRadius: 8, color: C.txt,
-            padding: '0.75rem 1rem', fontSize: '0.82rem', fontWeight: 700,
-            fontFamily: 'inherit', cursor: rLoading || genStatus === 'cargando' ? 'not-allowed' : 'pointer',
-            letterSpacing: 1, opacity: rLoading ? 0.6 : 1,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          }}
-        >
-          {genStatus === 'cargando' ? (
-            <>
-              <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid #ffffff44', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}/>
-              Generando…
-            </>
-          ) : <><FileBarChart2 size={15}/> Descargar Excel Ejecutivo</>}
-        </button>
+        <Button variant="ambar" icon={FileBarChart2} loading={genStatus === 'cargando'} disabled={rLoading} onClick={handleGenerarExcelEjecutivo} style={{ flex: 1, minWidth: 180 }}>
+          Descargar Excel Ejecutivo
+        </Button>
       </div>
     </div>
   )

@@ -1,15 +1,9 @@
 import { useState } from 'react'
-import { Eye, EyeOff, Check, Circle, X, AlertTriangle, Loader2, Lock } from 'lucide-react'
+import { Eye, EyeOff, Check, Circle, X, AlertTriangle, Lock } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { LOGO_BASE64 } from '../logo.js'
-
-const C = {
-  guinda: '#7B1F2C', guindaDark: '#51141D',
-  dorado: '#C9A961', doradoLight: '#E2C998',
-  bg: '#0D0D0D', bgCard: '#161616',
-  border: '#2A2A2A', txt: '#F0EAE0', txtMuted: '#706050',
-  ok: '#046205', err: '#C00000',
-}
+import { C } from '../theme.js'
+import { Input, Button } from './ui.jsx'
 
 const REGLAS = [
   ['Mínimo 8 caracteres',    p => p.length >= 8],
@@ -55,19 +49,6 @@ export default function CambiarContrasena({ user, onDone }) {
       setErrorMsg(err.message)
       setSaving(false)
     }
-  }
-
-  const inp = {
-    width: '100%',
-    background: '#111',
-    border: `1px solid ${C.border}`,
-    borderRadius: 8,
-    color: C.txt,
-    padding: '0.65rem 2.5rem 0.65rem 0.9rem',
-    fontSize: '0.88rem',
-    fontFamily: "'Inter','Segoe UI',system-ui,sans-serif",
-    outline: 'none',
-    boxSizing: 'border-box',
   }
 
   const ToggleBtn = ({ visible, onClick }) => (
@@ -137,44 +118,28 @@ export default function CambiarContrasena({ user, onDone }) {
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
           {/* Nueva contraseña */}
-          <div>
-            <label style={{ fontSize: '0.68rem', color: C.doradoLight, textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 6 }}>
-              Nueva contraseña
-            </label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type={verNueva ? 'text' : 'password'}
-                value={nueva}
-                onChange={e => setNueva(e.target.value)}
-                placeholder="Mínimo 8 caracteres"
-                required
-                style={inp}
-                onFocus={e => e.target.style.borderColor = C.dorado}
-                onBlur={e  => e.target.style.borderColor = C.border}
-              />
-              <ToggleBtn visible={verNueva} onClick={() => setVerNueva(v => !v)}/>
-            </div>
-          </div>
+          <Input
+            label="Nueva contraseña" labelColor={C.doradoLight}
+            type={verNueva ? 'text' : 'password'}
+            value={nueva}
+            onChange={e => setNueva(e.target.value)}
+            placeholder="Mínimo 8 caracteres"
+            required
+            endAdornment={<ToggleBtn visible={verNueva} onClick={() => setVerNueva(v => !v)}/>}
+            style={{ background: '#111' }}
+          />
 
           {/* Confirmar */}
-          <div>
-            <label style={{ fontSize: '0.68rem', color: C.doradoLight, textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 6 }}>
-              Confirmar contraseña
-            </label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type={verConf ? 'text' : 'password'}
-                value={confirmar}
-                onChange={e => setConfirmar(e.target.value)}
-                placeholder="Repite la contraseña"
-                required
-                style={inp}
-                onFocus={e => e.target.style.borderColor = C.dorado}
-                onBlur={e  => e.target.style.borderColor = C.border}
-              />
-              <ToggleBtn visible={verConf} onClick={() => setVerConf(v => !v)}/>
-            </div>
-          </div>
+          <Input
+            label="Confirmar contraseña" labelColor={C.doradoLight}
+            type={verConf ? 'text' : 'password'}
+            value={confirmar}
+            onChange={e => setConfirmar(e.target.value)}
+            placeholder="Repite la contraseña"
+            required
+            endAdornment={<ToggleBtn visible={verConf} onClick={() => setVerConf(v => !v)}/>}
+            style={{ background: '#111' }}
+          />
 
           {/* Checklist de validaciones */}
           {nueva && (
@@ -182,14 +147,14 @@ export default function CambiarContrasena({ user, onDone }) {
               {REGLAS.map(([label, fn]) => {
                 const cumple = fn(nueva)
                 return (
-                  <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '0.72rem', color: cumple ? C.ok : C.txtMuted }}>
+                  <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '0.72rem', color: cumple ? C.optimoB : C.txtMuted }}>
                     {cumple ? <Check size={13}/> : <Circle size={13}/>}
                     <span>{label}</span>
                   </div>
                 )
               })}
               {confirmar && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '0.72rem', color: coinciden ? C.ok : C.err }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '0.72rem', color: coinciden ? C.optimoB : C.criticoB }}>
                   {coinciden ? <Check size={13}/> : <X size={13}/>}
                   <span>Las contraseñas coinciden</span>
                 </div>
@@ -208,29 +173,14 @@ export default function CambiarContrasena({ user, onDone }) {
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={saving || !puedeGuardar}
-            style={{
-              background: saving || !puedeGuardar
-                ? '#2a2a2a'
-                : `linear-gradient(135deg,${C.guindaDark},${C.guinda})`,
-              border: 'none', borderRadius: 8,
-              color: saving || !puedeGuardar ? C.txtMuted : C.txt,
-              padding: '0.8rem',
-              fontSize: '0.85rem', fontWeight: 700,
-              fontFamily: 'inherit', letterSpacing: 2,
-              textTransform: 'uppercase',
-              cursor: saving || !puedeGuardar ? 'not-allowed' : 'pointer',
-              marginTop: 4, transition: 'all 0.2s',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            }}
+          <Button
+            type="submit" icon={Lock}
+            loading={saving} loadingLabel="Guardando…"
+            disabled={!puedeGuardar}
+            style={{ textTransform: 'uppercase', letterSpacing: 2, padding: '0.8rem', marginTop: 4 }}
           >
-            {saving
-              ? <><Loader2 size={15} style={{animation:'spin 0.8s linear infinite'}}/> Guardando…</>
-              : <><Lock size={15}/> CAMBIAR CONTRASEÑA</>}
-          </button>
-          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+            CAMBIAR CONTRASEÑA
+          </Button>
         </form>
       </div>
 
