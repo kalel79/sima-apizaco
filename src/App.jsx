@@ -44,9 +44,9 @@ export default function App() {
   const puedeVerAdmin = isAdmin || isPlaneacion || isDirectivo
   // ASM: por ahora restringido a admin/planeación/directivo (sin enlace).
   const puedeVerASM = isAdmin || isPlaneacion || isDirectivo
-  // Expediente MML: en pruebas — restringido solo a admin mientras Hugo
-  // valida el módulo antes de liberarlo a planeación/directivo/enlace.
-  const puedeVerMML = isAdmin
+  // Expediente MML: en pruebas — liberado a admin/planeación; directivo y
+  // enlace aún no (pendiente de validar por Hugo antes de liberarlos).
+  const puedeVerMML = isAdmin || isPlaneacion
   const NAV = [...NAV_ANTES_PMD, ...(puedeVerPMD ? [NAV_PMD] : []), ...NAV_DESPUES_PMD, ...(puedeVerASM ? [NAV_ASM] : []), ...(puedeVerMML ? [NAV_MML] : []), ...(puedeCapturar ? [NAV_CAPTURA] : [])]
   const { mesActual, anioActual, loading: cfgLoading, refetch: refetchCfg } = useConfiguracion()
   const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
