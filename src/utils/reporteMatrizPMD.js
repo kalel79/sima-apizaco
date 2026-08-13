@@ -156,14 +156,23 @@ export async function generarMatrizPMDAreas() {
 
     const body = []
     progsEje.forEach(p => {
-      body.push([{
-        content: sanitizarPDF(`${p.numero}. ${p.nombre}`), colSpan: 2,
-        styles: { fillColor: CREMA, textColor: GUINDA, fontStyle: 'bold', halign: 'left', fontSize: 8.5 },
-      }])
+      const tituloPrograma = sanitizarPDF(`${p.numero}. ${p.nombre}`)
       if (p.objetivo) {
+        // Título + objetivo van en UNA sola fila (dos tonos dibujados a mano
+        // en didDrawCell) para que autoTable nunca los separe entre páginas
+        // — la paginación de jspdf-autotable decide por fila completa, así
+        // que como fila única siempre viajan juntos.
+        const objetivoPrograma = sanitizarPDF(`Objetivo: ${p.objetivo}`)
         body.push([{
-          content: sanitizarPDF(`Objetivo: ${p.objetivo}`), colSpan: 2,
-          styles: { fillColor: CREMA, textColor: GRIS, fontStyle: 'italic', halign: 'left', fontSize: 7.3 },
+          content: `${tituloPrograma}\n${objetivoPrograma}`, colSpan: 2,
+          styles: { fillColor: CREMA, textColor: GUINDA, fontStyle: 'bold', halign: 'left', fontSize: 8.5 },
+          _tituloPrograma: tituloPrograma,
+          _objetivoPrograma: objetivoPrograma,
+        }])
+      } else {
+        body.push([{
+          content: tituloPrograma, colSpan: 2,
+          styles: { fillColor: CREMA, textColor: GUINDA, fontStyle: 'bold', halign: 'left', fontSize: 8.5 },
         }])
       }
       if (!p.areas.length) {
@@ -200,6 +209,23 @@ export async function generarMatrizPMDAreas() {
         1: { cellWidth: 'auto' },
       },
       alternateRowStyles: { fillColor: [249, 244, 232] },
+      // Fila título+objetivo: se suprime el texto por defecto (una sola
+      // tinta) y se dibuja a mano en dos tonos — bold guinda para el
+      // título, itálica gris para el objetivo — conservando la fila única.
+      willDrawCell: (data) => {
+        if (data.cell.raw?._objetivoPrograma) data.cell.text = []
+      },
+      didDrawCell: (data) => {
+        const raw = data.cell.raw
+        if (!raw?._objetivoPrograma) return
+        const padL = data.cell.padding('left')
+        const x = data.cell.x + padL
+        const yMid = data.cell.y + data.cell.height / 2
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); setColor(doc, GUINDA)
+        doc.text(raw._tituloPrograma, x, yMid - 1.6)
+        doc.setFont('helvetica', 'italic'); doc.setFontSize(7.2); setColor(doc, GRIS)
+        doc.text(raw._objetivoPrograma, x, yMid + 3.4)
+      },
     })
   })
 
