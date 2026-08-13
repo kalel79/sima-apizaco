@@ -5,5 +5,5 @@
 export { generarPDF, generarPDFPiloto } from './reporteMensualPDF.js'
 export { generarExcel, generarExcelPiloto } from './reportesExcel.js'
 export { generarExcelEjecutivo } from './reportesExcelEjecutivo.js'
-export { generarExcelAvanceCaptura, generarExcelMetas } from './reportesExcelAdmin.js'
+export { generarExcelAvanceCaptura, generarExcelMetas, generarExcelSeguimientoEvidencias } from './reportesExcelAdmin.js'
 export { generarAcusePDF, generarFolioAcuse } from './acusePDF.js'

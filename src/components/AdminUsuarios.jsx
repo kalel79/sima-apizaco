@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Users, BarChart3, FileText, Settings } from 'lucide-react'
+import { Users, BarChart3, FileText, Settings, Paperclip } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useConfiguracionCtx } from '../contexts/ConfiguracionContext'
 import { formatPeriodoLabel } from '../utils/periodo'
@@ -10,6 +10,7 @@ import GestionUsuarios from './admin/GestionUsuarios.jsx'
 import PeriodoEvaluacion from './admin/PeriodoEvaluacion.jsx'
 import ReportesAdmin from './admin/ReportesAdmin.jsx'
 import MetasPorAnio from './admin/MetasPorAnio.jsx'
+import SeguimientoEvidencias from './admin/SeguimientoEvidencias.jsx'
 
 export default function AdminUsuarios() {
   const { isAdmin, isPlaneacion, isDirectivo } = useAuth()
@@ -17,6 +18,7 @@ export default function AdminUsuarios() {
   const TABS = [
     ...(isAdmin ? [{ id: 'usuarios', label: 'Gestión de Usuarios', icon: Users }] : []),
     ...((isAdmin || isPlaneacion) ? [{ id: 'captura', label: 'Avance de Captura', icon: BarChart3 }] : []),
+    ...(puedeVerReportesAdmin ? [{ id: 'evidencias', label: 'Seguimiento de Evidencias', icon: Paperclip }] : []),
     ...(puedeVerReportesAdmin ? [{ id: 'reportes', label: 'Reportes', icon: FileText }] : []),
   ]
   const [adminTab, setAdminTab] = useState(isAdmin ? 'usuarios' : (isPlaneacion ? 'captura' : 'reportes'))
@@ -68,6 +70,8 @@ export default function AdminUsuarios() {
           <MetasPorAnio/>
         </div>
       )}
+
+      {adminTab === 'evidencias' && puedeVerReportesAdmin && <SeguimientoEvidencias/>}
 
       {adminTab === 'reportes' && puedeVerReportesAdmin && (
         <div style={{ maxWidth: 560 }}>

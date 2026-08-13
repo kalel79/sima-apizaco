@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs'
-import { XL, descargarExcel } from './reportesBase.js'
+import { XL, descargarExcel, MESES_NOMBRES } from './reportesBase.js'
 
 // ══════════════════════════════════════════════════════════════════════════════
 // AVANCE DE CAPTURA DEL MES POR ÁREA (panel Admin)
@@ -181,4 +181,98 @@ export async function generarExcelMetas({ indicadores, periodoLabel }) {
   ws.views = [{ state: 'frozen', xSplit: 5, ySplit: 2 }]
 
   await descargarExcel(wb, `SIMA_MetasResultados_2026_${periodoLabel.replace(/[^A-Z0-9]/g, '_')}.xlsx`)
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SEGUIMIENTO DE EVIDENCIAS POR ÁREA (panel Admin) — resumen + matriz detalle
+// ══════════════════════════════════════════════════════════════════════════════
+export async function generarExcelSeguimientoEvidencias({ matriz, periodoLabel }) {
+  const { meses, areas } = matriz
+  const wb = new ExcelJS.Workbook()
+  wb.creator = 'SIMA · Dirección de Planeación y Evaluación'
+  wb.created = new Date()
+
+  const thinB   = { style: 'thin', color: { argb: 'FFD0D0D0' } }
+  const borders = { top: thinB, left: thinB, bottom: thinB, right: thinB }
+
+  // ── Hoja 1: Resumen por Área ──
+  const ws1 = wb.addWorksheet('Resumen por Área')
+  ws1.properties.defaultRowHeight = 14.4
+  ws1.mergeCells('A1:E1')
+  const t1 = ws1.getCell('A1')
+  t1.value     = `SIMA – Seguimiento de Evidencias por Área · ${periodoLabel}`
+  t1.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.guinda } }
+  t1.font      = { bold: true, size: 12, color: { argb: XL.blanco } }
+  t1.alignment = { horizontal: 'center', vertical: 'middle' }
+  ws1.getRow(1).height = 24
+
+  const hdr1 = ws1.addRow(['Área', 'Indicadores', 'Celdas con Evidencia', 'Celdas sin Evidencia', '% Evidencia'])
+  hdr1.eachCell(c => {
+    c.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.guinda } }
+    c.font      = { bold: true, color: { argb: XL.blanco }, size: 10 }
+    c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+    c.border    = borders
+  })
+  ws1.getRow(hdr1.number).height = 22
+
+  areas.forEach((a, i) => {
+    const isAlt = i % 2 === 1
+    const row = ws1.addRow([a.area, a.totalIndicadores, a.conEvidencia, a.totalCeldas - a.conEvidencia, a.pctEvidencia != null ? `${a.pctEvidencia}%` : '-'])
+    row.eachCell((c, col) => {
+      c.border    = borders
+      c.alignment = { horizontal: col === 1 ? 'left' : 'center', vertical: 'middle' }
+      c.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: isAlt ? XL.crema : XL.blanco } }
+      c.font      = { size: 9.5 }
+    })
+  })
+  ws1.columns = [{ width: 34 }, { width: 14 }, { width: 18 }, { width: 18 }, { width: 14 }]
+  ws1.views = [{ state: 'frozen', xSplit: 0, ySplit: 2 }]
+
+  // ── Hoja 2: Matriz Detalle (área × indicador × mes) ──
+  const ws2 = wb.addWorksheet('Matriz Detalle')
+  ws2.properties.defaultRowHeight = 14.4
+  const mesLabels = meses.map(m => MESES_NOMBRES[m - 1])
+  const hdr2 = ws2.addRow(['Área', 'Clave', 'Indicador', ...mesLabels])
+  hdr2.eachCell(c => {
+    c.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.guinda } }
+    c.font      = { bold: true, color: { argb: XL.blanco }, size: 10 }
+    c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+    c.border    = borders
+  })
+  ws2.getRow(hdr2.number).height = 22
+
+  let rowIdx = 0
+  areas.forEach(a => {
+    a.indicadores.forEach(ind => {
+      const isAlt = rowIdx % 2 === 1
+      const celdas = meses.map(m => {
+        const c = ind.porMes[m]
+        if (c.tieneEvidencia) return `✓ (${c.nEvidencias})`
+        if (c.tieneAvance) return '✗'
+        return '—'
+      })
+      const row = ws2.addRow([a.area, ind.clave, ind.nombre, ...celdas])
+      row.eachCell((c, col) => {
+        c.border = borders
+        if (col > 3) {
+          const val = c.value
+          let bg = XL.grisClaro, fg = XL.gris
+          if (typeof val === 'string' && val.startsWith('✓')) { bg = XL.optBg; fg = XL.optimo }
+          else if (val === '✗') { bg = XL.critBg; fg = XL.critico }
+          c.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } }
+          c.font      = { bold: true, size: 9, color: { argb: fg } }
+          c.alignment = { horizontal: 'center', vertical: 'middle' }
+        } else {
+          c.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: isAlt ? XL.crema : XL.blanco } }
+          c.font      = { size: 9.5 }
+          c.alignment = { horizontal: col === 3 ? 'left' : 'center', vertical: 'middle', wrapText: col === 3 }
+        }
+      })
+      rowIdx++
+    })
+  })
+  ws2.columns = [{ width: 30 }, { width: 12 }, { width: 42 }, ...meses.map(() => ({ width: 10 }))]
+  ws2.views = [{ state: 'frozen', xSplit: 3, ySplit: 1 }]
+
+  await descargarExcel(wb, `SIMA_SeguimientoEvidencias_${periodoLabel.replace(/[^A-Z0-9]/g, '_')}.xlsx`)
 }

@@ -23,7 +23,7 @@ export {
 export {
   EVIDENCIAS_BUCKET, EVIDENCIAS_MAX_BYTES,
   getIndicadorAreaId, getAvancePorIndicador, listarEvidencias,
-  subirEvidencia, borrarEvidencia, getEvidenciaUrl,
+  subirEvidencia, borrarEvidencia, getEvidenciaUrl, getMatrizEvidencias,
 } from './evidencias.js'
 
 export {
