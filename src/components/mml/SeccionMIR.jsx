@@ -5,6 +5,7 @@ import {
   actualizarNodoMIR, actualizarFichaIndicador,
   upsertVariable, eliminarVariable, upsertValorVariable,
 } from '../../lib/supabase'
+import { etiquetaNivelMIR } from '../../utils/expedienteMMLContenido.js'
 import { C } from '../../theme.js'
 
 const TIPO_INDICADOR = ['Estratégico', 'Gestión']
@@ -18,7 +19,6 @@ const lbl = { fontSize: '0.6rem', color: C.txtSub, textTransform: 'uppercase', l
 const th = { fontSize: '0.6rem', color: C.doradoLight, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'left', padding: '0.4rem 0.4rem', borderBottom: `1px solid ${C.border}` }
 const td = { padding: '0.35rem 0.4rem', verticalAlign: 'top', borderBottom: `1px solid ${C.border}` }
 
-const NIVEL_LABEL = { PROPOSITO: 'Propósito', FIN: 'Fin', COMPONENTE: 'Componente', ACTIVIDAD: 'Actividad' }
 
 // nivel_mir es un campo legacy (texto libre) que la tabla indicadores todavía
 // exige NOT NULL — se deriva automáticamente del nivel MIR, mismo formato que
@@ -170,7 +170,7 @@ function FilaMIR({ nivel, abierto, onToggle, indicadores, areas, programaId, pue
       <tr>
         <td style={td}>
           <span style={{ fontSize: '0.66rem', fontWeight: 800, color: C.doradoLight, textTransform: 'uppercase' }}>
-            {NIVEL_LABEL[nivel.tipo] || nivel.tipo}{nivel.numero ? ` ${nivel.numero}` : ''}
+            {etiquetaNivelMIR(nivel)}
           </span>
         </td>
         <td style={{ ...td, fontSize: '0.72rem', color: C.txt, maxWidth: 240 }}>
@@ -277,7 +277,7 @@ function FichaIndicador({ nivel, ind, anio, puedeEditar, conGuardado, setGuardan
   return (
     <div style={{ background: C.bgCard, border: `1px solid ${C.dorado}55`, borderRadius: 8, padding: '0.8rem', marginBottom: '0.6rem' }}>
       <div style={{ fontSize: '0.62rem', letterSpacing: 2, color: C.dorado, textTransform: 'uppercase', marginBottom: 8 }}>
-        Ficha de indicador — {NIVEL_LABEL[nivel.tipo] || nivel.tipo}{nivel.numero ? ` ${nivel.numero}` : ''} · {ind.nombre}
+        Ficha de indicador — {etiquetaNivelMIR(nivel)} · {ind.nombre}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 120px', gap: '0.6rem', marginBottom: '0.6rem' }}>

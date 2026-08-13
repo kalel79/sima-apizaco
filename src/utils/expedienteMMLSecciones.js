@@ -4,7 +4,7 @@
 import autoTable from 'jspdf-autotable'
 import { LOGO_BASE64 } from '../logo.js'
 import { GUINDA, DORADO, GRIS, BLANCO, ENTIDAD_NOMBRE, setColor, setFill, setDraw } from './reportesBase.js'
-import { CAPITULOS_LABEL, CATEGORIA_INVOLUCRADOS_LABEL, INDICE_FORMATOS, NIVEL_MIR_LABEL } from './expedienteMMLContenido.js'
+import { CAPITULOS_LABEL, CATEGORIA_INVOLUCRADOS_LABEL, INDICE_FORMATOS, etiquetaNivelMIR } from './expedienteMMLContenido.js'
 
 const ML = 14
 const FIRMAS_MARGEN_INF = 34 // espacio reservado abajo para que rol+nombre+cargo no se corten
@@ -160,7 +160,7 @@ export function drawDescripcionPrograma(doc, datos) {
   bloque('OBJETIVOS ESTRATÉGICOS',
     [proposito?.resumen_narrativo, fin?.resumen_narrativo].filter(Boolean).join('. '))
 
-  const filasMetas = (datos.mirNiveles || []).map(n => [NIVEL_MIR_LABEL[n.tipo] || n.tipo, n.resumen_narrativo || '—'])
+  const filasMetas = (datos.mirNiveles || []).map(n => [etiquetaNivelMIR(n), n.resumen_narrativo || '—'])
   autoTable(doc, {
     startY: y, margin: { left: ML, right: ML, bottom: FIRMAS_MARGEN_INF },
     head: [['Nivel', 'Metas (resumen narrativo)']],
@@ -670,7 +670,7 @@ export function drawMatrizMIR(doc, datos) {
     startY: y, margin: { left: ML, right: ML, bottom: FIRMAS_MARGEN_INF },
     head: [['Nivel', 'Resumen narrativo (Objetivo)', 'Indicador', 'Tipo/Dim./Sentido', 'Supuestos / Riesgo', 'Medios de verificación']],
     body: niveles.map(n => [
-      NIVEL_MIR_LABEL[n.tipo] || n.tipo,
+      etiquetaNivelMIR(n),
       n.resumen_narrativo || '—',
       n.indicador?.nombre || '— sin vincular —',
       [n.indicador?.tipo_indicador, n.indicador?.dimension, n.indicador?.sentido].filter(Boolean).join(' / ') || '—',
@@ -702,7 +702,7 @@ export function drawCronogramaMetas(doc, datos) {
     startY: y, margin: { left: ML, right: ML, bottom: FIRMAS_MARGEN_INF },
     head: [['Nivel', 'Meta (verbos en infinitivo)', ...MESES, 'Anual']],
     body: niveles.map(n => [
-      NIVEL_MIR_LABEL[n.tipo] || n.tipo,
+      etiquetaNivelMIR(n),
       n.indicador?.nombre || '—',
       ...MESES.map((_, i) => n.metas?.[i + 1] ?? '0'),
       n.metas?.[0] ?? '0',
@@ -727,7 +727,7 @@ export function drawFichaIndicador(doc, datos, nivel, anio) {
     startY: y, margin: { left: ML, right: ML },
     body: [
       ['Programa', `${p.clave || ''} ${p.nombre || ''}`],
-      ['Nivel MIR', NIVEL_MIR_LABEL[nivel.tipo] || nivel.tipo],
+      ['Nivel MIR', etiquetaNivelMIR(nivel)],
       ['Nombre del indicador', ind?.nombre || '—'],
       ['Definición', ind?.definicion || '—'],
       ['Tipo de indicador', ind?.tipo_indicador || '—'],

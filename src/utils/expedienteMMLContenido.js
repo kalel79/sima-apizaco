@@ -33,3 +33,16 @@ export const CATEGORIA_INVOLUCRADOS_LABEL = {
 }
 
 export const NIVEL_MIR_LABEL = { PROPOSITO: 'Propósito', FIN: 'Fin', COMPONENTE: 'Componente', ACTIVIDAD: 'Actividad' }
+
+// Etiqueta de nivel MIR con numeración jerárquica — "Componente 2",
+// "Actividad 2.3" (2 = número del Componente padre, 3 = orden de la
+// actividad dentro de él). Propósito y Fin no llevan número: son únicos
+// por programa. `numero`/`componenteNumero` ya vienen calculados desde
+// derivarNivelesMIR() en lib/mml.js (resolverDatosMML), fuente única que
+// comparten la pantalla de captura y el PDF — no se recalculan aquí.
+export function etiquetaNivelMIR(nivel) {
+  const base = NIVEL_MIR_LABEL[nivel.tipo] || nivel.tipo
+  if (nivel.tipo === 'COMPONENTE' && nivel.numero != null) return `${base} ${nivel.numero}`
+  if (nivel.tipo === 'ACTIVIDAD' && nivel.numero != null) return `${base} ${nivel.componenteNumero}.${nivel.numero}`
+  return base
+}
