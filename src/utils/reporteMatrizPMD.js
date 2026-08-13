@@ -160,6 +160,12 @@ export async function generarMatrizPMDAreas() {
         content: sanitizarPDF(`${p.numero}. ${p.nombre}`), colSpan: 2,
         styles: { fillColor: CREMA, textColor: GUINDA, fontStyle: 'bold', halign: 'left', fontSize: 8.5 },
       }])
+      if (p.objetivo) {
+        body.push([{
+          content: sanitizarPDF(`Objetivo: ${p.objetivo}`), colSpan: 2,
+          styles: { fillColor: CREMA, textColor: GRIS, fontStyle: 'italic', halign: 'left', fontSize: 7.3 },
+        }])
+      }
       if (!p.areas.length) {
         body.push([{
           content: 'Pendiente de alineación con indicadores', colSpan: 2,

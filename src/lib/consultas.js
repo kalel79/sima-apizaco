@@ -296,7 +296,7 @@ export async function getProgramasPresupuestariosPorPmd(anio) {
 // que ya usa PantallaPMD.jsx).
 export async function getMatrizProgramasAreas() {
   const [{ data: programas, error: eProg }, { data: inds, error: eInd }, { data: areas, error: eAreas }] = await Promise.all([
-    supabase.from('programas_pmd').select('id, numero, nombre, eje').order('numero'),
+    supabase.from('programas_pmd').select('id, numero, nombre, eje, objetivo').order('numero'),
     supabase.from('indicadores').select('clave, nombre, programa_pmd_id, area_id').order('nombre'),
     supabase.from('areas').select('id, nombre'),
   ])
@@ -323,6 +323,7 @@ export async function getMatrizProgramasAreas() {
       numero: p.numero,
       nombre: p.nombre,
       eje: p.eje,
+      objetivo: p.objetivo,
       areas: areasPrograma,
       totalIndicadores: areasPrograma.reduce((s, a) => s + a.n, 0),
     }
