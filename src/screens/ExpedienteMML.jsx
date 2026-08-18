@@ -24,6 +24,10 @@ export default function ExpedienteMML() {
   const puedeEditarContenido = isAdmin || isPlaneacion || isEnlace
   const puedeEditarEncabezado = isAdmin
   const puedeEditarPresupuesto = isAdmin || isPlaneacion
+  // Generar PDF/plantilla/instructivo: reservado a admin/planeación — un
+  // enlace no debe generar el documento oficial ni la plantilla en blanco,
+  // aunque en el futuro se le habilite la pestaña.
+  const puedeGenerarDocumentos = isAdmin || isPlaneacion
   // fase_mml_09/10: dentro de Riesgos/MIR y Metas (POA), el permiso ya no es
   // un booleano único de pantalla — cada fila decide con puedeEditarDatosIndicador
   // según su Área responsable (arbol_nodos.area_responsable_id) vs. el área
@@ -146,20 +150,24 @@ export default function ExpedienteMML() {
           {ANIOS.map(a => <option key={a} value={a}>{a}</option>)}
         </select>
         <button onClick={cargar} style={{ ...inp, cursor: 'pointer', background: C.bgPanel, display: 'flex', alignItems: 'center' }}><RefreshCw size={14}/></button>
-        <button onClick={handleGenerarPdf} disabled={!datos || generandoPdf}
-          style={{ ...inp, cursor: !datos || generandoPdf ? 'default' : 'pointer', background: C.guinda, color: '#fff', fontWeight: 700, opacity: !datos || generandoPdf ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
-          {generandoPdf
-            ? <><Loader2 size={13} style={{animation:'spin 0.8s linear infinite'}}/> Generando…</>
-            : <><FileText size={13}/> Generar PDF del Expediente</>}
-        </button>
-        {puedeEditarContenido && (
-          <button onClick={handleGenerarPlantilla} style={{ ...inp, cursor: 'pointer', background: C.bgPanel, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <PenLine size={13}/> Plantilla en blanco (enlaces)
+        {puedeGenerarDocumentos && (
+          <button onClick={handleGenerarPdf} disabled={!datos || generandoPdf}
+            style={{ ...inp, cursor: !datos || generandoPdf ? 'default' : 'pointer', background: C.guinda, color: '#fff', fontWeight: 700, opacity: !datos || generandoPdf ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+            {generandoPdf
+              ? <><Loader2 size={13} style={{animation:'spin 0.8s linear infinite'}}/> Generando…</>
+              : <><FileText size={13}/> Generar PDF del Expediente</>}
           </button>
         )}
-        <button onClick={generarInstructivoExpedienteMML} style={{ ...inp, cursor: 'pointer', background: C.bgPanel, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <BookOpen size={13}/> Instructivo de llenado
-        </button>
+        {puedeGenerarDocumentos && (
+          <button onClick={handleGenerarPlantilla} style={{ ...inp, cursor: 'pointer', background: C.bgPanel, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <PenLine size={13}/> Plantilla en blanco
+          </button>
+        )}
+        {puedeGenerarDocumentos && (
+          <button onClick={generarInstructivoExpedienteMML} style={{ ...inp, cursor: 'pointer', background: C.bgPanel, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <BookOpen size={13}/> Instructivo de llenado
+          </button>
+        )}
       </div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
 
