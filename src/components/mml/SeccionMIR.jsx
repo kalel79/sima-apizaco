@@ -4,6 +4,7 @@ import {
   getIndicadoresDePrograma, getAreasDePrograma, crearIndicador,
   actualizarNodoMIR, actualizarFichaIndicador,
   upsertVariable, eliminarVariable, upsertValorVariable,
+  puedeEditarDatosIndicador,
 } from '../../lib/supabase'
 import { etiquetaNivelMIR } from '../../utils/expedienteMMLContenido.js'
 import { C } from '../../theme.js'
@@ -31,7 +32,7 @@ function derivarNivelMirTexto(nivel) {
   return nivel.tipo
 }
 
-export default function SeccionMIR({ programaId, anio, mirNiveles, puedeEditar, onChange }) {
+export default function SeccionMIR({ programaId, anio, mirNiveles, rolInfo, onChange }) {
   const [expandido, setExpandido] = useState(null)
   const [guardando, setGuardando] = useState(null)
   const [error, setError] = useState(null)
@@ -92,6 +93,7 @@ export default function SeccionMIR({ programaId, anio, mirNiveles, puedeEditar, 
             <thead>
               <tr>
                 <th style={{ ...th, width: 100 }}>Nivel</th>
+                <th style={{ ...th, width: 110 }}>Área</th>
                 <th style={{ ...th, minWidth: 200 }}>Resumen narrativo (objetivo)</th>
                 <th style={{ ...th, minWidth: 190 }}>Indicador</th>
                 <th style={{ ...th, width: 100 }}>Tipo</th>
@@ -107,7 +109,7 @@ export default function SeccionMIR({ programaId, anio, mirNiveles, puedeEditar, 
                 <FilaMIR key={nivel.id} nivel={nivel} abierto={expandido === nivel.id}
                   onToggle={() => setExpandido(expandido === nivel.id ? null : nivel.id)}
                   indicadores={indicadores} areas={areas} programaId={programaId}
-                  puedeEditar={puedeEditar} conGuardado={conGuardado} onChange={onChange}
+                  rolInfo={rolInfo} conGuardado={conGuardado} onChange={onChange}
                   refrescarIndicadores={refrescarIndicadores} />
               ))}
             </tbody>
@@ -119,7 +121,7 @@ export default function SeccionMIR({ programaId, anio, mirNiveles, puedeEditar, 
         if (expandido !== nivel.id || !nivel.indicador) return null
         return (
           <FichaIndicador key={'ficha-' + nivel.id} nivel={nivel} ind={nivel.indicador} anio={anio}
-            puedeEditar={puedeEditar} conGuardado={conGuardado}
+            puedeEditar={puedeEditarDatosIndicador(nivel, rolInfo)} conGuardado={conGuardado}
             setGuardando={setGuardando} setError={setError} onChange={onChange} />
         )
       })}
@@ -128,16 +130,21 @@ export default function SeccionMIR({ programaId, anio, mirNiveles, puedeEditar, 
   )
 }
 
-function FilaMIR({ nivel, abierto, onToggle, indicadores, areas, programaId, puedeEditar, conGuardado, onChange, refrescarIndicadores }) {
+function FilaMIR({ nivel, abierto, onToggle, indicadores, areas, programaId, rolInfo, conGuardado, onChange, refrescarIndicadores }) {
   const ind = nivel.indicador
+  const puedeEditar = puedeEditarDatosIndicador(nivel, rolInfo)
+  // Un enlace crea el indicador siempre para su propia área — no elige.
+  const areaFijaEnlace = rolInfo?.isEnlace ? nivel.areaEfectivaId : null
   const [creando, setCreando] = useState(false)
-  const [nuevo, setNuevo] = useState({ nombre: '', areaId: areas[0]?.id || '', unidadMedida: 'Porcentaje', frecuencia: 'Anual' })
+  const [nuevo, setNuevo] = useState({ nombre: '', areaId: areaFijaEnlace || areas[0]?.id || '', unidadMedida: 'Porcentaje', frecuencia: 'Anual' })
   const [creandoGuardando, setCreandoGuardando] = useState(false)
   const [creandoError, setCreandoError] = useState(null)
 
+  const nombreArea = areas.find(a => a.id === nivel.areaEfectivaId)?.nombre
+
   function handleSelect(valor) {
     if (valor === CREAR_NUEVO) {
-      setNuevo(n => ({ ...n, areaId: n.areaId || areas[0]?.id || '' }))
+      setNuevo(n => ({ ...n, areaId: areaFijaEnlace || n.areaId || areas[0]?.id || '' }))
       setCreando(true)
       return
     }
@@ -148,15 +155,17 @@ function FilaMIR({ nivel, abierto, onToggle, indicadores, areas, programaId, pue
     if (!nuevo.nombre || !nuevo.areaId) { setCreandoError('Nombre y área son obligatorios.'); return }
     setCreandoGuardando(true); setCreandoError(null)
     try {
-      const creado = await crearIndicador({
-        nombre: nuevo.nombre, areaId: +nuevo.areaId, programaId,
+      // crearIndicador ya vincula el nuevo indicador a este nivel en la misma
+      // operación (RPC atómico, fase_mml_09) — no hace falta un segundo
+      // actualizarNodoMIR aparte.
+      await crearIndicador({
+        nodoId: nivel.id, nombre: nuevo.nombre, areaId: +nuevo.areaId, programaId,
         unidadMedida: nuevo.unidadMedida, frecuencia: nuevo.frecuencia,
         nivelMir: derivarNivelMirTexto(nivel),
       })
-      await actualizarNodoMIR(nivel.id, { indicadorId: creado.id })
       await refrescarIndicadores()
       setCreando(false)
-      setNuevo({ nombre: '', areaId: areas[0]?.id || '', unidadMedida: 'Porcentaje', frecuencia: 'Anual' })
+      setNuevo({ nombre: '', areaId: areaFijaEnlace || areas[0]?.id || '', unidadMedida: 'Porcentaje', frecuencia: 'Anual' })
       onChange()
     } catch (e) {
       setCreandoError(e.message)
@@ -172,6 +181,22 @@ function FilaMIR({ nivel, abierto, onToggle, indicadores, areas, programaId, pue
           <span style={{ fontSize: '0.66rem', fontWeight: 800, color: C.doradoLight, textTransform: 'uppercase' }}>
             {etiquetaNivelMIR(nivel)}
           </span>
+        </td>
+        <td style={td}>
+          {nivel.mirTipo === 'PROPOSITO' || nivel.mirTipo === 'FIN' ? (
+            <span style={{ fontSize: '0.64rem', color: C.txtMuted }}>compartida</span>
+          ) : (
+            <>
+              <span style={{ fontSize: '0.68rem', color: nombreArea ? C.txt : C.criticoB }}>
+                {nombreArea || 'sin asignar'}
+              </span>
+              {!puedeEditar && rolInfo?.isEnlace && (
+                <span style={{ display: 'block', fontSize: '0.6rem', color: C.txtMuted, marginTop: 2 }}>
+                  {nombreArea ? 'de otra dirección' : 'Planeación aún no la asigna'}
+                </span>
+              )}
+            </>
+          )}
         </td>
         <td style={{ ...td, fontSize: '0.72rem', color: C.txt, maxWidth: 240 }}>
           {nivel.resumen_narrativo || <span style={{ color: C.txtMuted }}>— sin redactar en el árbol —</span>}
@@ -230,7 +255,7 @@ function FilaMIR({ nivel, abierto, onToggle, indicadores, areas, programaId, pue
       </tr>
       {creando && (
         <tr>
-          <td colSpan={9} style={{ ...td, background: C.bgPanel }}>
+          <td colSpan={10} style={{ ...td, background: C.bgPanel }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 120px 120px auto auto', gap: 6, alignItems: 'end' }}>
               <div>
                 <label style={lbl}>Nombre del indicador nuevo</label>
@@ -239,9 +264,15 @@ function FilaMIR({ nivel, abierto, onToggle, indicadores, areas, programaId, pue
               </div>
               <div>
                 <label style={lbl}>Área</label>
-                <select value={nuevo.areaId} onChange={e => setNuevo(n => ({ ...n, areaId: e.target.value }))} style={inp}>
-                  {areas.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-                </select>
+                {areaFijaEnlace ? (
+                  <div style={{ ...inp, display: 'flex', alignItems: 'center', color: C.txtMuted }}>
+                    {areas.find(a => a.id === areaFijaEnlace)?.nombre || '—'}
+                  </div>
+                ) : (
+                  <select value={nuevo.areaId} onChange={e => setNuevo(n => ({ ...n, areaId: e.target.value }))} style={inp}>
+                    {areas.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+                  </select>
+                )}
               </div>
               <div>
                 <label style={lbl}>Unidad de medida</label>

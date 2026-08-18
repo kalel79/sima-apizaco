@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { XCircle, Loader2, Trash2, Plus } from 'lucide-react'
-import { upsertArbolNodo, eliminarArbolNodo } from '../../lib/supabase'
+import { upsertArbolNodo, eliminarArbolNodo, actualizarAreaResponsable, getAreasDePrograma } from '../../lib/supabase'
 import { C } from '../../theme.js'
 
 const TIPOS_POR_ARBOL = {
@@ -15,10 +15,35 @@ const TITULO_POR_ARBOL = {
 const inp = { width: '100%', background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 6, color: C.txt, padding: '0.4rem 0.65rem', fontSize: '0.76rem', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }
 const sel = { ...inp, resize: undefined }
 
-export default function SeccionArbol({ programaId, anio, arbol, nodos, puedeEditar, onChange }) {
+export default function SeccionArbol({ programaId, anio, arbol, nodos, puedeEditar, puedeAsignarArea, onChange }) {
   const [guardando, setGuardando] = useState(null)
   const [error, setError] = useState(null)
+  const [areas, setAreas] = useState([])
   const tipos = TIPOS_POR_ARBOL[arbol]
+
+  // Área responsable (fase_mml_09) solo aplica al Árbol de Objetivos, por
+  // Componente (MEDIO hijo directo del Objetivo raíz) — las Actividades la
+  // heredan de su Componente, nunca se captura en ellas.
+  const raiz = arbol === 'OBJETIVOS' ? nodos.find(n => n.tipo === 'OBJETIVO' && !n.padre_id) : null
+
+  useEffect(() => {
+    if (arbol !== 'OBJETIVOS' || !programaId) return
+    let cancel = false
+    getAreasDePrograma(programaId).then(a => { if (!cancel) setAreas(a) }).catch(() => {})
+    return () => { cancel = true }
+  }, [arbol, programaId])
+
+  async function handleArea(nodo, areaId) {
+    setGuardando(nodo.id); setError(null)
+    try {
+      await actualizarAreaResponsable(nodo.id, areaId ? +areaId : null)
+      onChange()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setGuardando(null)
+    }
+  }
 
   async function handleCampo(nodo, campo, valor) {
     setGuardando(nodo.id); setError(null)
@@ -94,6 +119,28 @@ export default function SeccionArbol({ programaId, anio, arbol, nodos, puedeEdit
               ))}
             </select>
           </div>
+          {arbol === 'OBJETIVOS' && nodo.tipo === 'MEDIO' && raiz && (
+            nodo.padre_id === raiz.id ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                <span style={{ fontSize: '0.62rem', color: C.txtSub, textTransform: 'uppercase', letterSpacing: 1 }}>Área responsable:</span>
+                {puedeAsignarArea ? (
+                  <select value={nodo.area_responsable_id || ''} disabled={guardando === nodo.id}
+                    onChange={e => handleArea(nodo, e.target.value)} style={{ ...sel, width: 220 }}>
+                    <option value="">— sin asignar —</option>
+                    {areas.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+                  </select>
+                ) : (
+                  <span style={{ fontSize: '0.74rem', color: nodo.area_responsable_id ? C.txt : C.txtMuted }}>
+                    {areas.find(a => a.id === nodo.area_responsable_id)?.nombre || '— sin asignar —'}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div style={{ fontSize: '0.68rem', color: C.txtMuted, marginBottom: 6 }}>
+                Área responsable: hereda de «{nodos.find(n => n.id === nodo.padre_id)?.texto?.slice(0, 40) || '—'}»
+              </div>
+            )
+          )}
           {puedeEditar && (
             <button onClick={() => handleEliminar(nodo.id)} disabled={guardando === nodo.id}
               style={{ background: 'none', border: `1px solid ${C.criticoB}55`, borderRadius: 6, color: C.criticoB, padding: '0.3rem 0.6rem', fontSize: '0.68rem', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}>

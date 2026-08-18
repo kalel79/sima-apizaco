@@ -56,10 +56,11 @@ export {
   getProgramaIdDeArea, getProgramasLista, getIndicadoresDePrograma, getAreasDePrograma,
   crearIndicador, resolverDatosMML,
   upsertDiagnostico, eliminarDiagnostico,
-  upsertArbolNodo, eliminarArbolNodo,
+  upsertArbolNodo, eliminarArbolNodo, actualizarAreaResponsable,
   upsertInvolucrado, eliminarInvolucrado,
   upsertAccionAlternativa, eliminarAccionAlternativa, generarAccionesDesdeMedios,
   actualizarNodoMIR, actualizarFichaIndicador,
   upsertVariable, eliminarVariable, upsertValorVariable,
   actualizarPresupuesto, actualizarEncabezadoPrograma,
+  puedeEditarDatosIndicador, puedeAsignarAreaResponsable,
 } from './mml.js'

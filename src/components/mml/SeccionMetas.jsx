@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { XCircle } from 'lucide-react'
-import { upsertMeta } from '../../lib/supabase'
+import { upsertMeta, puedeEditarDatosIndicador } from '../../lib/supabase'
 import { C } from '../../theme.js'
 
 const MESES = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC']
@@ -16,7 +16,10 @@ const td = { padding: '0.22rem 0.15rem', textAlign: 'center', borderBottom: `1px
 // (fase 1.1) — mes 0 = meta anual, 1-12 = mensual. La fila "Total anual" del
 // formato oficial se sustituye (decisión 2026-07-21) por una fila de resumen
 // con sentido: cuántos indicadores tienen meta programada ese mes / total.
-export default function SeccionMetas({ anio, mirNiveles, puedeEditar, onChange }) {
+// fase_mml_10: el permiso ya no es un booleano de pantalla — cada fila se
+// habilita según el Área responsable de su Componente (puedeEditarDatosIndicador),
+// igual que ya hace cumplir la RLS de `metas` del lado del servidor.
+export default function SeccionMetas({ anio, mirNiveles, rolInfo, onChange }) {
   const [guardando, setGuardando] = useState(null)
   const [error, setError] = useState(null)
 
@@ -59,9 +62,9 @@ export default function SeccionMetas({ anio, mirNiveles, puedeEditar, onChange }
           <XCircle size={13}/> {error}
         </div>
       )}
-      {!puedeEditar && (
+      {rolInfo?.isEnlace && (
         <div style={{ fontSize: '0.68rem', color: C.txtMuted, marginBottom: 8 }}>
-          Solo Administrador puede capturar metas (mismo alcance que "Metas por año").
+          Solo puedes capturar las metas de los indicadores del Componente de tu área.
         </div>
       )}
       {!filas.length && (
@@ -80,7 +83,9 @@ export default function SeccionMetas({ anio, mirNiveles, puedeEditar, onChange }
               </tr>
             </thead>
             <tbody>
-              {filas.map(f => (
+              {filas.map(f => {
+                const puedeEditarFila = puedeEditarDatosIndicador(f, rolInfo)
+                return (
                 <tr key={f.id}>
                   <td style={{ ...td, textAlign: 'left', fontSize: '0.64rem', color: C.txt, maxWidth: 320 }}>
                     <span style={{ fontSize: '0.54rem', color: C.txtMuted, display: 'block' }}>{f.tipo}{f.numero ? ` ${f.numero}` : ''}</span>
@@ -91,7 +96,7 @@ export default function SeccionMetas({ anio, mirNiveles, puedeEditar, onChange }
                     const key = `${f.indicador_id}-${mes}`
                     return (
                       <td key={mes} style={td}>
-                        <input type="number" step="0.01" defaultValue={f.metas?.[mes] ?? ''} disabled={!puedeEditar || guardando === key}
+                        <input type="number" step="0.01" defaultValue={f.metas?.[mes] ?? ''} disabled={!puedeEditarFila || guardando === key}
                           onBlur={e => { const v = e.target.value; if (v !== String(f.metas?.[mes] ?? '')) handleGuardar(f, mes, v) }}
                           style={inpCelda} />
                       </td>
@@ -102,7 +107,7 @@ export default function SeccionMetas({ anio, mirNiveles, puedeEditar, onChange }
                       style={{ ...inpCelda, fontWeight: 700, opacity: 0.85, cursor: 'not-allowed' }} />
                   </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
             <tfoot>
               <tr>

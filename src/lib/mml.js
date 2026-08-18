@@ -48,17 +48,27 @@ export async function getAreasDePrograma(programaId) {
 }
 
 // Crea un indicador nuevo para 2027 que no existía en el catálogo 2026 (ej. una
-// Actividad/Componente agregado al reorganizar el Árbol de Objetivos) y lo deja
-// listo para vincular al nivel MIR correspondiente.
-export async function crearIndicador({ nombre, areaId, programaId, unidadMedida, frecuencia, nivelMir }) {
+// Actividad/Componente agregado al reorganizar el Árbol de Objetivos) y lo
+// vincula al nivel MIR correspondiente en una sola operación atómica — RPC
+// SECURITY DEFINER (fase_mml_09): bajo indicadores_write_area, un enlace no
+// podría hacer INSERT directo (nunca puede autorizarse un id que aún no
+// existe en ningún arbol_nodos), así que la creación y la vinculación tienen
+// que resolverse juntas del lado del servidor.
+export async function crearIndicador({ nodoId, nombre, areaId, programaId, unidadMedida, frecuencia, nivelMir }) {
+  const { data, error } = await supabase.rpc('crear_indicador_y_vincular', {
+    p_nodo_id: nodoId, p_nombre: nombre, p_area_id: areaId, p_programa_id: programaId,
+    p_unidad_medida: unidadMedida || 'Porcentaje', p_frecuencia: frecuencia || 'Anual', p_nivel_mir: nivelMir,
+  })
+  if (error) throw error
+  return { id: data }
+}
+
+// Área responsable de un Componente (fase_mml_09) — solo la asigna/cambia
+// Planeación/Admin (el trigger de arbol_nodos lo hace cumplir); las
+// Actividades la heredan de su Componente padre, nunca se captura en ellas.
+export async function actualizarAreaResponsable(nodoId, areaId) {
   const { data, error } = await supabase
-    .from('indicadores')
-    .insert({
-      nombre, area_id: areaId, programa_id: programaId,
-      unidad_medida: unidadMedida || 'Porcentaje', frecuencia: frecuencia || 'Anual',
-      nivel_mir: nivelMir, activo: true,
-    })
-    .select().single()
+    .from('arbol_nodos').update({ area_responsable_id: areaId || null }).eq('id', nodoId).select().single()
   if (error) throw error
   return data
 }
@@ -73,17 +83,20 @@ function normalizarIndicador(raw) {
 
 // Deriva la lista de niveles MIR (Propósito/Fin/Componentes/Actividades) a
 // partir de los nodos del Árbol de Objetivos ya cargados.
+// `areaEfectivaId` (fase_mml_09): propia del Componente, heredada del
+// Componente padre para una Actividad, y siempre null para Fin/Propósito
+// (esos 2 niveles son compartidos por todo el programa, no de un área).
 function derivarNivelesMIR(nodosObjetivos) {
   const objetivoCentral = nodosObjetivos.find(n => n.tipo === 'OBJETIVO' && !n.padre_id)
   if (!objetivoCentral) return []
 
-  const niveles = [{ ...objetivoCentral, mirTipo: 'PROPOSITO', numero: null }]
+  const niveles = [{ ...objetivoCentral, mirTipo: 'PROPOSITO', numero: null, areaEfectivaId: null }]
 
   const finesDelObjetivo = nodosObjetivos
     .filter(n => n.tipo === 'FIN' && n.padre_id === objetivoCentral.id)
     .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
   if (finesDelObjetivo.length) {
-    niveles.push({ ...finesDelObjetivo[0], mirTipo: 'FIN', numero: null })
+    niveles.push({ ...finesDelObjetivo[0], mirTipo: 'FIN', numero: null, areaEfectivaId: null })
   }
 
   const componentes = nodosObjetivos
@@ -91,16 +104,35 @@ function derivarNivelesMIR(nodosObjetivos) {
     .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
 
   componentes.forEach((comp, ci) => {
-    niveles.push({ ...comp, mirTipo: 'COMPONENTE', numero: ci + 1 })
+    niveles.push({ ...comp, mirTipo: 'COMPONENTE', numero: ci + 1, areaEfectivaId: comp.area_responsable_id ?? null })
     const actividades = nodosObjetivos
       .filter(n => n.tipo === 'MEDIO' && n.padre_id === comp.id)
       .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
     actividades.forEach((act, ai) => {
-      niveles.push({ ...act, mirTipo: 'ACTIVIDAD', numero: ai + 1, componenteNumero: ci + 1 })
+      niveles.push({
+        ...act, mirTipo: 'ACTIVIDAD', numero: ai + 1, componenteNumero: ci + 1,
+        areaEfectivaId: comp.area_responsable_id ?? null,
+      })
     })
   })
 
   return niveles
+}
+
+// ── Permisos por fila de la MIR (fase_mml_09) — espejo en el front de lo que
+// ya hace cumplir la base de datos (RLS + trigger), para deshabilitar los
+// campos correctos en pantalla en vez de dejar que el usuario intente
+// guardar y se entere por un error. `rolInfo` = { isAdmin, isPlaneacion,
+// isEnlace, miAreaId }. ──
+export function puedeEditarDatosIndicador(nivel, { isAdmin, isPlaneacion, isEnlace, miAreaId } = {}) {
+  if (isAdmin || isPlaneacion) return true
+  if (!isEnlace) return false
+  if (nivel.mirTipo === 'PROPOSITO' || nivel.mirTipo === 'FIN') return false
+  return nivel.areaEfectivaId != null && nivel.areaEfectivaId === miAreaId
+}
+
+export function puedeAsignarAreaResponsable({ isAdmin, isPlaneacion } = {}) {
+  return !!(isAdmin || isPlaneacion)
 }
 
 // ── resolverDatosMML: fuente única para la pantalla de captura (y, después,

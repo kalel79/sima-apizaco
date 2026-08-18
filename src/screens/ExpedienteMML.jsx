@@ -24,9 +24,13 @@ export default function ExpedienteMML() {
   const puedeEditarContenido = isAdmin || isPlaneacion || isEnlace
   const puedeEditarEncabezado = isAdmin
   const puedeEditarPresupuesto = isAdmin || isPlaneacion
-  // metas_write_admin en la tabla `metas` es literalmente solo 'admin' (ni
-  // planeación) — mismo alcance que el panel existente "Metas por año".
-  const puedeEditarMetas = isAdmin
+  // fase_mml_09/10: dentro de Riesgos/MIR y Metas (POA), el permiso ya no es
+  // un booleano único de pantalla — cada fila decide con puedeEditarDatosIndicador
+  // según su Área responsable (arbol_nodos.area_responsable_id) vs. el área
+  // propia del enlace, igual que ya hace cumplir la RLS/trigger del lado del
+  // servidor. rolInfo se pasa crudo a esas dos secciones.
+  const rolInfo = { isAdmin, isPlaneacion, isEnlace, miAreaId: profile?.area_id ?? null }
+  const puedeAsignarArea = isAdmin || isPlaneacion
 
   const [programas, setProgramas] = useState([])
   const [programaId, setProgramaId] = useState(null)
@@ -203,7 +207,8 @@ export default function ExpedienteMML() {
             <SeccionInvolucrados programaId={programaId} anio={anio} involucrados={datos.involucrados} puedeEditar={puedeEditarEsteArea} onChange={cargar} />
           )}
           {tab === 'arbolObjetivos' && (
-            <SeccionArbol programaId={programaId} anio={anio} arbol="OBJETIVOS" nodos={datos.arbolObjetivos} puedeEditar={puedeEditarEsteArea} onChange={cargar} />
+            <SeccionArbol programaId={programaId} anio={anio} arbol="OBJETIVOS" nodos={datos.arbolObjetivos}
+              puedeEditar={puedeEditarEsteArea} puedeAsignarArea={puedeAsignarArea} onChange={cargar} />
           )}
           {tab === 'acciones' && (
             <SeccionAccionesAlternativas programaId={programaId} anio={anio} acciones={datos.acciones} nodosMedio={datos.medios} puedeEditar={puedeEditarEsteArea} onChange={cargar} />
@@ -220,10 +225,10 @@ export default function ExpedienteMML() {
             </div>
           )}
           {tab === 'mir' && !sinObjetivoCentral && (
-            <SeccionMIR programaId={programaId} anio={anio} mirNiveles={datos.mirNiveles} puedeEditar={puedeEditarEsteArea} onChange={cargar} />
+            <SeccionMIR programaId={programaId} anio={anio} mirNiveles={datos.mirNiveles} rolInfo={rolInfo} onChange={cargar} />
           )}
           {tab === 'metas' && !sinObjetivoCentral && (
-            <SeccionMetas anio={anio} mirNiveles={datos.mirNiveles} puedeEditar={puedeEditarMetas} onChange={cargar} />
+            <SeccionMetas anio={anio} mirNiveles={datos.mirNiveles} rolInfo={rolInfo} onChange={cargar} />
           )}
         </>
       )}
