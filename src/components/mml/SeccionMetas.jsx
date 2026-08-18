@@ -71,10 +71,10 @@ export default function SeccionMetas({ anio, mirNiveles, puedeEditar, onChange }
       )}
       {!!filas.length && (
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 920 }}>
             <thead>
               <tr>
-                <th style={{ ...th, textAlign: 'left', minWidth: 140, maxWidth: 160 }}>Indicador</th>
+                <th style={{ ...th, textAlign: 'left', minWidth: 260, maxWidth: 320 }}>Indicador</th>
                 {MESES.map(m => <th key={m} style={th}>{m}</th>)}
                 <th style={{ ...th, minWidth: 50 }} title="Se calcula solo, suma de los 12 meses">Anual Σ</th>
               </tr>
@@ -82,9 +82,9 @@ export default function SeccionMetas({ anio, mirNiveles, puedeEditar, onChange }
             <tbody>
               {filas.map(f => (
                 <tr key={f.id}>
-                  <td style={{ ...td, textAlign: 'left', fontSize: '0.64rem', color: C.txt, maxWidth: 160, overflow: 'hidden' }} title={f.indicador.nombre}>
+                  <td style={{ ...td, textAlign: 'left', fontSize: '0.64rem', color: C.txt, maxWidth: 320 }}>
                     <span style={{ fontSize: '0.54rem', color: C.txtMuted, display: 'block' }}>{f.tipo}{f.numero ? ` ${f.numero}` : ''}</span>
-                    <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.indicador.nombre}</span>
+                    <span style={{ display: 'block', whiteSpace: 'normal', wordBreak: 'break-word' }}>{f.indicador.nombre}</span>
                   </td>
                   {MESES.map((_, i) => {
                     const mes = i + 1

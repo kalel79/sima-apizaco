@@ -210,12 +210,12 @@ function FilaMIR({ nivel, abierto, onToggle, indicadores, areas, programaId, pue
           </select>
         </td>
         <td style={td}>
-          <textarea rows={2} defaultValue={nivel.supuestos || ''} disabled={!puedeEditar}
+          <textarea rows={5} defaultValue={nivel.supuestos || ''} disabled={!puedeEditar}
             onBlur={e => { if (e.target.value !== (nivel.supuestos || '')) conGuardado('nodo-' + nivel.id, () => actualizarNodoMIR(nivel.id, { supuestos: e.target.value })) }}
             style={inp} />
         </td>
         <td style={td}>
-          <textarea rows={2} defaultValue={nivel.medios_verificacion || ''} disabled={!puedeEditar}
+          <textarea rows={5} defaultValue={nivel.medios_verificacion || ''} disabled={!puedeEditar}
             onBlur={e => { if (e.target.value !== (nivel.medios_verificacion || '')) conGuardado('nodo-' + nivel.id, () => actualizarNodoMIR(nivel.id, { mediosVerificacion: e.target.value })) }}
             style={inp} />
         </td>
@@ -283,7 +283,7 @@ function FichaIndicador({ nivel, ind, anio, puedeEditar, conGuardado, setGuardan
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 120px', gap: '0.6rem', marginBottom: '0.6rem' }}>
         <div>
           <label style={lbl}>Definición</label>
-          <textarea rows={2} defaultValue={ind.definicion || ''} disabled={!puedeEditar}
+          <textarea rows={4} defaultValue={ind.definicion || ''} disabled={!puedeEditar}
             onBlur={e => { if (e.target.value !== (ind.definicion || '')) conGuardado('ind-' + ind.id, () => actualizarFichaIndicador(ind.id, { definicion: e.target.value })) }}
             style={inp} />
         </div>
@@ -304,7 +304,7 @@ function FichaIndicador({ nivel, ind, anio, puedeEditar, conGuardado, setGuardan
       </div>
       <div style={{ marginBottom: '0.8rem' }}>
         <label style={lbl}>Interpretación</label>
-        <textarea rows={2} defaultValue={ind.interpretacion || ''} disabled={!puedeEditar}
+        <textarea rows={4} defaultValue={ind.interpretacion || ''} disabled={!puedeEditar}
           onBlur={e => { if (e.target.value !== (ind.interpretacion || '')) conGuardado('ind-' + ind.id, () => actualizarFichaIndicador(ind.id, { interpretacion: e.target.value })) }}
           style={inp} />
       </div>

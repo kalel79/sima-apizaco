@@ -3,6 +3,7 @@
 // expedienteMMLSecciones.js sobre un único documento jsPDF y lo descarga.
 import { jsPDF } from 'jspdf'
 import { supabase, resolverDatosMML } from '../lib/supabase.js'
+import { limpiarDatosPDF, limpiarTextoPDF } from './reportesBase.js'
 import {
   drawFichaProyecto, drawDescripcionPrograma, drawIndice, drawTransformacionDeseada,
   drawArbolDiagrama, drawInvolucrados, drawAcciones, drawAlternativas, drawMatrizMIR,
@@ -19,7 +20,11 @@ export const TIPO_CONFIG_OBJETIVOS = {
 }
 
 export async function generarExpedienteMML(programaId, anio) {
-  const datos = await resolverDatosMML(programaId, anio)
+  // limpiarDatosPDF: los fonts estándar de jsPDF no soportan caracteres fuera
+  // de Latin-1 (guion largo "–", viñeta "•", "≥"...) — sin esto, cualquier
+  // texto capturado con ese tipo de carácter se corrompe/desaparece en el PDF
+  // a partir de ahí (ver reportesBase.js).
+  const datos = limpiarDatosPDF(await resolverDatosMML(programaId, anio))
   datos.anio = anio
 
   let ejeNombre = ''
@@ -27,7 +32,7 @@ export async function generarExpedienteMML(programaId, anio) {
     const { data } = await supabase.from('ejes').select('nombre').eq('id', datos.programa.eje_id).maybeSingle()
     ejeNombre = data?.nombre || ''
   }
-  datos.ejeNombre = ejeNombre
+  datos.ejeNombre = limpiarTextoPDF(ejeNombre)
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
 

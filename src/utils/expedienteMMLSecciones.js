@@ -394,12 +394,19 @@ export function drawArbolDiagrama(doc, datos, arbolTipo, tipoConfig, folio) {
   const MARGEN_ARBOL = 6
   const usableArbol = W - MARGEN_ARBOL * 2
 
-  // Fila superior (Efectos/Fines): ancho uniforme entre sí, como antes.
+  // Fila superior (Efectos/Fines): ancho uniforme entre sí, como antes. La
+  // fuente se encoge de forma uniforme en toda la fila (mismo patrón que la
+  // fila secundaria de sub-causas/sub-medios) para que un Efecto/Fin con
+  // texto largo no se trunque — antes esta fila usaba siempre fontSize=6 fijo
+  // y `drawCaja` recortaba las líneas que no cupieran en BOX_H sin avisar.
   const nSup = Math.max(superiores.length, 1)
   const boxWSuperior = Math.min(BOX_W_MAX, (usableArbol - GAP_X * (nSup - 1)) / nSup)
   const filaSup = layoutRow(superiores, W, boxWSuperior, MARGEN_ARBOL)
   const ySup = y + 6
-  filaSup.forEach(({ nodo, x, w }) => drawCaja(doc, x, ySup, w, BOX_H, nodo.texto, { areaTag: areaTag(nodo) }))
+  const fontSup = superiores.length ? Math.min(6, Math.max(4.2, Math.min(
+    ...superiores.map(nodo => fontAjustadaCaja(doc, nodo.texto, boxWSuperior, BOX_H - (areaTag(nodo) ? AREA_TAG_H : 0)))
+  ))) : 6
+  filaSup.forEach(({ nodo, x, w }) => drawCaja(doc, x, ySup, w, BOX_H, nodo.texto, { fontSize: fontSup, areaTag: areaTag(nodo) }))
 
   // Fila primaria (Causas/Medios de primer nivel): el ancho de cada caja es
   // proporcional a cuántos hijos (sub-causas/sub-medios) tiene — antes todas
@@ -418,6 +425,11 @@ export function drawArbolDiagrama(doc, datos, arbolTipo, tipoConfig, folio) {
     cursorX += anchosPrim[i] + GAP_X
     return item
   })
+  // Misma razón que fontSup: un Causa/Medio con texto largo (ej. anomalías de
+  // narrativa copiada de otro programa) no debe truncarse en silencio.
+  const fontPrim = primarios.length ? Math.min(6, Math.max(4.2, Math.min(
+    ...primarios.map((nodo, i) => fontAjustadaCaja(doc, nodo.texto, anchosPrim[i], BOX_H - (areaTag(nodo) ? AREA_TAG_H : 0)))
+  ))) : 6
 
   // Nodo raíz (Problema central / Objetivo central) — no una caja del mismo
   // tamaño que las demás, sino una barra que cubre el ANCHO TOTAL que ocupan
@@ -430,7 +442,7 @@ export function drawArbolDiagrama(doc, datos, arbolTipo, tipoConfig, folio) {
 
   const yPrim = yRaiz + BOX_H + 14
   filaPrim.forEach(({ nodo, x, w }) => {
-    drawCaja(doc, x, yPrim, w, BOX_H, nodo.texto, { areaTag: areaTag(nodo) })
+    drawCaja(doc, x, yPrim, w, BOX_H, nodo.texto, { fontSize: fontPrim, areaTag: areaTag(nodo) })
     drawConector(doc, raizX + raizW / 2, yRaiz + BOX_H, x + w / 2, yPrim)
   })
 
@@ -607,20 +619,35 @@ export function drawAlternativas(doc, datos) {
     return
   }
 
-  const boxW = anchoCajaParaFila(actividades.length, W)
-  const filaAct = layoutRow(actividades, W, boxW)
-  const textosAct = filaAct.map(({ nodo: a }) => `${a.numero} ${a.actividad.texto}`)
-  // Con muchas actividades (hasta 17) el ancho de columna puede quedar muy
-  // angosto — se encoge la fuente de forma uniforme en toda la fila (hasta
-  // un tope razonable de alto) en vez de dejar que las cajas crezcan sin
-  // límite o que el texto se desborde del cuadro.
+  // Con muchas actividades (hasta 18 reales) una sola fila deja cajas de
+  // ~13mm de ancho — el texto entero SÍ cabe (auto-fit de fuente + alto
+  // dinámico ya lo garantizan), pero queda ilegible: 10-12 renglones de 1-2
+  // palabras que a simple vista se ven "cortadas". Repartir en 2 filas
+  // cuando hay más de FILA_MAX_ACT actividades duplica el ancho de cada
+  // caja sin perder ningún carácter.
+  const FILA_MAX_ACT = 9
+  const filas = actividades.length > FILA_MAX_ACT
+    ? [actividades.slice(0, Math.ceil(actividades.length / 2)), actividades.slice(Math.ceil(actividades.length / 2))]
+    : [actividades]
+  const nMax = Math.max(...filas.map(f => f.length))
+  const boxW = anchoCajaParaFila(nMax, W)
+  const filasLayout = filas.map(f => layoutRow(f, W, boxW))
+  const textosPorFila = filasLayout.map(fila => fila.map(({ nodo: a }) => `${a.numero} ${a.actividad.texto}`))
+  // Con muchas actividades el ancho de columna puede quedar angosto — se
+  // encoge la fuente de forma uniforme en TODAS las filas (hasta un tope
+  // razonable de alto) en vez de dejar que las cajas crezcan sin límite o
+  // que el texto se desborde del cuadro.
   const fontAct = Math.min(6, Math.max(4.2, Math.min(
-    ...filaAct.map(({ w }, i) => fontAjustadaCaja(doc, textosAct[i], w, 45))
+    ...filasLayout.flatMap((fila, fi) => fila.map(({ w }, i) => fontAjustadaCaja(doc, textosPorFila[fi][i], w, 45)))
   )))
-  const hAct = Math.max(...filaAct.map(({ w }, i) => alturaCajaDinamica(doc, textosAct[i], w, { fontSize: fontAct })))
+  const hAct = Math.max(
+    ...filasLayout.flatMap((fila, fi) => fila.map(({ w }, i) => alturaCajaDinamica(doc, textosPorFila[fi][i], w, { fontSize: fontAct })))
+  )
+  const ROW_GAP_ACT = 5
+  const hActTotal = filas.length * hAct + (filas.length - 1) * ROW_GAP_ACT
 
   const anchoTotal = n => n * boxW + GAP_X * (n - 1)
-  const altW = anchoTotal(actividades.length)
+  const altW = anchoTotal(nMax)
   // Cada actividad en su propio renglón; entre una y la siguiente, un
   // renglón aparte solo con "+" (no pegado al texto de la actividad).
   const textoAlt = actividades.map(a => `${a.numero} ${a.actividad.texto}`).join('\n+\n')
@@ -631,29 +658,40 @@ export function drawAlternativas(doc, datos) {
   const GAP_BASE = 14
 
   // El cuadro combinado se ajusta al espacio que en verdad queda debajo de
-  // la fila de actividades — antes se medía a fuente fija (6.6pt) sin tope,
-  // así que con muchas actividades (hasta 17, cada una en su propio
+  // la(s) fila(s) de actividades — antes se medía a fuente fija (6.6pt) sin
+  // tope, así que con muchas actividades (hasta 18, cada una en su propio
   // renglón) el cuadro creía necesitar más alto del que quedaba disponible
   // y terminaba invadiendo el área de firmas. Se encoge la fuente hasta que
   // quepa en el espacio real; si ni así cabe todo, se limita estrictamente a
   // `maxAltH` (drawCaja trunca antes de desbordar, nunca choca con firmas).
-  const maxAltH = Math.max(BOX_H, disponible - hAct - GAP_BASE)
+  const maxAltH = Math.max(BOX_H, disponible - hActTotal - GAP_BASE)
   const fontAlt = fontAjustadaCaja(doc, textoAlt, altW, maxAltH, { fontMax: 6.6, fontMin: 4.2, destacado: true })
   const altH = Math.min(maxAltH, alturaCajaDinamica(doc, textoAlt, altW, { fontSize: fontAlt }))
 
-  const extra = Math.max(0, disponible - (hAct + altH) - GAP_BASE)
+  const extra = Math.max(0, disponible - (hActTotal + altH) - GAP_BASE)
   const topPad = extra * 0.3
   const gap = GAP_BASE + extra * 0.5
 
-  const yAct = yTopDiagrama + topPad
-  const yAlt = yAct + hAct + gap
+  const yActBase = yTopDiagrama + topPad
+  const yActFila = i => yActBase + i * (hAct + ROW_GAP_ACT)
+  const yAlt = yActBase + hActTotal + gap
   const altX = (W - altW) / 2
 
-  filaAct.forEach(({ x, w }, i) => drawCaja(doc, x, yAct, w, hAct, textosAct[i], { fontSize: fontAct }))
+  // Orden de dibujo: conectores de las filas superiores primero (para que su
+  // tramo final quede oculto detrás de las cajas de la fila siguiente, en
+  // vez de cruzar por encima de su texto), luego todas las cajas por fila,
+  // y al final el cuadro combinado con los conectores de la última fila.
+  for (let fi = 0; fi < filasLayout.length - 1; fi++) {
+    filasLayout[fi].forEach(({ x, w }) => drawConector(doc, x + w / 2, yActFila(fi) + hAct, altX + altW / 2, yAlt))
+  }
+  filasLayout.forEach((fila, fi) => {
+    fila.forEach(({ x, w }, i) => drawCaja(doc, x, yActFila(fi), w, hAct, textosPorFila[fi][i], { fontSize: fontAct }))
+  })
   drawCaja(doc, altX, yAlt, altW, altH, textoAlt, { destacado: true, fontSize: fontAlt })
-  filaAct.forEach(({ x, w }) => drawConector(doc, x + w / 2, yAct + hAct, altX + altW / 2, yAlt))
+  const ultimaFila = filasLayout[filasLayout.length - 1]
+  ultimaFila.forEach(({ x, w }) => drawConector(doc, x + w / 2, yActFila(filasLayout.length - 1) + hAct, altX + altW / 2, yAlt))
 
-  etiquetaFilaVertical(doc, 'ACTIVIDADES', 6, yAct + hAct / 2, hAct + gap)
+  etiquetaFilaVertical(doc, 'ACTIVIDADES', 6, yActBase + hActTotal / 2, hActTotal + gap)
   etiquetaFilaVertical(doc, 'ALTERNATIVAS', 6, yAlt + altH / 2, altH + gap)
 
   drawFirmasMML(doc, datos, H - FIRMAS_MARGEN_INF)

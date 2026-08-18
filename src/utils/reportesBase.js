@@ -186,6 +186,50 @@ export function numStr(val) {
   return Number.isInteger(n) ? String(n) : n.toFixed(2)
 }
 
+// Los fonts estándar de jsPDF (helvetica/times/courier) solo saben interpretar
+// WinAnsiEncoding de 1 byte por carácter. En cuanto una línea de texto trae
+// UN SOLO carácter con código Unicode > 255 (guion largo "–", viñeta "•",
+// elipsis "…", comillas tipográficas, "≥"/"≤"...), jsPDF cambia TODA esa línea
+// a UCS-2BE (2 bytes por carácter) para no perder el dato — pero como esos
+// fonts no son fonts de 2 bytes, el resultado visual es texto corrupto o que
+// desaparece a partir de ahí (bug real encontrado 2026-08-18: el nombre de un
+// indicador con "≥18 años" se veía cortado justo en el "≥" en el PDF del
+// Expediente MML del programa 005). Los acentos y "ñ" no tienen este problema
+// porque están dentro de Latin-1 (código ≤ 255).
+const MAPA_UNICODE_PDF = {
+  '–': '-', '—': '-',           // – —
+  '‘': "'", '’': "'",           // ‘ ’
+  '“': '"', '”': '"',           // “ ”
+  '…': '...',                        // …
+  '•': '-',                          // •
+  '≥': '>=', '≤': '<=',         // ≥ ≤
+}
+const RE_UNICODE_MAPEADO = /[–—‘’“”…•≥≤]/g
+const RE_UNICODE_FUERA_LATIN1 = /[^ -ÿ]/g
+
+export function limpiarTextoPDF(texto) {
+  if (texto == null) return texto
+  return String(texto)
+    .replace(RE_UNICODE_MAPEADO, c => MAPA_UNICODE_PDF[c])
+    // red de seguridad: cualquier otro carácter fuera de Latin-1 (emojis,
+    // símbolos raros, etc.) se sustituye por "?" en vez de romper la línea.
+    .replace(RE_UNICODE_FUERA_LATIN1, '?')
+}
+
+// Aplica limpiarTextoPDF recursivamente a todos los strings de un objeto/array
+// de datos — para sanear de una sola vez todo lo que viene de captura libre
+// (resolverDatosMML, resolverDatosReporte, etc.) antes de dibujarlo con jsPDF.
+export function limpiarDatosPDF(valor) {
+  if (typeof valor === 'string') return limpiarTextoPDF(valor)
+  if (Array.isArray(valor)) return valor.map(limpiarDatosPDF)
+  if (valor && typeof valor === 'object') {
+    const limpio = {}
+    for (const k of Object.keys(valor)) limpio[k] = limpiarDatosPDF(valor[k])
+    return limpio
+  }
+  return valor
+}
+
 export function formatFecha(d) {
   d = d || new Date()
   return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`
