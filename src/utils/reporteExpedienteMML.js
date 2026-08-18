@@ -13,10 +13,14 @@ import {
 export const TIPO_CONFIG_PROBLEMA = {
   titulo: 'ÁRBOL DEL PROBLEMA', tipoRaiz: 'CENTRAL', tipoSuperior: 'EFECTO', tipoPrimario: 'CAUSA',
   labelRaiz: 'PROBLEMA CENTRAL', labelSuperior: 'EFECTOS', labelPrimario: 'CAUSAS',
+  // fase_mml_11: nivel opcional arriba de Efectos (ver drawArbolDiagrama).
+  tipoSuperiorGeneral: 'EFECTO_GENERAL', labelSuperiorGeneral: 'EFECTO',
 }
 export const TIPO_CONFIG_OBJETIVOS = {
   titulo: 'ÁRBOL DE OBJETIVOS', tipoRaiz: 'OBJETIVO', tipoSuperior: 'FIN', tipoPrimario: 'MEDIO',
   labelRaiz: 'OBJETIVO CENTRAL', labelSuperior: 'FINES', labelPrimario: 'MEDIOS',
+  // fase_mml_11: nivel opcional arriba de Fines (ver drawArbolDiagrama).
+  tipoSuperiorGeneral: 'FIN_GENERAL', labelSuperiorGeneral: 'FIN',
 }
 
 export async function generarExpedienteMML(programaId, anio) {

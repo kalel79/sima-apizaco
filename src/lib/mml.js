@@ -92,8 +92,12 @@ function derivarNivelesMIR(nodosObjetivos) {
 
   const niveles = [{ ...objetivoCentral, mirTipo: 'PROPOSITO', numero: null, areaEfectivaId: null }]
 
+  // fase_mml_11: si el programa ya organizó un nodo FIN_GENERAL (hijo directo
+  // del Objetivo), los Fines "de verdad" cuelgan de ese nodo en vez de la
+  // raíz — retrocompatible: sin FIN_GENERAL, se busca como siempre.
+  const finGeneral = nodosObjetivos.find(n => n.tipo === 'FIN_GENERAL' && n.padre_id === objetivoCentral.id)
   const finesDelObjetivo = nodosObjetivos
-    .filter(n => n.tipo === 'FIN' && n.padre_id === objetivoCentral.id)
+    .filter(n => n.tipo === 'FIN' && n.padre_id === (finGeneral ? finGeneral.id : objetivoCentral.id))
     .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
   if (finesDelObjetivo.length) {
     niveles.push({ ...finesDelObjetivo[0], mirTipo: 'FIN', numero: null, areaEfectivaId: null })

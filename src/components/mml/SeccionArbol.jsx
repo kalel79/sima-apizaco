@@ -4,8 +4,8 @@ import { upsertArbolNodo, eliminarArbolNodo, actualizarAreaResponsable, getAreas
 import { C } from '../../theme.js'
 
 const TIPOS_POR_ARBOL = {
-  PROBLEMA: ['CENTRAL', 'CAUSA', 'EFECTO'],
-  OBJETIVOS: ['OBJETIVO', 'MEDIO', 'FIN'],
+  PROBLEMA: ['CENTRAL', 'CAUSA', 'EFECTO', 'EFECTO_GENERAL'],
+  OBJETIVOS: ['OBJETIVO', 'MEDIO', 'FIN', 'FIN_GENERAL'],
 }
 const TITULO_POR_ARBOL = {
   PROBLEMA: 'Árbol del Problema (PP-FM-04)',

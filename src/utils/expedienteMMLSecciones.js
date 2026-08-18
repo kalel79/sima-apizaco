@@ -375,7 +375,16 @@ export function drawArbolDiagrama(doc, datos, arbolTipo, tipoConfig, folio) {
     return
   }
 
-  const superiores = nodos.filter(n => n.tipo === tipoConfig.tipoSuperior && n.padre_id === raiz.id)
+  // fase_mml_11: nivel opcional "Fin general"/"Efecto general" — un solo
+  // nodo hijo directo de la raíz, con los Efectos/Fines "directos" colgando
+  // de él en vez de la raíz. 100% retrocompatible: si el programa no tiene
+  // este nodo, `general` sale null y todo se calcula/dibuja exactamente
+  // igual que antes de esta fase.
+  const general = tipoConfig.tipoSuperiorGeneral
+    ? nodos.find(n => n.tipo === tipoConfig.tipoSuperiorGeneral && n.padre_id === raiz.id)
+    : null
+  const superioresPadreId = general ? general.id : raiz.id
+  const superiores = nodos.filter(n => n.tipo === tipoConfig.tipoSuperior && n.padre_id === superioresPadreId)
     .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
   const primarios = nodos.filter(n => n.tipo === tipoConfig.tipoPrimario && n.padre_id === raiz.id)
     .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
@@ -402,11 +411,30 @@ export function drawArbolDiagrama(doc, datos, arbolTipo, tipoConfig, folio) {
   const nSup = Math.max(superiores.length, 1)
   const boxWSuperior = Math.min(BOX_W_MAX, (usableArbol - GAP_X * (nSup - 1)) / nSup)
   const filaSup = layoutRow(superiores, W, boxWSuperior, MARGEN_ARBOL)
-  const ySup = y + 6
+  // Con nodo general, todo el diagrama se recorre un nivel hacia abajo para
+  // dejarle espacio arriba — sin él, ySup empieza donde siempre. Los gaps
+  // entre filas se acortan un poco SOLO cuando hay general (5 filas en vez de
+  // 4), para que la fila de Actividades/subcausas no choque con las firmas —
+  // sin general, todo queda exactamente igual que antes (gaps de 14/14/12).
+  const GAP_TIER = general ? 10 : 14
+  const GAP_SEC = general ? 10 : 12
+  const yGeneral = y + 4
+  const ySup = general ? yGeneral + BOX_H + 8 : y + 6
   const fontSup = superiores.length ? Math.min(6, Math.max(4.2, Math.min(
     ...superiores.map(nodo => fontAjustadaCaja(doc, nodo.texto, boxWSuperior, BOX_H - (areaTag(nodo) ? AREA_TAG_H : 0)))
   ))) : 6
   filaSup.forEach(({ nodo, x, w }) => drawCaja(doc, x, ySup, w, BOX_H, nodo.texto, { fontSize: fontSup, areaTag: areaTag(nodo) }))
+
+  // Caja "Fin general"/"Efecto general" — mismo patrón que la caja raíz (un
+  // solo cuadro destacado que cubre el ancho total de la fila que conecta,
+  // centrado), solo que aplicado un nivel más arriba y con las flechas
+  // apuntando hacia arriba en vez de hacia abajo.
+  const totalSuperior = boxWSuperior * nSup + GAP_X * (nSup - 1)
+  if (general) {
+    const generalX = (W - totalSuperior) / 2
+    drawCaja(doc, generalX, yGeneral, totalSuperior, BOX_H, general.texto, { destacado: true })
+    filaSup.forEach(({ x, w }) => drawConector(doc, x + w / 2, ySup, generalX + totalSuperior / 2, yGeneral + BOX_H))
+  }
 
   // Fila primaria (Causas/Medios de primer nivel): el ancho de cada caja es
   // proporcional a cuántos hijos (sub-causas/sub-medios) tiene — antes todas
@@ -434,13 +462,13 @@ export function drawArbolDiagrama(doc, datos, arbolTipo, tipoConfig, folio) {
   // Nodo raíz (Problema central / Objetivo central) — no una caja del mismo
   // tamaño que las demás, sino una barra que cubre el ANCHO TOTAL que ocupan
   // las filas de Efectos/Causas (o Fines/Medios), la más ancha de las dos.
-  const totalSuperior = boxWSuperior * nSup + GAP_X * (nSup - 1)
+  // (totalSuperior ya se calculó arriba, junto con la caja "general".)
   const raizW = Math.max(totalSuperior, anchoTotalPrim)
-  const raizX = (W - raizW) / 2, yRaiz = ySup + BOX_H + 14
+  const raizX = (W - raizW) / 2, yRaiz = ySup + BOX_H + GAP_TIER
   drawCaja(doc, raizX, yRaiz, raizW, BOX_H, raiz.texto, { destacado: true, areaTag: areaTag(raiz) })
   filaSup.forEach(({ x, w }) => drawConector(doc, x + w / 2, ySup + BOX_H, raizX + raizW / 2, yRaiz))
 
-  const yPrim = yRaiz + BOX_H + 14
+  const yPrim = yRaiz + BOX_H + GAP_TIER
   filaPrim.forEach(({ nodo, x, w }) => {
     drawCaja(doc, x, yPrim, w, BOX_H, nodo.texto, { fontSize: fontPrim, areaTag: areaTag(nodo) })
     drawConector(doc, raizX + raizW / 2, yRaiz + BOX_H, x + w / 2, yPrim)
@@ -454,7 +482,7 @@ export function drawArbolDiagrama(doc, datos, arbolTipo, tipoConfig, folio) {
   // grandes en vez de todas iguales. La fuente se encoge de forma uniforme
   // en toda la fila (no caja por caja) hasta que el grupo más apretado deje
   // de truncarse, para que se vea consistente.
-  const ySec = yPrim + BOX_H + 12
+  const ySec = yPrim + BOX_H + GAP_SEC
   const gruposSecundarios = filaPrim.map(({ nodo: primario, x: xPrim, w: wPrim }) => {
     const hijos = hijosDe(primario)
     if (!hijos.length) return null
@@ -489,7 +517,10 @@ export function drawArbolDiagrama(doc, datos, arbolTipo, tipoConfig, folio) {
   // misma cantidad antes de rotar, así el centro del texto cae exactamente
   // sobre el centro vertical de su fila de cajas.
   const xEtiqueta = MARGEN_ARBOL / 2
+  // A pedido de Hugo: sin sufijo "DIRECTOS" — la fila de Fines/Efectos
+  // conserva siempre su etiqueta simple, exista o no el nivel "general".
   etiquetaFilaVertical(doc, tipoConfig.labelSuperior, xEtiqueta, ySup + BOX_H / 2)
+  if (general) etiquetaFilaVertical(doc, tipoConfig.labelSuperiorGeneral, xEtiqueta, yGeneral + BOX_H / 2)
   etiquetaFilaVertical(doc, tipoConfig.labelRaiz, xEtiqueta, yRaiz + BOX_H / 2)
   etiquetaFilaVertical(doc, tipoConfig.labelPrimario, xEtiqueta, yPrim + BOX_H / 2)
 
