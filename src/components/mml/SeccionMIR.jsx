@@ -13,6 +13,7 @@ const TIPO_INDICADOR = ['Estratégico', 'Gestión']
 const DIMENSIONES = ['Eficacia', 'Eficiencia', 'Economía', 'Calidad']
 const SENTIDOS = ['Ascendente', 'Descendente', 'Regular']
 const FRECUENCIAS = ['Mensual', 'Bimestral', 'Trimestral', 'Semestral', 'Anual']
+const UNIDADES_MEDIDA = ['Porcentaje', 'Reunión', 'Documento', 'Sesión', 'Beneficiario', 'Proyecto', 'Obra', 'Curso', 'Evento']
 const CREAR_NUEVO = '__crear__'
 
 const inp = { width: '100%', background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 6, color: C.txt, padding: '0.35rem 0.55rem', fontSize: '0.72rem', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', resize: 'vertical' }
@@ -276,7 +277,9 @@ function FilaMIR({ nivel, abierto, onToggle, indicadores, areas, programaId, rol
               </div>
               <div>
                 <label style={lbl}>Unidad de medida</label>
-                <input value={nuevo.unidadMedida} onChange={e => setNuevo(n => ({ ...n, unidadMedida: e.target.value }))} style={inp} />
+                <select value={nuevo.unidadMedida} onChange={e => setNuevo(n => ({ ...n, unidadMedida: e.target.value }))} style={inp}>
+                  {UNIDADES_MEDIDA.map(u => <option key={u}>{u}</option>)}
+                </select>
               </div>
               <div>
                 <label style={lbl}>Frecuencia</label>
