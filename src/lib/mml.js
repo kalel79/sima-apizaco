@@ -347,6 +347,7 @@ export async function actualizarFichaIndicador(indicadorId, campos) {
   if ('dimension' in campos) payload.dimension = campos.dimension || null
   if ('sentido' in campos) payload.sentido = campos.sentido || null
   if ('frecuencia' in campos) payload.frecuencia = campos.frecuencia // NOT NULL en DB, sin fallback a null
+  if ('unidadMedida' in campos) payload.unidad_medida = campos.unidadMedida // NOT NULL en DB, sin fallback a null
   if ('lineaBaseAnio' in campos) payload.linea_base_anio = campos.lineaBaseAnio || null
   if ('interpretacion' in campos) payload.interpretacion = campos.interpretacion || null
 

@@ -314,7 +314,7 @@ function FichaIndicador({ nivel, ind, anio, puedeEditar, conGuardado, setGuardan
         Ficha de indicador — {etiquetaNivelMIR(nivel)} · {ind.nombre}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 120px', gap: '0.6rem', marginBottom: '0.6rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 120px 120px', gap: '0.6rem', marginBottom: '0.6rem' }}>
         <div>
           <label style={lbl}>Definición</label>
           <textarea rows={4} defaultValue={ind.definicion || ''} disabled={!puedeEditar}
@@ -333,6 +333,14 @@ function FichaIndicador({ nivel, ind, anio, puedeEditar, conGuardado, setGuardan
             onBlur={e => { if (e.target.value !== (ind.frecuencia || '')) conGuardado('ind-' + ind.id, () => actualizarFichaIndicador(ind.id, { frecuencia: e.target.value })) }}
             style={inp}>
             {FRECUENCIAS.map(f => <option key={f}>{f}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={lbl}>Unidad de medida</label>
+          <select defaultValue={ind.unidad_medida || 'Porcentaje'} disabled={!puedeEditar}
+            onBlur={e => { if (e.target.value !== (ind.unidad_medida || '')) conGuardado('ind-' + ind.id, () => actualizarFichaIndicador(ind.id, { unidadMedida: e.target.value })) }}
+            style={inp}>
+            {UNIDADES_MEDIDA.map(u => <option key={u}>{u}</option>)}
           </select>
         </div>
       </div>
