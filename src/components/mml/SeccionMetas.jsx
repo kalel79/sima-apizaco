@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { XCircle } from 'lucide-react'
-import { upsertMeta, puedeEditarDatosIndicador } from '../../lib/supabase'
+import { XCircle, Copy, Loader2 } from 'lucide-react'
+import { upsertMeta, puedeEditarDatosIndicador, copiarMetasDeAnioAnterior } from '../../lib/supabase'
 import { C } from '../../theme.js'
 
 const MESES = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC']
@@ -19,11 +19,24 @@ const td = { padding: '0.22rem 0.15rem', textAlign: 'center', borderBottom: `1px
 // fase_mml_10: el permiso ya no es un booleano de pantalla — cada fila se
 // habilita según el Área responsable de su Componente (puedeEditarDatosIndicador),
 // igual que ya hace cumplir la RLS de `metas` del lado del servidor.
-export default function SeccionMetas({ anio, mirNiveles, rolInfo, onChange }) {
+export default function SeccionMetas({ anio, mirNiveles, rolInfo, puedeCopiar, anioOrigenDisponible, onChange }) {
   const [guardando, setGuardando] = useState(null)
   const [error, setError] = useState(null)
 
   const filas = (Array.isArray(mirNiveles) ? mirNiveles : []).filter(n => n.indicador_id && n.indicador)
+  const sinMetasCapturadas = filas.length > 0 && filas.every(f => !f.metas || Object.keys(f.metas).length === 0)
+
+  async function handleCopiar() {
+    setGuardando('copiar'); setError(null)
+    try {
+      await copiarMetasDeAnioAnterior({ anio, indicadorIds: filas.map(f => f.indicador_id) })
+      onChange()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setGuardando(null)
+    }
+  }
 
   // El Anual ya no se captura a mano — se recalcula solo como suma de los 12
   // meses cada vez que se guarda uno (decisión 2026-07-23).
@@ -72,6 +85,15 @@ export default function SeccionMetas({ anio, mirNiveles, rolInfo, onChange }) {
           Este programa no tiene indicadores enlazados a la MIR todavía.
         </div>
       )}
+      {sinMetasCapturadas && puedeCopiar && anioOrigenDisponible && (
+        <button onClick={handleCopiar} disabled={guardando === 'copiar'}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.bgPanel, border: `1px dashed ${C.doradoLight}`, borderRadius: 8, color: C.doradoLight, padding: '0.55rem 0.9rem', fontSize: '0.76rem', cursor: 'pointer', fontFamily: 'inherit', marginBottom: '0.8rem', width: '100%', justifyContent: 'center' }}>
+          {guardando === 'copiar'
+            ? <><Loader2 size={13} style={{animation:'spin 0.8s linear infinite'}}/> Copiando…</>
+            : <><Copy size={13}/> Copiar metas de {anioOrigenDisponible} — dejarlas como base editable para {anio}</>}
+        </button>
+      )}
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       {!!filas.length && (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 920 }}>

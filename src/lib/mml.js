@@ -272,6 +272,50 @@ export async function eliminarArbolNodo(id) {
   if (error) throw error
 }
 
+// ── Copiar de año anterior — "dejar el de 2026 o proponer uno nuevo para
+// 2027": crea en `anio` una copia editable del contenido de `anio - 1`, para
+// que el Director/Enlace parta de una base en vez de capturar desde cero.
+// El límite de "solo si el año destino está vacío" lo hace cumplir la
+// pantalla (el botón solo aparece si la sección de `anio` no tiene filas
+// todavía) — estas funciones no lo validan de nuevo, solo copian.
+export async function copiarArbolDeAnioAnterior({ programaId, anio, arbol }) {
+  const anioOrigen = anio - 1
+  const { data: nodosOrigen, error: eOrig } = await supabase
+    .from('arbol_nodos').select('*')
+    .eq('programa_id', programaId).eq('anio', anioOrigen).eq('arbol', arbol)
+    .order('orden')
+  if (eOrig) throw eOrig
+  if (!nodosOrigen?.length) return []
+
+  // Inserción en orden topológico (padres antes que hijos), remapeando
+  // id viejo -> id nuevo para reconstruir la misma jerarquía en el año nuevo.
+  // supuestos/medios_verificacion/indicador_id viajan con el nodo: así la
+  // "matriz de riesgos" y la ficha de indicador vinculada quedan cubiertas
+  // por esta misma copia, sin acción aparte en la pestaña Riesgos/MIR.
+  const idMap = new Map()
+  let pendientes = nodosOrigen
+  const insertados = []
+  while (pendientes.length) {
+    const listos = pendientes.filter(n => n.padre_id == null || idMap.has(n.padre_id))
+    if (!listos.length) throw new Error(`No se pudo copiar: jerarquía de árbol inconsistente en ${anioOrigen}`)
+    for (const n of listos) {
+      const payload = {
+        programa_id: programaId, anio, arbol, tipo: n.tipo,
+        padre_id: n.padre_id ? idMap.get(n.padre_id) : null,
+        orden: n.orden, texto: n.texto,
+        supuestos: n.supuestos, medios_verificacion: n.medios_verificacion,
+        indicador_id: n.indicador_id, area_responsable_id: n.area_responsable_id,
+      }
+      const { data, error } = await supabase.from('arbol_nodos').insert(payload).select().single()
+      if (error) throw error
+      idMap.set(n.id, data.id)
+      insertados.push(data)
+    }
+    pendientes = pendientes.filter(n => !idMap.has(n.id))
+  }
+  return insertados
+}
+
 export async function upsertInvolucrado({ id, programaId, anio, categoria, actor, orden }) {
   const payload = { programa_id: programaId, anio, categoria, actor, orden: orden ?? 0 }
   const query = id
@@ -285,6 +329,38 @@ export async function upsertInvolucrado({ id, programaId, anio, categoria, actor
 export async function eliminarInvolucrado(id) {
   const { error } = await supabase.from('involucrados_programa').delete().eq('id', id)
   if (error) throw error
+}
+
+export async function copiarInvolucradosDeAnioAnterior({ programaId, anio }) {
+  const anioOrigen = anio - 1
+  const { data: origen, error: eOrig } = await supabase
+    .from('involucrados_programa').select('categoria, actor, orden')
+    .eq('programa_id', programaId).eq('anio', anioOrigen).order('categoria').order('orden')
+  if (eOrig) throw eOrig
+  if (!origen?.length) return []
+  const payload = origen.map(o => ({ programa_id: programaId, anio, categoria: o.categoria, actor: o.actor, orden: o.orden }))
+  const { data, error } = await supabase.from('involucrados_programa').insert(payload).select()
+  if (error) throw error
+  return data || []
+}
+
+// Metas (POA): la tabla ya es multi-año (indicador_id, anio, mes) — copiar es
+// un upsert directo por (indicador_id, anio, mes), sin remapeo de ids. Se
+// copian solo los indicadores ya vinculados a la MIR de `anio` (el caller
+// pasa `indicadorIds` desde los mirNiveles ya resueltos para el año destino),
+// para que lo copiado sea visible de inmediato en la pestaña de Metas.
+export async function copiarMetasDeAnioAnterior({ anio, indicadorIds }) {
+  const anioOrigen = anio - 1
+  if (!indicadorIds?.length) return []
+  const { data: origen, error: eOrig } = await supabase
+    .from('metas').select('indicador_id, mes, valor')
+    .in('indicador_id', indicadorIds).eq('anio', anioOrigen)
+  if (eOrig) throw eOrig
+  if (!origen?.length) return []
+  const payload = origen.map(m => ({ indicador_id: m.indicador_id, anio, mes: m.mes, valor: m.valor }))
+  const { data, error } = await supabase.from('metas').upsert(payload, { onConflict: 'indicador_id,anio,mes' }).select()
+  if (error) throw error
+  return data || []
 }
 
 export async function upsertAccionAlternativa({ id, programaId, anio, medioId, texto, seleccionada, justificacion, orden }) {

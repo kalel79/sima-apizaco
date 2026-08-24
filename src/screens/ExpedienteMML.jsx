@@ -35,6 +35,12 @@ export default function ExpedienteMML() {
   // servidor. rolInfo se pasa crudo a esas dos secciones.
   const rolInfo = { isAdmin, isPlaneacion, isEnlace, miAreaId: profile?.area_id ?? null }
   const puedeAsignarArea = isAdmin || isPlaneacion
+  // "Dejar el de 2026 o proponer uno nuevo para 2027": copiar el contenido
+  // del año anterior como base editable, reservado a admin/planeación (mismo
+  // criterio que generar el documento oficial). Solo tiene sentido si el año
+  // anterior existe en el selector — hoy solo 2026 -> 2027.
+  const puedeCopiarAnioAnterior = isAdmin || isPlaneacion
+  const anioOrigenDisponible = ANIOS.includes(anio - 1) ? anio - 1 : null
 
   const [programas, setProgramas] = useState([])
   const [programaId, setProgramaId] = useState(null)
@@ -209,14 +215,17 @@ export default function ExpedienteMML() {
             <SeccionDiagnostico programaId={programaId} anio={anio} diagnostico={datos.diagnostico} puedeEditar={puedeEditarEsteArea} onChange={cargar} />
           )}
           {tab === 'arbolProblema' && (
-            <SeccionArbol programaId={programaId} anio={anio} arbol="PROBLEMA" nodos={datos.arbolProblema} puedeEditar={puedeEditarEsteArea} onChange={cargar} />
+            <SeccionArbol programaId={programaId} anio={anio} arbol="PROBLEMA" nodos={datos.arbolProblema} puedeEditar={puedeEditarEsteArea}
+              puedeCopiar={puedeCopiarAnioAnterior} anioOrigenDisponible={anioOrigenDisponible} onChange={cargar} />
           )}
           {tab === 'involucrados' && (
-            <SeccionInvolucrados programaId={programaId} anio={anio} involucrados={datos.involucrados} puedeEditar={puedeEditarEsteArea} onChange={cargar} />
+            <SeccionInvolucrados programaId={programaId} anio={anio} involucrados={datos.involucrados} puedeEditar={puedeEditarEsteArea}
+              puedeCopiar={puedeCopiarAnioAnterior} anioOrigenDisponible={anioOrigenDisponible} onChange={cargar} />
           )}
           {tab === 'arbolObjetivos' && (
             <SeccionArbol programaId={programaId} anio={anio} arbol="OBJETIVOS" nodos={datos.arbolObjetivos}
-              puedeEditar={puedeEditarEsteArea} puedeAsignarArea={puedeAsignarArea} onChange={cargar} />
+              puedeEditar={puedeEditarEsteArea} puedeAsignarArea={puedeAsignarArea}
+              puedeCopiar={puedeCopiarAnioAnterior} anioOrigenDisponible={anioOrigenDisponible} onChange={cargar} />
           )}
           {tab === 'acciones' && (
             <SeccionAccionesAlternativas programaId={programaId} anio={anio} acciones={datos.acciones} nodosMedio={datos.medios} puedeEditar={puedeEditarEsteArea} onChange={cargar} />
@@ -236,7 +245,8 @@ export default function ExpedienteMML() {
             <SeccionMIR programaId={programaId} anio={anio} mirNiveles={datos.mirNiveles} rolInfo={rolInfo} onChange={cargar} />
           )}
           {tab === 'metas' && !sinObjetivoCentral && (
-            <SeccionMetas anio={anio} mirNiveles={datos.mirNiveles} rolInfo={rolInfo} onChange={cargar} />
+            <SeccionMetas anio={anio} mirNiveles={datos.mirNiveles} rolInfo={rolInfo}
+              puedeCopiar={puedeCopiarAnioAnterior} anioOrigenDisponible={anioOrigenDisponible} onChange={cargar} />
           )}
         </>
       )}

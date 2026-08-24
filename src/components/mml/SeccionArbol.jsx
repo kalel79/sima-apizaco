@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { XCircle, Loader2, Trash2, Plus } from 'lucide-react'
-import { upsertArbolNodo, eliminarArbolNodo, actualizarAreaResponsable, getAreasDePrograma } from '../../lib/supabase'
+import { XCircle, Loader2, Trash2, Plus, Copy } from 'lucide-react'
+import { upsertArbolNodo, eliminarArbolNodo, actualizarAreaResponsable, getAreasDePrograma, copiarArbolDeAnioAnterior } from '../../lib/supabase'
 import { C } from '../../theme.js'
 
 const TIPOS_POR_ARBOL = {
@@ -15,11 +15,23 @@ const TITULO_POR_ARBOL = {
 const inp = { width: '100%', background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 6, color: C.txt, padding: '0.4rem 0.65rem', fontSize: '0.76rem', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }
 const sel = { ...inp, resize: undefined }
 
-export default function SeccionArbol({ programaId, anio, arbol, nodos, puedeEditar, puedeAsignarArea, onChange }) {
+export default function SeccionArbol({ programaId, anio, arbol, nodos, puedeEditar, puedeAsignarArea, puedeCopiar, anioOrigenDisponible, onChange }) {
   const [guardando, setGuardando] = useState(null)
   const [error, setError] = useState(null)
   const [areas, setAreas] = useState([])
   const tipos = TIPOS_POR_ARBOL[arbol]
+
+  async function handleCopiar() {
+    setGuardando('copiar'); setError(null)
+    try {
+      await copiarArbolDeAnioAnterior({ programaId, anio, arbol })
+      onChange()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setGuardando(null)
+    }
+  }
 
   // Área responsable (fase_mml_09) solo aplica al Árbol de Objetivos, por
   // Componente (MEDIO hijo directo del Objetivo raíz) — las Actividades la
@@ -153,6 +165,14 @@ export default function SeccionArbol({ programaId, anio, arbol, nodos, puedeEdit
         <div style={{ fontSize: '0.76rem', color: C.txtMuted, padding: '0.75rem', textAlign: 'center' }}>
           Sin árbol capturado todavía.
         </div>
+      )}
+      {!nodos.length && puedeCopiar && anioOrigenDisponible && (
+        <button onClick={handleCopiar} disabled={guardando === 'copiar'}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.bgPanel, border: `1px dashed ${C.doradoLight}`, borderRadius: 8, color: C.doradoLight, padding: '0.55rem 0.9rem', fontSize: '0.76rem', cursor: 'pointer', fontFamily: 'inherit', marginBottom: '0.6rem', width: '100%', justifyContent: 'center' }}>
+          {guardando === 'copiar'
+            ? <><Loader2 size={13} style={{animation:'spin 0.8s linear infinite'}}/> Copiando…</>
+            : <><Copy size={13}/> Copiar de {anioOrigenDisponible} — dejar este árbol como base editable para {anio}</>}
+        </button>
       )}
       {puedeEditar && (
         <button onClick={handleAgregar} disabled={guardando === 'nuevo'}

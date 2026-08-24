@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { XCircle, Trash2, Plus } from 'lucide-react'
-import { upsertInvolucrado, eliminarInvolucrado } from '../../lib/supabase'
+import { XCircle, Trash2, Plus, Copy, Loader2 } from 'lucide-react'
+import { upsertInvolucrado, eliminarInvolucrado, copiarInvolucradosDeAnioAnterior } from '../../lib/supabase'
 import { C } from '../../theme.js'
 
 const CATEGORIAS = ['BENEFICIARIO', 'EJECUTOR', 'OPOSITOR', 'INDIFERENTE']
@@ -8,9 +8,21 @@ const CATEGORIA_LABEL = { BENEFICIARIO: 'Beneficiarios', EJECUTOR: 'Ejecutores',
 
 const inp = { width: '100%', background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 6, color: C.txt, padding: '0.4rem 0.65rem', fontSize: '0.76rem', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }
 
-export default function SeccionInvolucrados({ programaId, anio, involucrados, puedeEditar, onChange }) {
+export default function SeccionInvolucrados({ programaId, anio, involucrados, puedeEditar, puedeCopiar, anioOrigenDisponible, onChange }) {
   const [guardando, setGuardando] = useState(null)
   const [error, setError] = useState(null)
+
+  async function handleCopiar() {
+    setGuardando('copiar'); setError(null)
+    try {
+      await copiarInvolucradosDeAnioAnterior({ programaId, anio })
+      onChange()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setGuardando(null)
+    }
+  }
 
   async function handleActor(fila, texto) {
     setGuardando(fila.id); setError(null)
@@ -60,6 +72,15 @@ export default function SeccionInvolucrados({ programaId, anio, involucrados, pu
           <XCircle size={13}/> {error}
         </div>
       )}
+      {!involucrados.length && puedeCopiar && anioOrigenDisponible && (
+        <button onClick={handleCopiar} disabled={guardando === 'copiar'}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.bgPanel, border: `1px dashed ${C.doradoLight}`, borderRadius: 8, color: C.doradoLight, padding: '0.55rem 0.9rem', fontSize: '0.76rem', cursor: 'pointer', fontFamily: 'inherit', marginBottom: '0.8rem', width: '100%', justifyContent: 'center' }}>
+          {guardando === 'copiar'
+            ? <><Loader2 size={13} style={{animation:'spin 0.8s linear infinite'}}/> Copiando…</>
+            : <><Copy size={13}/> Copiar de {anioOrigenDisponible} — dejar estos involucrados como base editable para {anio}</>}
+        </button>
+      )}
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: '0.7rem' }}>
         {CATEGORIAS.map(cat => {
           const filas = involucrados.filter(i => i.categoria === cat)
