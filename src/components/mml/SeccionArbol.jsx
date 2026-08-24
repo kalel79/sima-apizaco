@@ -33,10 +33,13 @@ export default function SeccionArbol({ programaId, anio, arbol, nodos, puedeEdit
     }
   }
 
-  // Área responsable (fase_mml_09) solo aplica al Árbol de Objetivos, por
-  // Componente (MEDIO hijo directo del Objetivo raíz) — las Actividades la
-  // heredan de su Componente, nunca se captura en ellas.
+  // Área responsable (fase_mml_09/13) solo aplica al Árbol de Objetivos, en
+  // nodos MEDIO: Componente (hijo directo del Objetivo raíz) o Actividad
+  // (hijo de un Componente). La Actividad puede tener su propia área; si no
+  // se le asigna, sigue heredando la de su Componente (COALESCE del lado del
+  // servidor en get_area_efectiva_nodo, sin cambio ahí).
   const raiz = arbol === 'OBJETIVOS' ? nodos.find(n => n.tipo === 'OBJETIVO' && !n.padre_id) : null
+  const padreDe = id => nodos.find(n => n.id === id)
 
   useEffect(() => {
     if (arbol !== 'OBJETIVOS' || !programaId) return
@@ -131,28 +134,36 @@ export default function SeccionArbol({ programaId, anio, arbol, nodos, puedeEdit
               ))}
             </select>
           </div>
-          {arbol === 'OBJETIVOS' && nodo.tipo === 'MEDIO' && raiz && (
-            nodo.padre_id === raiz.id ? (
+          {arbol === 'OBJETIVOS' && nodo.tipo === 'MEDIO' && raiz && (() => {
+            const esComponente = nodo.padre_id === raiz.id
+            const padreNodo = padreDe(nodo.padre_id)
+            const esActividad = !esComponente && padreNodo?.tipo === 'MEDIO' && padreNodo.padre_id === raiz.id
+            if (!esComponente && !esActividad) {
+              return (
+                <div style={{ fontSize: '0.68rem', color: C.txtMuted, marginBottom: 6 }}>
+                  Área responsable: hereda de «{padreNodo?.texto?.slice(0, 40) || '—'}»
+                </div>
+              )
+            }
+            const opcionHeredar = esActividad ? `— heredar de «${padreNodo.texto.slice(0, 30)}» —` : '— sin asignar —'
+            return (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                 <span style={{ fontSize: '0.62rem', color: C.txtSub, textTransform: 'uppercase', letterSpacing: 1 }}>Área responsable:</span>
                 {puedeAsignarArea ? (
                   <select value={nodo.area_responsable_id || ''} disabled={guardando === nodo.id}
                     onChange={e => handleArea(nodo, e.target.value)} style={{ ...sel, width: 220 }}>
-                    <option value="">— sin asignar —</option>
+                    <option value="">{opcionHeredar}</option>
                     {areas.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
                   </select>
                 ) : (
                   <span style={{ fontSize: '0.74rem', color: nodo.area_responsable_id ? C.txt : C.txtMuted }}>
-                    {areas.find(a => a.id === nodo.area_responsable_id)?.nombre || '— sin asignar —'}
+                    {areas.find(a => a.id === nodo.area_responsable_id)?.nombre
+                      || (esActividad ? `hereda de «${padreNodo.texto.slice(0, 30)}»` : '— sin asignar —')}
                   </span>
                 )}
               </div>
-            ) : (
-              <div style={{ fontSize: '0.68rem', color: C.txtMuted, marginBottom: 6 }}>
-                Área responsable: hereda de «{nodos.find(n => n.id === nodo.padre_id)?.texto?.slice(0, 40) || '—'}»
-              </div>
             )
-          )}
+          })()}
           {puedeEditar && (
             <button onClick={() => handleEliminar(nodo.id)} disabled={guardando === nodo.id}
               style={{ background: 'none', border: `1px solid ${C.criticoB}55`, borderRadius: 6, color: C.criticoB, padding: '0.3rem 0.6rem', fontSize: '0.68rem', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}>

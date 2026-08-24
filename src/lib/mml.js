@@ -83,9 +83,10 @@ function normalizarIndicador(raw) {
 
 // Deriva la lista de niveles MIR (Propósito/Fin/Componentes/Actividades) a
 // partir de los nodos del Árbol de Objetivos ya cargados.
-// `areaEfectivaId` (fase_mml_09): propia del Componente, heredada del
-// Componente padre para una Actividad, y siempre null para Fin/Propósito
-// (esos 2 niveles son compartidos por todo el programa, no de un área).
+// `areaEfectivaId` (fase_mml_09/13): propia del Componente; para una
+// Actividad, la propia si se le asignó (override), si no la heredada de su
+// Componente padre; siempre null para Fin/Propósito (esos 2 niveles son
+// compartidos por todo el programa, no de un área).
 function derivarNivelesMIR(nodosObjetivos) {
   const objetivoCentral = nodosObjetivos.find(n => n.tipo === 'OBJETIVO' && !n.padre_id)
   if (!objetivoCentral) return []
@@ -115,7 +116,7 @@ function derivarNivelesMIR(nodosObjetivos) {
     actividades.forEach((act, ai) => {
       niveles.push({
         ...act, mirTipo: 'ACTIVIDAD', numero: ai + 1, componenteNumero: ci + 1,
-        areaEfectivaId: comp.area_responsable_id ?? null,
+        areaEfectivaId: act.area_responsable_id ?? comp.area_responsable_id ?? null,
       })
     })
   })
