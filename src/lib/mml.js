@@ -2,9 +2,11 @@
 // La MIR se deriva del Árbol de Objetivos (decisión 2026-07-23, corrige el
 // diseño anterior que la trataba como estructura independiente y obligaba a
 // capturar la misma narrativa dos veces): el Objetivo central es el Propósito;
-// el FIN de menor `orden` (el de mayor jerarquía) hijo del Objetivo es el Fin;
-// cada MEDIO de primer nivel (hijo directo del Objetivo) es un Componente;
-// cada nodo que cuelga de un Medio es una Actividad de ese Componente.
+// el Fin es el nodo FIN_GENERAL hijo del Objetivo si existe (fase_mml_11), o
+// si no, el FIN de menor `orden` (el de mayor jerarquía) hijo directo del
+// Objetivo; cada MEDIO de primer nivel (hijo directo del Objetivo) es un
+// Componente; cada nodo que cuelga de un Medio es una Actividad de ese
+// Componente.
 import { supabase } from './supabaseClient.js'
 
 // Resuelve el área/programa propio de un enlace (mismo criterio que Captura.jsx
@@ -94,14 +96,21 @@ function derivarNivelesMIR(nodosObjetivos) {
   const niveles = [{ ...objetivoCentral, mirTipo: 'PROPOSITO', numero: null, areaEfectivaId: null }]
 
   // fase_mml_11: si el programa ya organizó un nodo FIN_GENERAL (hijo directo
-  // del Objetivo), los Fines "de verdad" cuelgan de ese nodo en vez de la
-  // raíz — retrocompatible: sin FIN_GENERAL, se busca como siempre.
+  // del Objetivo), ese nodo — el Fin de mayor jerarquía — es el que se
+  // representa como "Fin" en la Matriz de Riesgos/MIR; los FIN que cuelgan de
+  // él son el detalle del Árbol de Objetivos pero no tienen renglón propio
+  // ahí (el diseño solo modela un Fin). Retrocompatible: sin FIN_GENERAL, se
+  // busca como siempre — el FIN de menor `orden` hijo directo del Objetivo.
   const finGeneral = nodosObjetivos.find(n => n.tipo === 'FIN_GENERAL' && n.padre_id === objetivoCentral.id)
-  const finesDelObjetivo = nodosObjetivos
-    .filter(n => n.tipo === 'FIN' && n.padre_id === (finGeneral ? finGeneral.id : objetivoCentral.id))
-    .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
-  if (finesDelObjetivo.length) {
-    niveles.push({ ...finesDelObjetivo[0], mirTipo: 'FIN', numero: null, areaEfectivaId: null })
+  if (finGeneral) {
+    niveles.push({ ...finGeneral, mirTipo: 'FIN', numero: null, areaEfectivaId: null })
+  } else {
+    const finesDelObjetivo = nodosObjetivos
+      .filter(n => n.tipo === 'FIN' && n.padre_id === objetivoCentral.id)
+      .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
+    if (finesDelObjetivo.length) {
+      niveles.push({ ...finesDelObjetivo[0], mirTipo: 'FIN', numero: null, areaEfectivaId: null })
+    }
   }
 
   const componentes = nodosObjetivos
