@@ -37,10 +37,8 @@ export default function ExpedienteMML() {
   const puedeAsignarArea = isAdmin || isPlaneacion
   // "Dejar el de 2026 o proponer uno nuevo para 2027": copiar el contenido
   // del año anterior como base editable, reservado a admin/planeación (mismo
-  // criterio que generar el documento oficial). Solo tiene sentido si el año
-  // anterior existe en el selector — hoy solo 2026 -> 2027.
+  // criterio que generar el documento oficial).
   const puedeCopiarAnioAnterior = isAdmin || isPlaneacion
-  const anioOrigenDisponible = ANIOS.includes(anio - 1) ? anio - 1 : null
 
   const [programas, setProgramas] = useState([])
   const [programaId, setProgramaId] = useState(null)
@@ -50,6 +48,10 @@ export default function ExpedienteMML() {
   const [error, setError] = useState(null)
   const [tab, setTab] = useState('encabezado')
   const [generandoPdf, setGenerandoPdf] = useState(false)
+
+  // Solo tiene sentido copiar si el año anterior existe en el selector —
+  // hoy solo 2026 -> 2027.
+  const anioOrigenDisponible = ANIOS.includes(anio - 1) ? anio - 1 : null
 
   // Catálogo de programas + para enlace, fijar su propio programa (vía área).
   useEffect(() => {
