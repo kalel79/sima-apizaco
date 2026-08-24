@@ -214,7 +214,8 @@ export default function ExpedienteMML() {
             />
           )}
           {tab === 'diagnostico' && (
-            <SeccionDiagnostico programaId={programaId} anio={anio} diagnostico={datos.diagnostico} puedeEditar={puedeEditarEsteArea} onChange={cargar} />
+            <SeccionDiagnostico programaId={programaId} anio={anio} diagnostico={datos.diagnostico} puedeEditar={puedeEditarEsteArea}
+              puedeCopiar={puedeCopiarAnioAnterior} anioOrigenDisponible={anioOrigenDisponible} onChange={cargar} />
           )}
           {tab === 'arbolProblema' && (
             <SeccionArbol programaId={programaId} anio={anio} arbol="PROBLEMA" nodos={datos.arbolProblema} puedeEditar={puedeEditarEsteArea}

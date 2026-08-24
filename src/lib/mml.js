@@ -254,6 +254,22 @@ export async function eliminarDiagnostico(id) {
   if (error) throw error
 }
 
+export async function copiarDiagnosticoDeAnioAnterior({ programaId, anio }) {
+  const anioOrigen = anio - 1
+  const { data: origen, error: eOrig } = await supabase
+    .from('diagnostico_programa').select('orden, situacion_actual, transformacion_deseada')
+    .eq('programa_id', programaId).eq('anio', anioOrigen).order('orden')
+  if (eOrig) throw eOrig
+  if (!origen?.length) return []
+  const payload = origen.map(o => ({
+    programa_id: programaId, anio, orden: o.orden,
+    situacion_actual: o.situacion_actual, transformacion_deseada: o.transformacion_deseada,
+  }))
+  const { data, error } = await supabase.from('diagnostico_programa').insert(payload).select()
+  if (error) throw error
+  return data || []
+}
+
 export async function upsertArbolNodo({ id, programaId, anio, arbol, tipo, padreId, orden, texto }) {
   const payload = {
     programa_id: programaId, anio, arbol, tipo,

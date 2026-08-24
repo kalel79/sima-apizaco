@@ -55,7 +55,7 @@ export {
 export {
   getProgramaIdDeArea, getProgramasLista, getIndicadoresDePrograma, getAreasDePrograma,
   crearIndicador, resolverDatosMML,
-  upsertDiagnostico, eliminarDiagnostico,
+  upsertDiagnostico, eliminarDiagnostico, copiarDiagnosticoDeAnioAnterior,
   upsertArbolNodo, eliminarArbolNodo, actualizarAreaResponsable, copiarArbolDeAnioAnterior,
   upsertInvolucrado, eliminarInvolucrado, copiarInvolucradosDeAnioAnterior,
   copiarMetasDeAnioAnterior,

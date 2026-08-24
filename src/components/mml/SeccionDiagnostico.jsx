@@ -1,14 +1,26 @@
 import { useState } from 'react'
-import { XCircle, Loader2, Trash2, Plus } from 'lucide-react'
-import { upsertDiagnostico, eliminarDiagnostico } from '../../lib/supabase'
+import { XCircle, Loader2, Trash2, Plus, Copy } from 'lucide-react'
+import { upsertDiagnostico, eliminarDiagnostico, copiarDiagnosticoDeAnioAnterior } from '../../lib/supabase'
 import { C } from '../../theme.js'
 
 const inp = { width: '100%', background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 6, color: C.txt, padding: '0.45rem 0.7rem', fontSize: '0.78rem', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', resize: 'vertical' }
 const lbl = { fontSize: '0.62rem', color: C.txtSub, textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 4 }
 
-export default function SeccionDiagnostico({ programaId, anio, diagnostico, puedeEditar, onChange }) {
+export default function SeccionDiagnostico({ programaId, anio, diagnostico, puedeEditar, puedeCopiar, anioOrigenDisponible, onChange }) {
   const [guardando, setGuardando] = useState(null)
   const [error, setError] = useState(null)
+
+  async function handleCopiar() {
+    setGuardando('copiar'); setError(null)
+    try {
+      await copiarDiagnosticoDeAnioAnterior({ programaId, anio })
+      onChange()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setGuardando(null)
+    }
+  }
 
   async function handleGuardar(fila, campo, valor) {
     setGuardando(fila.id || 'nuevo'); setError(null)
@@ -92,6 +104,14 @@ export default function SeccionDiagnostico({ programaId, anio, diagnostico, pued
         <div style={{ fontSize: '0.76rem', color: C.txtMuted, padding: '0.75rem', textAlign: 'center' }}>
           Sin diagnóstico capturado todavía.
         </div>
+      )}
+      {!diagnostico.length && puedeCopiar && anioOrigenDisponible && (
+        <button onClick={handleCopiar} disabled={guardando === 'copiar'}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.bgPanel, border: `1px dashed ${C.doradoLight}`, borderRadius: 8, color: C.doradoLight, padding: '0.55rem 0.9rem', fontSize: '0.76rem', cursor: 'pointer', fontFamily: 'inherit', marginBottom: '0.6rem', width: '100%', justifyContent: 'center' }}>
+          {guardando === 'copiar'
+            ? <><Loader2 size={13} style={{animation:'spin 0.8s linear infinite'}}/> Copiando…</>
+            : <><Copy size={13}/> Copiar de {anioOrigenDisponible} — dejarlo como base editable para {anio}</>}
+        </button>
       )}
       {puedeEditar && (
         <button onClick={handleAgregar} disabled={guardando === 'nuevo'}
