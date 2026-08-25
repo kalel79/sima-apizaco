@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { XCircle, Copy, Loader2 } from 'lucide-react'
 import { upsertMeta, puedeEditarDatosIndicador, copiarMetasDeAnioAnterior } from '../../lib/supabase'
+import { etiquetaNivelMIR } from '../../utils/expedienteMMLContenido.js'
 import { C } from '../../theme.js'
 
 const MESES = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC']
@@ -108,7 +109,11 @@ export default function SeccionMetas({ anio, mirNiveles, rolInfo, puedeCopiar, a
                 return (
                 <tr key={f.id}>
                   <td style={{ ...td, textAlign: 'left', fontSize: '0.64rem', color: C.txt, maxWidth: 320 }}>
-                    <span style={{ fontSize: '0.54rem', color: C.txtMuted, display: 'block' }}>{f.tipo}{f.numero ? ` ${f.numero}` : ''}</span>
+                    {/* etiquetaNivelMIR y no `${f.tipo} ${f.numero}` a mano: las
+                        Actividades se numeran dentro de su Componente (1.1, 1.2,
+                        2.1…), y con el número suelto salían repetidas — dos
+                        "Actividad 1" en la misma tabla. */}
+                    <span style={{ fontSize: '0.54rem', color: C.txtMuted, display: 'block' }}>{etiquetaNivelMIR(f)}</span>
                     <span style={{ display: 'block', whiteSpace: 'normal', wordBreak: 'break-word' }}>{f.indicador.nombre}</span>
                   </td>
                   {MESES.map((_, i) => {
