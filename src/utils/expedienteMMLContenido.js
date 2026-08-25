@@ -107,6 +107,13 @@ export function subtituloEjercicioFiscal(anio) {
   return `Presupuesto de Egresos para el Ejercicio Fiscal del Año ${anio}`
 }
 
+// Segundo renglón del encabezado institucional. Vive aquí (y no en
+// expedienteMMLSecciones.js) para que el generador de Excel pueda usarlo sin
+// arrastrar jsPDF como dependencia.
+export function subtituloAnteproyecto(anio) {
+  return anio ? `ANTEPROYECTO DE PRESUPUESTO DE EGRESOS ${anio}` : null
+}
+
 // ── Ficha de Indicador (fase_mml_16) ────────────────────────────────────────
 // Catálogos compartidos entre la pantalla de captura (SeccionMIR) y los dos
 // generadores del documento, para que las opciones que se ofrecen al capturar

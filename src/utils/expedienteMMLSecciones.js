@@ -6,7 +6,7 @@ import { LOGO_BASE64 } from '../logo.js'
 import { GUINDA, DORADO, GRIS, BLANCO, ENTIDAD_NOMBRE, setColor, setFill, setDraw } from './reportesBase.js'
 import {
   CATEGORIA_INVOLUCRADOS_LABEL, INDICE_FORMATOS, etiquetaNivelMIR,
-  resolverFicha, resolverFichaIndicador, pesos, subtituloEjercicioFiscal, unirOraciones,
+  resolverFicha, resolverFichaIndicador, pesos, subtituloEjercicioFiscal, unirOraciones, subtituloAnteproyecto,
   resultadoTexto, numeroTexto,
 } from './expedienteMMLContenido.js'
 
@@ -18,11 +18,6 @@ const FIRMAS_MARGEN_INF = 34 // espacio reservado abajo para que rol+nombre+carg
 // encimada con "AUTORIZÓ / VO. BO. / ...".
 const TABLA_MARGEN_INF = FIRMAS_MARGEN_INF + 5
 const BANNER_H = 24 // antes 20 — se agrandó para el logo más grande + la línea de subtítulo
-
-// Texto de subtítulo del encabezado para las páginas posteriores al índice.
-export function subtituloAnteproyecto(anio) {
-  return anio ? `ANTEPROYECTO DE PRESUPUESTO DE EGRESOS ${anio}` : null
-}
 
 // ── Encabezado institucional (banner guinda + logo + título + folio) ─────────
 export function drawEncabezado(doc, titulo, folio, subtitulo) {

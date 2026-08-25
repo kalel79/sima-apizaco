@@ -89,7 +89,9 @@ function normalizarIndicador(raw) {
 // Actividad, la propia si se le asignó (override), si no la heredada de su
 // Componente padre; siempre null para Fin/Propósito (esos 2 niveles son
 // compartidos por todo el programa, no de un área).
-function derivarNivelesMIR(nodosObjetivos) {
+// Exportada además de usarse aquí: es una función pura sobre los nodos, lo que
+// permite reconstruir `mirNiveles` en una prueba sin pasar por la base.
+export function derivarNivelesMIR(nodosObjetivos) {
   const objetivoCentral = nodosObjetivos.find(n => n.tipo === 'OBJETIVO' && !n.padre_id)
   if (!objetivoCentral) return []
 
