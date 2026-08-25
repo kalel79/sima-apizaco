@@ -93,7 +93,14 @@ function derivarNivelesMIR(nodosObjetivos) {
   const objetivoCentral = nodosObjetivos.find(n => n.tipo === 'OBJETIVO' && !n.padre_id)
   if (!objetivoCentral) return []
 
-  const niveles = [{ ...objetivoCentral, mirTipo: 'PROPOSITO', numero: null, areaEfectivaId: null }]
+  // Orden del documento oficial (fase_mml_15): Fin, Propósito, TODOS los
+  // Componentes (C1..CN) y hasta el final TODAS las Actividades agrupadas por
+  // su Componente (C1A1, C1A2, ..., CNAN). Antes iba Propósito primero y cada
+  // Componente seguido de sus propias Actividades; el orden se cambió en toda
+  // la MIR (pantalla de captura, Matriz de Riesgos, Cronograma de Metas y
+  // fichas de indicador), no solo en las hojas de Descripción.
+  const niveles = []
+  const proposito = { ...objetivoCentral, mirTipo: 'PROPOSITO', numero: null, areaEfectivaId: null }
 
   // fase_mml_11: si el programa ya organizó un nodo FIN_GENERAL (hijo directo
   // del Objetivo), ese nodo — el Fin de mayor jerarquía — es el que se
@@ -113,24 +120,27 @@ function derivarNivelesMIR(nodosObjetivos) {
     }
   }
 
+  niveles.push(proposito)
+
   const componentes = nodosObjetivos
     .filter(n => n.tipo === 'MEDIO' && n.padre_id === objetivoCentral.id)
     .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
 
+  const actividades = []
   componentes.forEach((comp, ci) => {
     niveles.push({ ...comp, mirTipo: 'COMPONENTE', numero: ci + 1, areaEfectivaId: comp.area_responsable_id ?? null })
-    const actividades = nodosObjetivos
+    nodosObjetivos
       .filter(n => n.tipo === 'MEDIO' && n.padre_id === comp.id)
       .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
-    actividades.forEach((act, ai) => {
-      niveles.push({
-        ...act, mirTipo: 'ACTIVIDAD', numero: ai + 1, componenteNumero: ci + 1,
-        areaEfectivaId: act.area_responsable_id ?? comp.area_responsable_id ?? null,
+      .forEach((act, ai) => {
+        actividades.push({
+          ...act, mirTipo: 'ACTIVIDAD', numero: ai + 1, componenteNumero: ci + 1,
+          areaEfectivaId: act.area_responsable_id ?? comp.area_responsable_id ?? null,
+        })
       })
-    })
   })
 
-  return niveles
+  return [...niveles, ...actividades]
 }
 
 // ── Permisos por fila de la MIR (fase_mml_09) — espejo en el front de lo que
@@ -162,6 +172,9 @@ export async function resolverDatosMML(programaId, anio) {
     { data: nodosObjetivosRaw, error: eNO },
     { data: involucrados, error: eInv },
     { data: acciones, error: eAcc },
+    { data: ficha, error: eFicha },
+    { data: fichaFuentes, error: eFF },
+    { data: areasPrograma, error: eAreas },
   ] = await Promise.all([
     supabase.from('programas').select('*').eq('id', programaId).maybeSingle(),
     supabase.from('firmas_programa').select('*').is('programa_id', null),
@@ -170,14 +183,30 @@ export async function resolverDatosMML(programaId, anio) {
     supabase.from('diagnostico_programa').select('*').eq('programa_id', programaId).eq('anio', anio).order('orden'),
     supabase.from('arbol_nodos').select('*').eq('programa_id', programaId).eq('anio', anio).eq('arbol', 'PROBLEMA').order('tipo').order('orden'),
     supabase.from('arbol_nodos')
-      .select('*, indicadores(id, clave, nombre, definicion, tipo_indicador, dimension, sentido, linea_base_anio, interpretacion, unidad_medida, area_id, areas!fk_indicadores_area(nombre))')
+      .select('*, indicadores(id, clave, nombre, definicion, tipo_indicador, dimension, sentido, linea_base_anio, interpretacion, unidad_medida, formula, frecuencia, medios_verificacion, area_id, areas!fk_indicadores_area(nombre))')
       .eq('programa_id', programaId).eq('anio', anio).eq('arbol', 'OBJETIVOS').order('tipo').order('orden'),
     supabase.from('involucrados_programa').select('*').eq('programa_id', programaId).eq('anio', anio).order('categoria').order('orden'),
     supabase.from('acciones_alternativas').select('*').eq('programa_id', programaId).eq('anio', anio).order('orden'),
+    supabase.from('ficha_proyecto').select('*').eq('programa_id', programaId).eq('anio', anio).maybeSingle(),
+    supabase.from('ficha_fuente_financiamiento').select('*').eq('programa_id', programaId).eq('anio', anio),
+    // Áreas que integran el programa: el documento imprime "003, Sindicatura,
+    // Dirección Jurídica" a partir de ellas (ver programaConAreas).
+    supabase.from('areas').select('id, nombre').eq('programa_id', programaId).order('id'),
   ])
-  for (const e of [eProg, eFG, eFP, ePres, eDiag, eNP, eNO, eInv, eAcc]) if (e) throw e
+  for (const e of [eProg, eFG, eFP, ePres, eDiag, eNP, eNO, eInv, eAcc, eFicha, eFF, eAreas]) if (e) throw e
 
   const nodosObjetivos = (nodosObjetivosRaw || []).map(n => ({ ...n, indicador: normalizarIndicador(n.indicadores) }))
+
+  // Nombre del eje: lo necesitan tanto la pantalla de captura (sugerencia de
+  // "Eje Rector o Programa del PMD") como los generadores de PDF/Excel — antes
+  // cada orquestador lo consultaba por su cuenta.
+  let ejeNombre = ''
+  if (programa?.eje_id) {
+    const { data: eje, error: eEje } = await supabase
+      .from('ejes').select('nombre').eq('id', programa.eje_id).maybeSingle()
+    if (eEje) throw eEje
+    ejeNombre = eje?.nombre || ''
+  }
 
   // Firmas resueltas: override por programa si existe, si no el default global.
   const firmasPorRol = {}
@@ -232,7 +261,11 @@ export async function resolverDatosMML(programaId, anio) {
 
   return {
     programa,
+    ejeNombre,
+    areasPrograma: areasPrograma || [],
     firmas: firmasPorRol,
+    ficha: ficha || null,
+    fichaFuentes: fichaFuentes || [],
     presupuesto: presupuesto || [],
     diagnostico: diagnostico || [],
     arbolProblema: nodosProblema || [],
@@ -452,6 +485,10 @@ export async function actualizarFichaIndicador(indicadorId, campos) {
   if ('unidadMedida' in campos) payload.unidad_medida = campos.unidadMedida // NOT NULL en DB, sin fallback a null
   if ('lineaBaseAnio' in campos) payload.linea_base_anio = campos.lineaBaseAnio || null
   if ('interpretacion' in campos) payload.interpretacion = campos.interpretacion || null
+  // fase_mml_16: la fórmula de cálculo ya existía en la tabla pero no era
+  // editable desde ningún lado (NULL en los 177 indicadores); la ficha de
+  // indicador del formato la pide, así que ahora se captura en SeccionMIR.
+  if ('formula' in campos) payload.formula = campos.formula || null
 
   const { data, error } = await supabase
     .from('indicadores').update(payload).eq('id', indicadorId).select().single()
@@ -501,17 +538,56 @@ export async function actualizarPresupuesto({ id, programaId, anio, capitulo, im
   return data
 }
 
-export async function actualizarEncabezadoPrograma(programaId, campos) {
-  const payload = {}
-  if ('claveProgramatica' in campos) payload.clave_programatica = campos.claveProgramatica || null
-  if ('finalidad' in campos) payload.finalidad = campos.finalidad || null
-  if ('funcion' in campos) payload.funcion = campos.funcion || null
-  if ('subfuncion' in campos) payload.subfuncion = campos.subfuncion || null
-  if ('tipoProyecto' in campos) payload.tipo_proyecto = campos.tipoProyecto || null
-  if ('fuentesFinanciamiento' in campos) payload.fuentes_financiamiento = campos.fuentesFinanciamiento || null
+// ── Ficha de Proyecto (fase_mml_14) ──────────────────────────────────────────
+// Columnas de ficha_proyecto que el formulario puede escribir. Se listan
+// explícitamente (en vez de pasar `campos` tal cual) para que un typo en la
+// pantalla falle aquí y no llegue a la base como columna desconocida.
+const FICHA_CAMPOS = [
+  'tipos_proyecto', 'clasif_economica',
+  'ramo_numero', 'ramo_texto', 'unidad_resp_numero', 'unidad_resp_texto',
+  'finalidad_num', 'finalidad_texto', 'funcion_num', 'funcion_texto',
+  'subfuncion_num', 'subfuncion_texto', 'programa_num', 'programa_texto',
+  'proyecto_num', 'proyecto_texto', 'clasif_prog_num', 'clasif_prog_texto',
+  'region_estatal', 'region_regional', 'region_municipal', 'region_localidad',
+  'fecha_inicio', 'fecha_termino',
+  'lider_nombre', 'lider_cargo', 'lider_tel', 'lider_email',
+  // fase_mml_15: encabezan las hojas de Descripción, no la Ficha.
+  'eje_pmd', 'programa_ofs',
+]
+
+// Upsert por (programa_id, anio): la primera edición de un programa/año crea
+// la ficha, las siguientes la actualizan — la pantalla nunca tiene que crear
+// la fila a mano ni conocer su id.
+export async function actualizarFichaProyecto(programaId, anio, campos) {
+  const payload = { programa_id: programaId, anio }
+  for (const k of FICHA_CAMPOS) {
+    if (!(k in campos)) continue
+    const v = campos[k]
+    // Los arreglos (tipos_proyecto/clasif_economica) son NOT NULL DEFAULT '{}':
+    // vacío es [] , nunca null. El resto guarda null cuando el campo se borra.
+    payload[k] = Array.isArray(v) ? v : (v === '' ? null : v)
+  }
+  const desconocidos = Object.keys(campos).filter(k => !FICHA_CAMPOS.includes(k))
+  if (desconocidos.length) throw new Error(`Campo de ficha desconocido: ${desconocidos.join(', ')}`)
 
   const { data, error } = await supabase
-    .from('programas').update(payload).eq('id', programaId).select().single()
+    .from('ficha_proyecto').upsert(payload, { onConflict: 'programa_id,anio' }).select().single()
   if (error) throw error
   return data
 }
+
+export async function actualizarFuenteFinanciamiento({ programaId, anio, fuente, marcado, importe }) {
+  const payload = { programa_id: programaId, anio, fuente }
+  if (marcado !== undefined) payload.marcado = !!marcado
+  if (importe !== undefined) payload.importe = Number(importe) || 0
+  const { data, error } = await supabase
+    .from('ficha_fuente_financiamiento').upsert(payload, { onConflict: 'programa_id,anio,fuente' }).select().single()
+  if (error) throw error
+  return data
+}
+
+// Nota: actualizarEncabezadoPrograma() se retiró en fase_mml_14. Los 6 campos
+// sueltos que escribía en public.programas (clave_programatica, finalidad,
+// funcion, subfuncion, tipo_proyecto, fuentes_financiamiento) los sustituyó la
+// Ficha de Proyecto por programa+año. Las columnas siguen existiendo en la
+// base (la migración es aditiva) pero ya nadie las lee ni las escribe.

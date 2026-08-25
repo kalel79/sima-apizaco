@@ -2,13 +2,14 @@
 // Mismo patrón que informeGobierno.js: junta las secciones de
 // expedienteMMLSecciones.js sobre un único documento jsPDF y lo descarga.
 import { jsPDF } from 'jspdf'
-import { supabase, resolverDatosMML } from '../lib/supabase.js'
-import { limpiarDatosPDF, limpiarTextoPDF } from './reportesBase.js'
+import { resolverDatosMML } from '../lib/supabase.js'
+import { limpiarDatosPDF } from './reportesBase.js'
 import {
-  drawFichaProyecto, drawDescripcionPrograma, drawIndice, drawTransformacionDeseada,
+  drawFichaProyecto, drawDescripcion, drawIndice, drawTransformacionDeseada,
   drawArbolDiagrama, drawInvolucrados, drawAcciones, drawAlternativas, drawMatrizMIR,
   drawCronogramaMetas, drawFichaIndicador,
 } from './expedienteMMLSecciones.js'
+import { DESCRIPCION_HOJAS } from './expedienteMMLContenido.js'
 
 export const TIPO_CONFIG_PROBLEMA = {
   titulo: 'ÁRBOL DEL PROBLEMA', tipoRaiz: 'CENTRAL', tipoSuperior: 'EFECTO', tipoPrimario: 'CAUSA',
@@ -28,22 +29,21 @@ export async function generarExpedienteMML(programaId, anio) {
   // de Latin-1 (guion largo "–", viñeta "•", "≥"...) — sin esto, cualquier
   // texto capturado con ese tipo de carácter se corrompe/desaparece en el PDF
   // a partir de ahí (ver reportesBase.js).
+  // `ejeNombre` ya viene resuelto desde resolverDatosMML (y limpiado junto
+  // con el resto por limpiarDatosPDF).
   const datos = limpiarDatosPDF(await resolverDatosMML(programaId, anio))
   datos.anio = anio
-
-  let ejeNombre = ''
-  if (datos.programa?.eje_id) {
-    const { data } = await supabase.from('ejes').select('nombre').eq('id', datos.programa.eje_id).maybeSingle()
-    ejeNombre = data?.nombre || ''
-  }
-  datos.ejeNombre = limpiarTextoPDF(ejeNombre)
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
 
   drawFichaProyecto(doc, datos, anio)
 
-  doc.addPage('letter', 'portrait')
-  drawDescripcionPrograma(doc, datos)
+  // Descripción de Programa y Descripción de Proyectos: mismo formato, el
+  // documento oficial las pide como dos hojas consecutivas.
+  DESCRIPCION_HOJAS.forEach(({ titulo }) => {
+    doc.addPage('letter', 'portrait')
+    drawDescripcion(doc, datos, anio, titulo)
+  })
 
   doc.addPage('letter', 'portrait')
   drawIndice(doc)

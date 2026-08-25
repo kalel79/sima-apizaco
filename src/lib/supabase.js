@@ -62,6 +62,7 @@ export {
   upsertAccionAlternativa, eliminarAccionAlternativa, generarAccionesDesdeMedios,
   actualizarNodoMIR, actualizarFichaIndicador,
   upsertVariable, eliminarVariable, upsertValorVariable,
-  actualizarPresupuesto, actualizarEncabezadoPrograma,
+  actualizarPresupuesto,
+  actualizarFichaProyecto, actualizarFuenteFinanciamiento,
   puedeEditarDatosIndicador, puedeAsignarAreaResponsable,
 } from './mml.js'

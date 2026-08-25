@@ -6,13 +6,19 @@ import {
   upsertVariable, eliminarVariable, upsertValorVariable,
   puedeEditarDatosIndicador,
 } from '../../lib/supabase'
-import { etiquetaNivelMIR } from '../../utils/expedienteMMLContenido.js'
+import {
+  etiquetaNivelMIR, componerFormula,
+  TIPOS_INDICADOR, DIMENSIONES_INDICADOR, SENTIDOS_INDICADOR, FRECUENCIAS_INDICADOR,
+} from '../../utils/expedienteMMLContenido.js'
 import { C } from '../../theme.js'
 
-const TIPO_INDICADOR = ['Estratégico', 'Gestión']
-const DIMENSIONES = ['Eficacia', 'Eficiencia', 'Economía', 'Calidad']
-const SENTIDOS = ['Ascendente', 'Descendente', 'Regular']
-const FRECUENCIAS = ['Mensual', 'Bimestral', 'Trimestral', 'Semestral', 'Anual']
+// Los catálogos viven en expedienteMMLContenido.js: son los mismos que el
+// documento imprime como casillas en la ficha de indicador, así que lo que se
+// puede elegir aquí y lo que se imprime allá no pueden desincronizarse.
+const TIPO_INDICADOR = TIPOS_INDICADOR.map(([valor]) => valor)
+const DIMENSIONES = DIMENSIONES_INDICADOR
+const SENTIDOS = SENTIDOS_INDICADOR
+const FRECUENCIAS = FRECUENCIAS_INDICADOR
 const UNIDADES_MEDIDA = ['Porcentaje', 'Reunión', 'Documento', 'Sesión', 'Beneficiario', 'Proyecto', 'Obra', 'Curso', 'Evento']
 const CREAR_NUEVO = '__crear__'
 
@@ -342,6 +348,16 @@ function FichaIndicador({ nivel, ind, anio, puedeEditar, conGuardado, setGuardan
             style={inp}>
             {UNIDADES_MEDIDA.map(u => <option key={u}>{u}</option>)}
           </select>
+        </div>
+      </div>
+      <div style={{ marginBottom: '0.8rem' }}>
+        <label style={lbl}>Fórmula de cálculo</label>
+        <textarea rows={2} defaultValue={ind.formula || ''} disabled={!puedeEditar}
+          placeholder={componerFormula(nivel.variables, ind.unidad_medida) || 'Ej. (VS / VT) × 100'}
+          onBlur={e => { if (e.target.value !== (ind.formula || '')) conGuardado('ind-' + ind.id, () => actualizarFichaIndicador(ind.id, { formula: e.target.value })) }}
+          style={inp} />
+        <div style={{ fontSize: '0.62rem', color: C.txtMuted, marginTop: 3 }}>
+          Vacío = el documento arma la fórmula con los símbolos de las variables de abajo.
         </div>
       </div>
       <div style={{ marginBottom: '0.8rem' }}>

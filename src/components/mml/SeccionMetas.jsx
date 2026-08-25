@@ -38,18 +38,16 @@ export default function SeccionMetas({ anio, mirNiveles, rolInfo, puedeCopiar, a
     }
   }
 
-  // El Anual ya no se captura a mano — se recalcula solo como suma de los 12
-  // meses cada vez que se guarda uno (decisión 2026-07-23).
+  // El Anual (mes 0) no se captura a mano — es la suma de los 12 meses
+  // (decisión 2026-07-23). Desde fase_mml_20 esa suma la hace un trigger en la
+  // base, no esta pantalla: antes se calculaba aquí a partir de `fila.metas`,
+  // que es la foto de props del render en curso, así que capturar varios meses
+  // seguidos sin esperar la recarga guardaba un anual desfasado en silencio.
   async function handleGuardar(fila, mes, valorTexto) {
     const key = `${fila.indicador_id}-${mes}`
     setGuardando(key); setError(null)
     try {
-      const valor = valorTexto === '' ? null : +valorTexto
-      await upsertMeta(fila.indicador_id, anio, mes, valor)
-      const valoresActualizados = { ...fila.metas, [mes]: valor }
-      const sumaAnual = Array.from({ length: 12 }, (_, i) => i + 1)
-        .reduce((acc, m) => acc + (Number(valoresActualizados[m]) || 0), 0)
-      await upsertMeta(fila.indicador_id, anio, 0, sumaAnual)
+      await upsertMeta(fila.indicador_id, anio, mes, valorTexto === '' ? null : +valorTexto)
       onChange()
     } catch (e) {
       setError(e.message)

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { FolderOpen, RefreshCw, Loader2, FileText, PenLine, BookOpen, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { FolderOpen, RefreshCw, Loader2, FileText, FileSpreadsheet, PenLine, BookOpen, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { getProgramaIdDeArea, getProgramasLista, resolverDatosMML } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { C } from '../theme.js'
@@ -12,6 +12,7 @@ import SeccionAccionesAlternativas from '../components/mml/SeccionAccionesAltern
 import SeccionMIR from '../components/mml/SeccionMIR.jsx'
 import SeccionMetas from '../components/mml/SeccionMetas.jsx'
 import { generarExpedienteMML } from '../utils/reporteExpedienteMML.js'
+import { generarExpedienteMMLExcel } from '../utils/reporteExpedienteMMLExcel.js'
 import { generarPlantillaExpedienteMML } from '../utils/reportePlantillaMML.js'
 import { generarInstructivoExpedienteMML } from '../utils/reporteInstructivoMML.js'
 
@@ -22,8 +23,11 @@ const inp = { background: C.bgCard, border: `1px solid ${C.border}`, borderRadiu
 export default function ExpedienteMML() {
   const { profile, isAdmin, isPlaneacion, isEnlace } = useAuth()
   const puedeEditarContenido = isAdmin || isPlaneacion || isEnlace
-  const puedeEditarEncabezado = isAdmin
-  const puedeEditarPresupuesto = isAdmin || isPlaneacion
+  // La Ficha del Proyecto (fase_mml_14) reúne clasificaciones, capítulos y
+  // datos del líder en un solo apartado: mismo permiso que ya tenía el
+  // presupuesto (admin/planeación), que es lo que refuerza la RLS de
+  // ficha_proyecto/ficha_fuente_financiamiento.
+  const puedeEditarFicha = isAdmin || isPlaneacion
   // Generar PDF/plantilla/instructivo: reservado a admin/planeación — un
   // enlace no debe generar el documento oficial ni la plantilla en blanco,
   // aunque en el futuro se le habilite la pestaña.
@@ -48,6 +52,7 @@ export default function ExpedienteMML() {
   const [error, setError] = useState(null)
   const [tab, setTab] = useState('encabezado')
   const [generandoPdf, setGenerandoPdf] = useState(false)
+  const [generandoExcel, setGenerandoExcel] = useState(false)
 
   // Solo tiene sentido copiar si el año anterior existe en el selector —
   // hoy solo 2026 -> 2027.
@@ -105,7 +110,10 @@ export default function ExpedienteMML() {
     const totalIndicadores = mirNiveles.filter(n => n.indicador_id).length
     const fichasCompletas = mirNiveles.filter(n => n.indicador?.tipo_indicador).length
     return {
-      encabezado: !!datos.programa?.clave_programatica,
+      // La ficha cuenta como capturada cuando ya trae lo mínimo que el
+      // formato exige: tipo de proyecto, clasificación programática y quién
+      // es el líder del proyecto.
+      encabezado: !!(datos.ficha?.tipos_proyecto?.length && datos.ficha?.clasif_prog_num && datos.ficha?.lider_nombre),
       diagnostico: (datos.diagnostico || []).length > 0,
       arbolProblema: (datos.arbolProblema || []).some(n => n.tipo === 'CENTRAL'),
       involucrados: (datos.involucrados || []).length > 0,
@@ -129,12 +137,23 @@ export default function ExpedienteMML() {
     }
   }
 
+  async function handleGenerarExcel() {
+    setGenerandoExcel(true); setError(null)
+    try {
+      await generarExpedienteMMLExcel(programaId, anio)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setGenerandoExcel(false)
+    }
+  }
+
   function handleGenerarPlantilla() {
     generarPlantillaExpedienteMML({ programa: datos?.programa })
   }
 
   const TABS = [
-    { id: 'encabezado', l: 'Encabezado' },
+    { id: 'encabezado', l: 'Ficha del Proyecto' },
     { id: 'diagnostico', l: 'Diagnóstico' },
     { id: 'arbolProblema', l: 'Árbol del Problema' },
     { id: 'involucrados', l: 'Involucrados' },
@@ -164,6 +183,14 @@ export default function ExpedienteMML() {
             {generandoPdf
               ? <><Loader2 size={13} style={{animation:'spin 0.8s linear infinite'}}/> Generando…</>
               : <><FileText size={13}/> Generar PDF del Expediente</>}
+          </button>
+        )}
+        {puedeGenerarDocumentos && (
+          <button onClick={handleGenerarExcel} disabled={!datos || generandoExcel}
+            style={{ ...inp, cursor: !datos || generandoExcel ? 'default' : 'pointer', background: C.bgPanel, color: C.dorado, fontWeight: 700, opacity: !datos || generandoExcel ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+            {generandoExcel
+              ? <><Loader2 size={13} style={{animation:'spin 0.8s linear infinite'}}/> Generando…</>
+              : <><FileSpreadsheet size={13}/> Generar Excel del Expediente</>}
           </button>
         )}
         {puedeGenerarDocumentos && (
@@ -210,7 +237,9 @@ export default function ExpedienteMML() {
           {tab === 'encabezado' && (
             <SeccionEncabezado
               programaId={programaId} anio={anio} programa={datos.programa} firmas={datos.firmas} presupuesto={datos.presupuesto}
-              puedeEditarEncabezado={puedeEditarEncabezado} puedeEditarPresupuesto={puedeEditarPresupuesto} onChange={cargar}
+              ficha={datos.ficha} fichaFuentes={datos.fichaFuentes} ejeNombre={datos.ejeNombre}
+              areasPrograma={datos.areasPrograma}
+              puedeEditar={puedeEditarFicha} onChange={cargar}
             />
           )}
           {tab === 'diagnostico' && (

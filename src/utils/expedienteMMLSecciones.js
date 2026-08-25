@@ -4,10 +4,19 @@
 import autoTable from 'jspdf-autotable'
 import { LOGO_BASE64 } from '../logo.js'
 import { GUINDA, DORADO, GRIS, BLANCO, ENTIDAD_NOMBRE, setColor, setFill, setDraw } from './reportesBase.js'
-import { CAPITULOS_LABEL, CATEGORIA_INVOLUCRADOS_LABEL, INDICE_FORMATOS, etiquetaNivelMIR } from './expedienteMMLContenido.js'
+import {
+  CATEGORIA_INVOLUCRADOS_LABEL, INDICE_FORMATOS, etiquetaNivelMIR,
+  resolverFicha, resolverFichaIndicador, pesos, subtituloEjercicioFiscal, unirOraciones,
+  resultadoTexto, numeroTexto,
+} from './expedienteMMLContenido.js'
 
 const ML = 14
 const FIRMAS_MARGEN_INF = 34 // espacio reservado abajo para que rol+nombre+cargo no se corten
+// Margen inferior de las tablas que pueden desbordar de página: unos mm MÁS
+// que FIRMAS_MARGEN_INF, porque drawFirmasMML dibuja la línea de roles
+// justo EN esa cota — con el mismo valor, la última fila de la tabla queda
+// encimada con "AUTORIZÓ / VO. BO. / ...".
+const TABLA_MARGEN_INF = FIRMAS_MARGEN_INF + 5
 const BANNER_H = 24 // antes 20 — se agrandó para el logo más grande + la línea de subtítulo
 
 // Texto de subtítulo del encabezado para las páginas posteriores al índice.
@@ -84,94 +93,253 @@ export function drawFirmasMML(doc, datos, y) {
   })
 }
 
-// ── Página 1: Ficha de Proyecto ───────────────────────────────────────────────
+// ── Página 1: Ficha de Proyecto (9 apartados del formato oficial) ────────────
+const FICHA_FS = 6.4    // tamaño base de las tablas de la ficha
+const CASILLA = 2.8     // lado del cuadro de las opciones marcables
+
+// Barra guinda con el número y el nombre de cada uno de los 9 apartados.
+function drawApartadoFicha(doc, numero, titulo, y, W) {
+  setFill(doc, GUINDA); doc.rect(ML, y, W - ML * 2, 4.4, 'F')
+  doc.setFontSize(6.6); doc.setFont('helvetica', 'bold'); setColor(doc, BLANCO)
+  doc.text(`${numero}. ${titulo.toUpperCase()}`, ML + 2, y + 3.1)
+  return y + 4.4 + 1.4
+}
+
+// Fila de opciones marcables repartida a lo ancho de `ancho`. La opción
+// marcada se rellena de guinda (no una "X": los fonts estándar de jsPDF
+// centran mal los glifos dentro de un cuadro tan chico). Devuelve el alto
+// consumido, ya contando las etiquetas que necesitaron 2 renglones.
+function drawCasillasFicha(doc, opciones, x, y, ancho) {
+  const colW = ancho / opciones.length
+  let maxLineas = 1
+  opciones.forEach((op, i) => {
+    const xi = x + i * colW
+    setDraw(doc, GUINDA); doc.setLineWidth(0.25); setFill(doc, BLANCO)
+    doc.rect(xi, y, CASILLA, CASILLA, 'FD')
+    if (op.marcado) { setFill(doc, GUINDA); doc.rect(xi + 0.65, y + 0.65, CASILLA - 1.3, CASILLA - 1.3, 'F') }
+    doc.setFontSize(5.9); doc.setFont('helvetica', op.marcado ? 'bold' : 'normal')
+    setColor(doc, op.marcado ? [25, 25, 25] : GRIS)
+    const lineas = doc.splitTextToSize(op.label, colW - CASILLA - 3)
+    doc.text(lineas, xi + CASILLA + 1.5, y + 2.2)
+    maxLineas = Math.max(maxLineas, lineas.length)
+  })
+  return maxLineas * 2.6 + 1.8
+}
+
+// Rótulo dorado + su fila de casillas debajo — el patrón que usan las
+// opciones que el formato agrupa bajo un subtítulo (Nivel MIR, Sentido,
+// Dimensión, Frecuencia, y los 2 grupos de la Clasificación Económica).
+function subApartadoCasillas(doc, titulo, opciones, y, ancho) {
+  doc.setFontSize(6.2); doc.setFont('helvetica', 'bold'); setColor(doc, DORADO)
+  doc.text(titulo, ML, y + 2.2)
+  y += 3.8
+  return y + drawCasillasFicha(doc, opciones, ML + 3, y, ancho - 3)
+}
+
+// Tabla etiqueta/valor de la ficha — `cols` es el total de columnas del body
+// (2 = un par por renglón, 4 = dos pares), y las columnas pares son las
+// etiquetas.
+function tablaFicha(doc, y, body, { anchoLabel = 34, cols = 2 } = {}) {
+  const columnStyles = {}
+  for (let i = 0; i < cols; i += 2) {
+    columnStyles[i] = { fontStyle: 'bold', textColor: GUINDA, cellWidth: anchoLabel, fillColor: [250, 248, 245] }
+  }
+  autoTable(doc, {
+    startY: y, margin: { left: ML, right: ML },
+    body, theme: 'grid',
+    styles: { fontSize: FICHA_FS, cellPadding: 1.1, lineColor: [205, 205, 205], lineWidth: 0.15, textColor: [25, 25, 25] },
+    columnStyles,
+  })
+  return doc.lastAutoTable.finalY + 2
+}
+
 export function drawFichaProyecto(doc, datos, anio) {
   const W = doc.internal.pageSize.width, H = doc.internal.pageSize.height
-  let y = drawEncabezado(doc, 'FICHA DE PROYECTO', null)
-  const p = datos.programa || {}
+  const usable = W - ML * 2
+  let y = drawEncabezado(doc, 'FICHA DE PROYECTO', null, subtituloAnteproyecto(anio))
+  const f = resolverFicha(datos, anio)
 
-  const filas = [
-    ['Clave programática', p.clave_programatica || '—'],
-    ['Finalidad', p.finalidad || '—'],
-    ['Función', p.funcion || '—'],
-    ['Subfunción', p.subfuncion || '—'],
-    ['Tipo de proyecto', p.tipo_proyecto || '—'],
-    ['Fuentes de financiamiento', p.fuentes_financiamiento || '—'],
-  ]
-  autoTable(doc, {
-    startY: y, margin: { left: ML, right: ML },
-    head: [['Nombre del programa', `${p.clave || ''} ${p.nombre || ''}`]],
-    body: filas, theme: 'grid',
-    headStyles: { fillColor: GUINDA, textColor: BLANCO, fontSize: 8, halign: 'center' },
-    styles: { fontSize: 7.5 },
-    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 55 } },
+  // 1. Nombre ─────────────────────────────────────────────────────────────
+  y = drawApartadoFicha(doc, 1, 'Nombre', y, W)
+  y = tablaFicha(doc, y, [['Programa Presupuestal', f.nombre]], { anchoLabel: 40 })
+
+  // 2. Tipo de Proyecto ───────────────────────────────────────────────────
+  y = drawApartadoFicha(doc, 2, 'Tipo de Proyecto', y, W)
+  y += drawCasillasFicha(doc, f.tiposProyecto, ML, y, usable)
+
+  // 3. Clasificación Administrativa ───────────────────────────────────────
+  y = drawApartadoFicha(doc, 3, 'Clasificación Administrativa', y, W)
+  y = tablaFicha(doc, y, [
+    ['Ramo', f.administrativa.ramo],
+    ['Municipio', f.administrativa.municipio],
+    ['Unidad Responsable', f.administrativa.unidadResp],
+  ], { anchoLabel: 40 })
+
+  // 4. Clasificación Económica ────────────────────────────────────────────
+  y = drawApartadoFicha(doc, 4, 'Clasificación Económica', y, W)
+  f.economica.forEach(g => {
+    doc.setFontSize(6.2); doc.setFont('helvetica', 'bold'); setColor(doc, DORADO)
+    doc.text(g.grupo, ML, y + 2.2)
+    y += 3.8
+    y += drawCasillasFicha(doc, g.opciones, ML + 3, y, usable - 3)
   })
-  y = doc.lastAutoTable.finalY + 4
 
-  const presupuesto = datos.presupuesto || []
-  const total = presupuesto.reduce((a, r) => a + (Number(r.importe) || 0), 0)
+  // 5. Clasificación Funcional-Programática ───────────────────────────────
+  y = drawApartadoFicha(doc, 5, 'Clasificación Funcional-Programática', y, W)
+  // Dos pares por renglón: los 6 conceptos caben en 3 renglones en vez de 6.
+  const fun = f.funcional
+  y = tablaFicha(doc, y, [
+    [fun[0].label, fun[0].valor, fun[1].label, fun[1].valor],
+    [fun[2].label, fun[2].valor, fun[3].label, fun[3].valor],
+    [fun[4].label, fun[4].valor, fun[5].label, fun[5].valor],
+  ], { anchoLabel: 32, cols: 4 })
+
+  // 6. Clasificación Regional ─────────────────────────────────────────────
+  y = drawApartadoFicha(doc, 6, 'Clasificación Regional', y, W)
+  const reg = f.regional
+  y = tablaFicha(doc, y, [
+    [reg[0].label, reg[0].valor, reg[1].label, reg[1].valor],
+    [reg[2].label, reg[2].valor, reg[3].label, reg[3].valor],
+  ], { anchoLabel: 32, cols: 4 })
+
+  // 7. Fuente de Financiamiento ───────────────────────────────────────────
+  // Dos tablas lado a lado (capítulos a la izquierda, "especificar fuente" a
+  // la derecha), igual que el formato impreso: se logra con los márgenes de
+  // autoTable, que es lo que define el ancho real de cada una.
+  y = drawApartadoFicha(doc, 7, 'Fuente de Financiamiento', y, W)
+  const anchoIzq = 94, GAP_TABLAS = 4
+  const yTablas = y
   autoTable(doc, {
-    startY: y, margin: { left: ML, right: ML },
-    head: [['Capítulo', 'Concepto', 'Importe']],
+    startY: yTablas, margin: { left: ML, right: W - ML - anchoIzq },
+    head: [['Capítulo', 'Importe']],
     body: [
-      ...presupuesto.map(r => [String(r.capitulo), CAPITULOS_LABEL[r.capitulo] || '', `$${Number(r.importe).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`]),
-      ['', 'TOTAL', `$${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`],
+      ...f.capitulos.map(c => [`${c.capitulo} ${c.label}`, pesos(c.importe)]),
+      ['Total', pesos(f.totalCapitulos)],
     ],
     theme: 'grid',
-    headStyles: { fillColor: GUINDA, textColor: BLANCO, fontSize: 8, halign: 'center' },
-    styles: { fontSize: 7.5 },
-    didParseCell(d) { if (d.row.index === presupuesto.length) { d.cell.styles.fontStyle = 'bold'; d.cell.styles.fillColor = DORADO } },
+    headStyles: { fillColor: GUINDA, textColor: BLANCO, fontSize: FICHA_FS, halign: 'center' },
+    styles: { fontSize: FICHA_FS, cellPadding: 1.1, lineColor: [205, 205, 205], lineWidth: 0.15 },
+    columnStyles: { 1: { cellWidth: 27, halign: 'right' } },
+    didParseCell(d) {
+      if (d.section === 'body' && d.row.index === f.capitulos.length) {
+        d.cell.styles.fontStyle = 'bold'; d.cell.styles.fillColor = DORADO
+      }
+    },
   })
-  y = doc.lastAutoTable.finalY + 6
+  const finalIzq = doc.lastAutoTable.finalY
 
+  autoTable(doc, {
+    startY: yTablas, margin: { left: ML + anchoIzq + GAP_TABLAS, right: ML },
+    head: [['Especificar fuente de financiamiento', '', 'Importe']],
+    body: f.fuentes.map(fu => [fu.label, fu.marcado ? 'X' : '', pesos(fu.importe)]),
+    theme: 'grid',
+    headStyles: { fillColor: GUINDA, textColor: BLANCO, fontSize: FICHA_FS, halign: 'center' },
+    styles: { fontSize: FICHA_FS, cellPadding: 1.1, lineColor: [205, 205, 205], lineWidth: 0.15 },
+    columnStyles: { 1: { cellWidth: 6, halign: 'center', fontStyle: 'bold', textColor: GUINDA }, 2: { cellWidth: 25, halign: 'right' } },
+  })
+  y = Math.max(finalIzq, doc.lastAutoTable.finalY) + 5
+
+  // "Dejando dos filas de espacio": el Presupuesto Estimado va separado de las
+  // tablas y repite el total de la columna Importe como cifra de control.
   doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
-  doc.text('Periodo de ejecución:', ML, y)
-  doc.setFont('helvetica', 'normal'); setColor(doc, [30, 30, 30])
-  doc.text(`01 de enero de ${anio}  al  31 de diciembre de ${anio}`, ML + 38, y)
-  y += 6
-  doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
-  doc.text('Responsable del proyecto:', ML, y)
-  doc.setFont('helvetica', 'normal'); setColor(doc, [30, 30, 30])
-  doc.text(`${p.elaboro_nombre || '—'}  ·  ${p.elaboro_cargo || ''}`, ML + 42, y)
+  doc.text('Presupuesto Estimado:', ML, y)
+  setColor(doc, [25, 25, 25])
+  doc.text(pesos(f.presupuestoEstimado), ML + 42, y)
+  y += 4
+
+  // 8. Periodo de Ejecución ───────────────────────────────────────────────
+  y = drawApartadoFicha(doc, 8, 'Periodo de Ejecución', y, W)
+  y = tablaFicha(doc, y, [['Fecha de inicio', f.periodo.inicio, 'Fecha de término', f.periodo.termino]],
+    { anchoLabel: 32, cols: 4 })
+
+  // 9. Datos del Líder/Responsable ────────────────────────────────────────
+  y = drawApartadoFicha(doc, 9, 'Datos del Líder/Responsable', y, W)
+  tablaFicha(doc, y, [
+    ['Nombre', f.lider.nombre, 'Cargo', f.lider.cargo],
+    ['Tel. y Fax', f.lider.tel, 'Correo electrónico', f.lider.email],
+  ], { anchoLabel: 32, cols: 4 })
 
   drawFirmasMML(doc, datos, H - FIRMAS_MARGEN_INF)
 }
 
-// ── Página 2: Descripción de Programa (prosa auto-generada) ──────────────────
-export function drawDescripcionPrograma(doc, datos) {
-  const H = doc.internal.pageSize.height
-  let y = drawEncabezado(doc, 'DESCRIPCIÓN DE PROGRAMA', null)
+// ── Páginas 2 y 3: Descripción de Programa / de Proyectos ────────────────────
+// Mismo formato con distinto título (DESCRIPCION_HOJAS) — el documento
+// oficial pide las dos hojas con idéntico contenido.
+export function drawDescripcion(doc, datos, anio, titulo) {
+  const W = doc.internal.pageSize.width, H = doc.internal.pageSize.height
+  const subtitulo = subtituloEjercicioFiscal(anio)
+  let y = drawEncabezado(doc, titulo, null, subtitulo)
+  const f = resolverFicha(datos, anio)
   const diag = (datos.diagnostico || [])[0]
-  const proposito = (datos.mirNiveles || []).find(n => n.tipo === 'PROPOSITO')
-  const fin = (datos.mirNiveles || []).find(n => n.tipo === 'FIN')
+  const niveles = datos.mirNiveles || []
+  const proposito = niveles.find(n => n.tipo === 'PROPOSITO')
+  const fin = niveles.find(n => n.tipo === 'FIN')
 
-  function bloque(titulo, texto) {
+  // Cuando una tabla se desborda a la página siguiente, esa página nueva
+  // nacería sin banner. Se le vuelve a dibujar el encabezado la primera vez
+  // que se cae en ella (y solo esa vez, de ahí el Set): autoTable llama a
+  // didDrawPage después de pintar las filas, así que el banner queda arriba
+  // sin encimarse con el contenido, que arranca en margin.top.
+  const conEncabezado = new Set([doc.internal.getCurrentPageInfo().pageNumber])
+  const encabezadoContinuacion = () => {
+    const n = doc.internal.getCurrentPageInfo().pageNumber
+    if (conEncabezado.has(n)) return
+    conEncabezado.add(n)
+    drawEncabezado(doc, titulo, null, subtitulo)
+  }
+  const margenTabla = { left: ML, right: ML, top: BANNER_H + 6, bottom: TABLA_MARGEN_INF }
+
+  // Los 2 renglones de identificación que el formato pide antes de la prosa.
+  autoTable(doc, {
+    startY: y, margin: { left: ML, right: ML },
+    body: [
+      ['Eje Rector o Programa del PMD', f.ejePmd],
+      ['Programa Según Catálogo OFS', f.programaOfs],
+    ],
+    theme: 'grid',
+    styles: { fontSize: 7.5, cellPadding: 1.5, lineColor: [205, 205, 205], lineWidth: 0.15, textColor: [25, 25, 25] },
+    columnStyles: { 0: { fontStyle: 'bold', textColor: GUINDA, cellWidth: 55, fillColor: [250, 248, 245] } },
+  })
+  y = doc.lastAutoTable.finalY + 5
+
+  function bloque(tituloBloque, texto) {
     doc.setFontSize(8); doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
-    doc.text(titulo, ML, y)
+    doc.text(tituloBloque, ML, y)
     y += 4
     doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); setColor(doc, [30, 30, 30])
-    const lines = doc.splitTextToSize(texto || '—', doc.internal.pageSize.width - ML * 2)
+    const lines = doc.splitTextToSize(texto || '—', W - ML * 2)
     doc.text(lines, ML, y)
     y += lines.length * 3.6 + 6
   }
 
   bloque('DESCRIPCIÓN', diag?.transformacion_deseada)
   bloque('JUSTIFICACIÓN', diag?.situacion_actual)
-  bloque('OBJETIVOS ESTRATÉGICOS',
-    [proposito?.resumen_narrativo, fin?.resumen_narrativo].filter(Boolean).join('. '))
+  bloque('OBJETIVOS ESTRATÉGICOS', unirOraciones([proposito?.resumen_narrativo, fin?.resumen_narrativo]))
 
-  const filasMetas = (datos.mirNiveles || []).map(n => [etiquetaNivelMIR(n), n.resumen_narrativo || '—'])
-  autoTable(doc, {
-    startY: y, margin: { left: ML, right: ML, bottom: FIRMAS_MARGEN_INF },
-    head: [['Nivel', 'Metas (resumen narrativo)']],
-    body: filasMetas, theme: 'grid',
-    headStyles: { fillColor: GUINDA, textColor: BLANCO, fontSize: 8, halign: 'center' },
-    styles: { fontSize: 7 },
-    columnStyles: { 0: { cellWidth: 30, fontStyle: 'bold' } },
-  })
+  // METAS y PRINCIPALES INDICADORES: mismos niveles y mismo orden del formato
+  // (Fin, Propósito, C1..CN, C1A1..CNAN), que es el que ya trae
+  // derivarNivelesMIR() desde fase_mml_15. El título de cada tabla va en una
+  // celda que cubre las 2 columnas (colSpan) — si no, cae en la columna
+  // angosta del nivel y se parte en 2 renglones.
+  const tablaNiveles = (encabezado, valorDe) => {
+    autoTable(doc, {
+      startY: y, margin: margenTabla,
+      head: [[{ content: encabezado, colSpan: 2 }]],
+      body: niveles.map(n => [etiquetaNivelMIR(n), valorDe(n)]),
+      theme: 'grid',
+      headStyles: { fillColor: GUINDA, textColor: BLANCO, fontSize: 8, halign: 'left' },
+      styles: { fontSize: 7 },
+      columnStyles: { 0: { cellWidth: 30, fontStyle: 'bold' } },
+      didDrawPage: encabezadoContinuacion,
+    })
+    y = doc.lastAutoTable.finalY + 5
+  }
+  tablaNiveles('METAS', n => n.resumen_narrativo || '—')
+  tablaNiveles('PRINCIPALES INDICADORES', n => n.indicador?.nombre || '— sin vincular —')
 
-  // margin.bottom fuerza salto de página si la tabla no cabe (programas con
-  // muchos niveles MIR, ej. 26 en 037/012) en vez de invadir el pie de firmas.
+  // margin.bottom mantiene las tablas fuera del pie de firmas: si no caben,
+  // saltan de página (programas con muchos niveles MIR, ej. 26 en 037/012) y
+  // las firmas se dibujan al pie de la última.
   drawFirmasMML(doc, datos, H - FIRMAS_MARGEN_INF)
 }
 
@@ -543,7 +711,7 @@ function alturaCajaDinamica(doc, texto, w, { destacado, fontSize } = {}) {
 // 3... para los Medios de primer nivel; 1.1, 1.2... para las actividades que
 // cuelgan del Medio 1, 2.1, 2.2... para las del Medio 2, etc. Compartido
 // entre Acciones y Alternativas para que la numeración sea consistente.
-function numerarComponentesActividades(datos) {
+export function numerarComponentesActividades(datos) {
   const medios = datos.medios || []
   return medios.map((medio, i) => {
     const numero = i + 1
@@ -736,7 +904,7 @@ export function drawMatrizMIR(doc, datos) {
 
   const niveles = datos.mirNiveles || []
   autoTable(doc, {
-    startY: y, margin: { left: ML, right: ML, bottom: FIRMAS_MARGEN_INF },
+    startY: y, margin: { left: ML, right: ML, bottom: TABLA_MARGEN_INF },
     head: [['Nivel', 'Resumen narrativo (Objetivo)', 'Indicador', 'Tipo/Dim./Sentido', 'Supuestos / Riesgo', 'Medios de verificación']],
     body: niveles.map(n => [
       etiquetaNivelMIR(n),
@@ -768,7 +936,7 @@ export function drawCronogramaMetas(doc, datos) {
 
   const niveles = (datos.mirNiveles || []).filter(n => n.indicador_id)
   autoTable(doc, {
-    startY: y, margin: { left: ML, right: ML, bottom: FIRMAS_MARGEN_INF },
+    startY: y, margin: { left: ML, right: ML, bottom: TABLA_MARGEN_INF },
     head: [['Nivel', 'Meta (verbos en infinitivo)', ...MESES, 'Anual']],
     body: niveles.map(n => [
       etiquetaNivelMIR(n),
@@ -786,48 +954,66 @@ export function drawCronogramaMetas(doc, datos) {
 }
 
 // ── Fichas de indicador (una por nivel MIR vinculado a un indicador) ─────────
+// 4 apartados del formato oficial, con los mismos helpers de barra/casilla/
+// tabla que la Ficha de Proyecto para que las dos se vean del mismo documento.
 export function drawFichaIndicador(doc, datos, nivel, anio) {
-  const H = doc.internal.pageSize.height
-  const ind = nivel.indicador
+  const W = doc.internal.pageSize.width, H = doc.internal.pageSize.height
+  const usable = W - ML * 2
   let y = drawEncabezado(doc, 'FICHA DE INDICADOR DE RESULTADOS', null, subtituloAnteproyecto(anio))
-  const p = datos.programa || {}
+  const f = resolverFichaIndicador(datos, nivel, anio)
 
+  // 1. Tipo de Indicador ──────────────────────────────────────────────────
+  y = drawApartadoFicha(doc, 1, 'Tipo de Indicador', y, W)
+  y += drawCasillasFicha(doc, f.tiposIndicador, ML, y, usable)
+
+  // 2. Datos de Identificación ────────────────────────────────────────────
+  y = drawApartadoFicha(doc, 2, 'Datos de Identificación', y, W)
+  y = tablaFicha(doc, y, f.identificacion.map(r => [r.label, r.valor]), { anchoLabel: 52 })
+
+  // 3. Estructura del Indicador ───────────────────────────────────────────
+  y = drawApartadoFicha(doc, 3, 'Estructura del Indicador', y, W)
+  y = tablaFicha(doc, y, [
+    ['Nombre', f.estructura.nombre],
+    ['Fórmula de cálculo', f.estructura.formula],
+  ], { anchoLabel: 52 })
+  y = subApartadoCasillas(doc, 'Nivel de Indicador (MIR)', f.estructura.nivelesMIR, y, usable)
+  y = subApartadoCasillas(doc, 'Sentido o Comportamiento del Indicador', f.estructura.sentidos, y, usable)
+
+  // 4. Meta del Indicador ─────────────────────────────────────────────────
+  y = drawApartadoFicha(doc, 4, 'Meta del Indicador', y, W)
   autoTable(doc, {
-    startY: y, margin: { left: ML, right: ML },
+    startY: y, margin: { left: ML, right: ML, bottom: TABLA_MARGEN_INF },
+    head: [['Variables', 'Unidad de Medida', 'Alcanzada', `Meta ${anio}`]],
     body: [
-      ['Programa', `${p.clave || ''} ${p.nombre || ''}`],
-      ['Nivel MIR', etiquetaNivelMIR(nivel)],
-      ['Nombre del indicador', ind?.nombre || '—'],
-      ['Definición', ind?.definicion || '—'],
-      ['Tipo de indicador', ind?.tipo_indicador || '—'],
-      ['Dimensión', ind?.dimension || '—'],
-      ['Sentido', ind?.sentido || '—'],
-      ['Año línea base', ind?.linea_base_anio || '—'],
-      ['Supuestos / Riesgo', nivel.supuestos || '—'],
-      ['Medios de verificación', nivel.medios_verificacion || '—'],
-      ['Interpretación', ind?.interpretacion || '—'],
+      ...(f.variables.length
+        ? f.variables.map(v => [v.etiqueta, v.unidad, numeroTexto(v.alcanzada), numeroTexto(v.meta)])
+        : [['— sin variables capturadas —', '—', '—', '—']]),
+      // Resultado del Indicador: numerador ÷ denominador × 100, no la suma de
+      // la columna (así lo definió Hugo).
+      ['Resultado del Indicador', '',
+        resultadoTexto(f.resultado.alcanzada, f.resultado.esPorcentaje),
+        resultadoTexto(f.resultado.meta, f.resultado.esPorcentaje)],
     ],
     theme: 'grid',
-    styles: { fontSize: 7.5 },
-    columnStyles: { 0: { fontStyle: 'bold', textColor: GUINDA, cellWidth: 45 } },
+    headStyles: { fillColor: GUINDA, textColor: BLANCO, fontSize: FICHA_FS, halign: 'center' },
+    styles: { fontSize: FICHA_FS, cellPadding: 1.2, lineColor: [205, 205, 205], lineWidth: 0.15, textColor: [25, 25, 25] },
+    columnStyles: {
+      1: { cellWidth: 32, halign: 'center' },
+      2: { cellWidth: 26, halign: 'right' },
+      3: { cellWidth: 26, halign: 'right' },
+    },
+    didParseCell(d) {
+      if (d.section === 'body' && d.row.index === Math.max(f.variables.length, 1)) {
+        d.cell.styles.fontStyle = 'bold'; d.cell.styles.fillColor = DORADO
+      }
+    },
   })
-  y = doc.lastAutoTable.finalY + 5
+  y = doc.lastAutoTable.finalY + 2
 
-  const variables = nivel.variables || []
-  doc.setFontSize(8); doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
-  doc.text('Variables de la fórmula', ML, y)
-  y += 3
-  autoTable(doc, {
-    startY: y, margin: { left: ML, right: ML },
-    head: [['Variable', 'Símbolo', 'Unidad de medida', 'Fuente', `Alcanzada`, `Meta ${anio}`]],
-    body: variables.length ? variables.map(v => [
-      v.nombre, v.simbolo || '—', v.unidad_medida, v.fuente || '—',
-      v.valor?.valor_alcanzado ?? '—', v.valor?.valor_meta ?? '—',
-    ]) : [['—', '—', '—', '—', '—', '—']],
-    theme: 'grid',
-    headStyles: { fillColor: GUINDA, textColor: BLANCO, fontSize: 7.5, halign: 'center' },
-    styles: { fontSize: 7 },
-  })
+  y = tablaFicha(doc, y, [['Interpretación', f.interpretacion]], { anchoLabel: 52 })
+  y = subApartadoCasillas(doc, 'Dimensión que atiende', f.dimensiones, y, usable)
+  y = subApartadoCasillas(doc, 'Frecuencia de Medición', f.frecuencias, y, usable)
+  tablaFicha(doc, y, [['Fuente de información', f.fuenteInformacion]], { anchoLabel: 52 })
 
   drawFirmasMML(doc, datos, H - FIRMAS_MARGEN_INF)
 }
