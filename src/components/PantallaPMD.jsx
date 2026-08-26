@@ -30,6 +30,13 @@ function getSemaforo(pct) {
   return 'CRÍTICO'
 }
 
+// Un programa PMD se considera "alineado" cuando tiene al menos un indicador
+// MIR vinculado y al menos uno con meta capturada para el anio en curso
+// (columna indicadores_con_meta_anio de v_comparativo_pmd).
+function estaAlineado(p) {
+  return Number(p.total_indicadores) > 0 && Number(p.indicadores_con_meta_anio) > 0
+}
+
 function Pill({ sem }) {
   if (!sem) {
     return (
@@ -215,20 +222,23 @@ export default function PantallaPMD() {
   const [incluirDetalle, setIncluirDetalle] = useState(false)
   const [generandoPDF, setGenerandoPDF] = useState(false)
   const [pdfError, setPdfError] = useState(null)
+  const [mostrarNoAlineados, setMostrarNoAlineados] = useState(false)
 
   const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
 
-  // Ocultos temporalmente a pedido de Hugo (2026-08-05): programas sin
-  // indicador vinculado o sin meta capturada para el año en curso, mientras
-  // Planeación termina de alinearlos. Cuando estén listos, basta con quitar
-  // este filtro — la vista sigue trayendo esos programas por si se necesitan.
-  const visibles = useMemo(() => {
-    if (!data) return []
-    return data.filter(p => Number(p.total_indicadores) > 0 && Number(p.indicadores_con_meta_anio) > 0)
-  }, [data])
+  // Los programas sin alineación (sin indicador vinculado o sin meta del año
+  // en curso) no se listan por default —pedido de Hugo, 2026-08-05, mientras
+  // Planeación termina de alinearlos—, pero el checkbox de la barra de filtros
+  // los muestra marcados como "Pendiente de alineación". Aun mostrándose quedan
+  // fuera del resumen KPI y del reporte PDF: ambos se calculan siempre sobre
+  // `alineados`, para no distorsionar el % global ni meter renglones vacíos al
+  // reporte oficial. `data` ya viene ordenado por número desde la vista.
+  const alineados   = useMemo(() => (data || []).filter(estaAlineado), [data])
+  const noAlineados = useMemo(() => (data || []).filter(p => !estaAlineado(p)), [data])
+  const visibles    = mostrarNoAlineados ? (data || []) : alineados
 
   async function handleDescargarReporte() {
-    if (!visibles.length) return
+    if (!alineados.length) return
     setGenerandoPDF(true); setPdfError(null)
     try {
       const [detallePorPrograma, presupuestarioPorPrograma, ejes] = await Promise.all([
@@ -237,7 +247,7 @@ export default function PantallaPMD() {
         getNombresEjes(),
       ])
       generarReportePMD({
-        programas: visibles,
+        programas: alineados,
         mesActual, anioActual, periodoLabel,
         incluirDetalle, detallePorPrograma, presupuestarioPorPrograma, ejes,
       })
@@ -252,6 +262,13 @@ export default function PantallaPMD() {
     return Array.from(new Set(visibles.map(p => p.eje).filter(Boolean))).sort()
   }, [visibles])
 
+  // Si el eje seleccionado solo existía entre los programas sin alineación y
+  // se apaga el checkbox, el select quedaría con un valor fuera de sus opciones
+  // y la tabla vacía sin explicación: se limpia el filtro.
+  useEffect(() => {
+    if (eje && !ejesDisponibles.includes(eje)) setEje('')
+  }, [ejesDisponibles, eje])
+
   const filtrados = useMemo(() => {
     let r = visibles
     if (eje) r = r.filter(p => p.eje === eje)
@@ -263,20 +280,20 @@ export default function PantallaPMD() {
   }, [visibles, eje, busq])
 
   const resumen = useMemo(() => {
-    if (!visibles.length) return null
-    const conAvance = visibles.filter(p => p.indicadores_con_avance > 0).length
-    const conPct = visibles.filter(p => p.pct_promedio != null)
+    if (!alineados.length) return null
+    const conAvance = alineados.filter(p => p.indicadores_con_avance > 0).length
+    const conPct = alineados.filter(p => p.pct_promedio != null)
     const pctGlobal = conPct.length
       ? conPct.reduce((s, p) => s + Number(p.pct_promedio), 0) / conPct.length
       : null
-    const totales = visibles.reduce((acc, p) => ({
+    const totales = alineados.reduce((acc, p) => ({
       optimo:   acc.optimo   + (p.optimo   || 0),
       adecuado: acc.adecuado + (p.adecuado || 0),
       riesgo:   acc.riesgo   + (p.riesgo   || 0),
       critico:  acc.critico  + (p.critico  || 0),
     }), { optimo: 0, adecuado: 0, riesgo: 0, critico: 0 })
-    return { total: visibles.length, conAvance, sinAvance: visibles.length - conAvance, pctGlobal, ...totales }
-  }, [visibles])
+    return { total: alineados.length, conAvance, sinAvance: alineados.length - conAvance, pctGlobal, ...totales }
+  }, [alineados])
 
   const inp = {
     width: '100%', background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 8,
@@ -304,8 +321,8 @@ export default function PantallaPMD() {
             <input type="checkbox" checked={incluirDetalle} onChange={e => setIncluirDetalle(e.target.checked)}/>
             Incluir detalle por indicador
           </label>
-          <button onClick={handleDescargarReporte} disabled={generandoPDF || !visibles.length}
-            style={{ background: generandoPDF ? '#444' : `linear-gradient(135deg,${C.guindaDark},${C.guinda})`, border: 'none', borderRadius: 8, color: C.txt, padding: '0.5rem 0.9rem', fontSize: '0.75rem', fontWeight: 700, fontFamily: 'inherit', cursor: generandoPDF || !visibles.length ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button onClick={handleDescargarReporte} disabled={generandoPDF || !alineados.length}
+            style={{ background: generandoPDF ? '#444' : `linear-gradient(135deg,${C.guindaDark},${C.guinda})`, border: 'none', borderRadius: 8, color: C.txt, padding: '0.5rem 0.9rem', fontSize: '0.75rem', fontWeight: 700, fontFamily: 'inherit', cursor: generandoPDF || !alineados.length ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
             {generandoPDF
               ? <><Loader2 size={13} style={{animation:'spin 0.8s linear infinite'}}/> Generando…</>
               : <><FileText size={13}/> Descargar Reporte PDF</>}
@@ -320,7 +337,7 @@ export default function PantallaPMD() {
       {/* Resumen ejecutivo */}
       {resumen && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.75rem', marginBottom: '1.2rem' }}>
-          <KPI label="Programas PMD" value={resumen.total} icon={ClipboardList} color={C.dorado}/>
+          <KPI label="Programas PMD" value={resumen.total} sub={noAlineados.length ? `${noAlineados.length} sin alineación` : undefined} icon={ClipboardList} color={C.dorado}/>
           <KPI label="Con avance registrado" value={resumen.conAvance} sub={`${resumen.sinAvance} sin datos`} icon={TrendingUp} color="#00B050"/>
           <KPI label="% Promedio global" value={resumen.pctGlobal != null ? `${resumen.pctGlobal.toFixed(1)}%` : '—'} icon={Target} color={C.doradoLight}/>
           <KPI label="Óptimo / Adecuado" value={`${resumen.optimo} / ${resumen.adecuado}`} sub={`Riesgo: ${resumen.riesgo} · Crítico: ${resumen.critico}`} icon={Gauge} color="#046205"/>
@@ -341,6 +358,15 @@ export default function PantallaPMD() {
           <input value={busq} onChange={e => setBusq(e.target.value)} placeholder="Filtra por nombre del programa…" style={inp}/>
         </div>
       </div>
+
+      {noAlineados.length > 0 && (
+        <label title="Los programas sin alineación no entran al resumen KPI ni al reporte PDF."
+          style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.7rem', color: C.txtSub, cursor: 'pointer', marginBottom: '1rem' }}>
+          <input type="checkbox" checked={mostrarNoAlineados} onChange={e => setMostrarNoAlineados(e.target.checked)}/>
+          Mostrar {noAlineados.length} programa{noAlineados.length === 1 ? '' : 's'} sin alineación
+          <span style={{ color: C.txtMuted, fontStyle: 'italic' }}>(sin indicador MIR o sin meta {anioActual}; no entran al PDF ni al resumen)</span>
+        </label>
+      )}
 
       {/* Tabla comparativa */}
       <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden' }}>
@@ -370,11 +396,16 @@ export default function PantallaPMD() {
                       <td style={{ padding: '0.55rem 0.7rem', color: C.txtSub, whiteSpace: 'nowrap' }}>
                         {Number(p.total_indicadores) === 0
                           ? <span style={{ fontSize: '0.64rem', color: C.txtMuted, fontStyle: 'italic' }}>Sin indicadores MIR vinculados</span>
-                          : `${p.indicadores_con_avance}/${p.total_indicadores}`}
+                          : <>
+                              {`${p.indicadores_con_avance}/${p.total_indicadores}`}
+                              {Number(p.indicadores_con_meta_anio) === 0 && (
+                                <span style={{ display: 'block', fontSize: '0.62rem', color: C.txtMuted, fontStyle: 'italic' }}>sin meta {anioActual}</span>
+                              )}
+                            </>}
                       </td>
                       <td style={{ padding: '0.55rem 0.7rem', color: C.txtSub }}>{pct != null ? `${pct.toFixed(1)}%` : '—'}</td>
                       <td style={{ padding: '0.55rem 0.7rem' }}>
-                        {Number(p.total_indicadores) === 0
+                        {!estaAlineado(p)
                           ? <span style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: 1, background: '#3a3a3a', color: C.txtSub, padding: '2px 8px', borderRadius: 6, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Pendiente de alineación</span>
                           : <Pill sem={sem}/>}
                       </td>
