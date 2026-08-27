@@ -65,4 +65,5 @@ export {
   actualizarPresupuesto,
   actualizarFichaProyecto, actualizarFuenteFinanciamiento,
   puedeEditarDatosIndicador, puedeAsignarAreaResponsable,
+  getAvanceMMLAreas, getAvanceMMLProgramas, getAniosMML, getAvanceMMLDetalleArea,
 } from './mml.js'

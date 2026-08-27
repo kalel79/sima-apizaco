@@ -593,3 +593,43 @@ export async function actualizarFuenteFinanciamiento({ programaId, anio, fuente,
 // funcion, subfuncion, tipo_proyecto, fuentes_financiamiento) los sustituyó la
 // Ficha de Proyecto por programa+año. Las columnas siguen existiendo en la
 // base (la migración es aditiva) pero ya nadie las lee ni las escribe.
+
+// ── Avance de captura del Expediente MML (fase_mml_22) ──────────────────────
+// Contraparte, para el ejercicio completo, de lo que v_avance_captura_areas
+// hace con la captura mensual de avances. Cada nivel de la MIR exige 22 datos
+// (1 MIR + 2 Riesgos + 7 Ficha + 12 Metas) y las vistas ya entregan los
+// conteos y porcentajes por bloque, para no recalcular la regla en el front.
+
+export async function getAvanceMMLAreas(anio) {
+  const { data, error } = await supabase
+    .from('v_avance_mml_areas').select('*').eq('anio', anio).order('area')
+  if (error) throw error
+  return data || []
+}
+
+export async function getAvanceMMLProgramas(anio) {
+  const { data, error } = await supabase
+    .from('v_avance_mml_programas').select('*').eq('anio', anio).order('clave')
+  if (error) throw error
+  return data || []
+}
+
+// Años con árbol capturado, para poblar el selector sin clavarlo en el código.
+export async function getAniosMML() {
+  const { data, error } = await supabase
+    .from('v_avance_mml_programas').select('anio').order('anio')
+  if (error) throw error
+  return [...new Set((data || []).map(r => r.anio))]
+}
+
+// Detalle nivel por nivel de un área, para el panel "Ver detalle": deja ver
+// exactamente qué le falta a cada Componente/Actividad, no solo el porcentaje.
+export async function getAvanceMMLDetalleArea(areaId, anio) {
+  const { data, error } = await supabase
+    .from('v_mml_captura_nivel')
+    .select('nivel, nodo_id, indicador_id, indicador_clave, indicador_nombre, resumen_narrativo, d_mir, d_riesgos, d_ficha, d_metas')
+    .eq('area_id', areaId).eq('anio', anio)
+    .order('nivel').order('nodo_id')
+  if (error) throw error
+  return data || []
+}

@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Users, BarChart3, FileText, Settings, Paperclip } from 'lucide-react'
+import { Users, BarChart3, FileText, Settings, Paperclip, ClipboardList } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useConfiguracionCtx } from '../contexts/ConfiguracionContext'
 import { formatPeriodoLabel } from '../utils/periodo'
 import { useDatosReporte } from '../hooks/useDatosReporte'
 import { C } from '../theme.js'
 import AvanceCaptura from './AvanceCaptura'
+import AvanceCapturaMML from './admin/AvanceCapturaMML.jsx'
 import GestionUsuarios from './admin/GestionUsuarios.jsx'
 import PeriodoEvaluacion from './admin/PeriodoEvaluacion.jsx'
 import ReportesAdmin from './admin/ReportesAdmin.jsx'
@@ -18,6 +19,7 @@ export default function AdminUsuarios() {
   const TABS = [
     ...(isAdmin ? [{ id: 'usuarios', label: 'Gestión de Usuarios', icon: Users }] : []),
     ...((isAdmin || isPlaneacion) ? [{ id: 'captura', label: 'Avance de Captura', icon: BarChart3 }] : []),
+    ...((isAdmin || isPlaneacion) ? [{ id: 'mml', label: 'Avance Expediente MML', icon: ClipboardList }] : []),
     ...(puedeVerReportesAdmin ? [{ id: 'evidencias', label: 'Seguimiento de Evidencias', icon: Paperclip }] : []),
     ...(puedeVerReportesAdmin ? [{ id: 'reportes', label: 'Reportes', icon: FileText }] : []),
   ]
@@ -53,6 +55,8 @@ export default function AdminUsuarios() {
       )}
 
       {adminTab === 'captura' && (isAdmin || isPlaneacion) && <AvanceCaptura/>}
+
+      {adminTab === 'mml' && (isAdmin || isPlaneacion) && <AvanceCapturaMML/>}
 
       {adminTab === 'usuarios' && isAdmin && (
         <div style={{ maxWidth: 560 }}>

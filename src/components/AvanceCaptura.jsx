@@ -14,6 +14,7 @@ const ESTADO_COLOR = {
   'EN PROGRESO':     C.riesgoB,
   PENDIENTE:         C.criticoB,
   'SIN INDICADORES': '#5a5a5a', // sin equivalente en theme.js — gris propio de este estado
+  'SIN NIVELES':     '#5a5a5a', // equivalente del anterior en el avance MML (fase_mml_22)
 }
 
 const SEM_COLOR = {
@@ -30,9 +31,9 @@ function pctStr(val) {
 
 // Orden pedido: primero lo que necesita atención (PENDIENTE), luego EN
 // PROGRESO, luego COMPLETO; SIN INDICADORES al final (no requiere acción).
-const ESTADO_PRIORIDAD = { PENDIENTE: 0, 'EN PROGRESO': 1, COMPLETO: 2, 'SIN INDICADORES': 3 }
+export const ESTADO_PRIORIDAD = { PENDIENTE: 0, 'EN PROGRESO': 1, COMPLETO: 2, 'SIN INDICADORES': 3, 'SIN NIVELES': 3 }
 
-function Badge({ estado }) {
+export function Badge({ estado }) {
   const color = ESTADO_COLOR[estado] || C.txtMuted
   const textColor = estado === 'EN PROGRESO' ? '#7A5800' : '#fff'
   return (
@@ -42,7 +43,7 @@ function Badge({ estado }) {
   )
 }
 
-function KPI({ label, value, icon: Icon, color }) {
+export function KPI({ label, value, icon: Icon, color }) {
   const esTexto = typeof value === 'string' && value.length > 6
   return (
     <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderTop: `3px solid ${color}`, borderRadius: 12, padding: '1rem', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>

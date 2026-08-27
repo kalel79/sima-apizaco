@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   getDashboardGlobal, getResumenEjes, getResumenAreas,
   getAlertasLogros, getIndicadores, getIndicadoresLista, getComparativoPMD,
-  getAvanceCapturaAreas, getSparklinesAnio, getAsmConsolidado
+  getAvanceCapturaAreas, getSparklinesAnio, getAsmConsolidado,
+  getAvanceMMLAreas, getAvanceMMLProgramas, getAniosMML
 } from '../lib/supabase'
 
 function useQuery(fn, deps = []) {
@@ -62,6 +63,21 @@ export function useComparativoPMD() {
 
 export function useAvanceCapturaAreas() {
   return useQuery(getAvanceCapturaAreas)
+}
+
+// Avance de captura del Expediente MML de un ejercicio (fase_mml_22).
+// Con `anio` en null no se consulta: el año lo resuelve useAniosMML() y hasta
+// que llega no hay nada que pedir (un .eq('anio', null) traería basura).
+export function useAvanceMMLAreas(anio) {
+  return useQuery(() => (anio == null ? Promise.resolve([]) : getAvanceMMLAreas(anio)), [anio])
+}
+
+export function useAvanceMMLProgramas(anio) {
+  return useQuery(() => (anio == null ? Promise.resolve([]) : getAvanceMMLProgramas(anio)), [anio])
+}
+
+export function useAniosMML() {
+  return useQuery(getAniosMML)
 }
 
 export function useSparklines(anio) {
