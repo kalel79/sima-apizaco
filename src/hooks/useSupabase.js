@@ -50,8 +50,10 @@ export function useIndicadores(filtros = {}) {
   )
 }
 
-export function useIndicadoresLista() {
-  return useQuery(getIndicadoresLista)
+// `anio` acota la lista al ejercicio (fase_mml_21). Sin él, catálogo completo:
+// así CapturaASM y cualquier consumidor que no razone por año siguen igual.
+export function useIndicadoresLista(anio = null) {
+  return useQuery(() => getIndicadoresLista(anio), [anio])
 }
 
 export function useComparativoPMD() {

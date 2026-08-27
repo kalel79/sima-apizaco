@@ -1,6 +1,32 @@
 // ── Consultas de lectura (dashboards, listados y datos para reportes) ─────────
-import { supabase } from './supabaseClient.js'
+import { supabase, paginarTodo } from './supabaseClient.js'
 import { getMetasCatalogo } from './metas.js'
+
+// ── Año de un indicador (fase_mml_21) ────────────────────────────────────────
+// `indicadores` es un catálogo acumulado: no tiene columna de año. El año se
+// deriva de los nodos que referencian al indicador — mir_niveles en 2026,
+// arbol_nodos de 2027 en adelante — y la vista v_indicador_anio unifica ambas
+// fuentes. Un indicador vigente pertenece a varios años a la vez:
+// copiarArbolDeAnioAnterior() arrastra indicador_id al copiar el árbol, así que
+// el nodo del año nuevo apunta a la misma fila del catálogo.
+export async function getAniosPorIndicador() {
+  const filas = await paginarTodo(() =>
+    supabase.from('v_indicador_anio').select('indicador_id, anio'))
+  const porIndicador = new Map()
+  filas.forEach(({ indicador_id, anio }) => {
+    if (!porIndicador.has(indicador_id)) porIndicador.set(indicador_id, new Set())
+    porIndicador.get(indicador_id).add(anio)
+  })
+  return porIndicador
+}
+
+// Un indicador que no cuelga de ningún nodo (huérfano) se deja pasar en TODOS
+// los años. Así el filtro nunca esconde nada en silencio: solo saca de la lista
+// lo que positivamente se sabe de otro ejercicio.
+function esDelAnio(aniosPorIndicador, indicadorId, anio) {
+  const anios = aniosPorIndicador.get(indicadorId)
+  return !anios || anios.size === 0 || anios.has(anio)
+}
 
 export async function getDashboardGlobal() {
   const { data, error } = await supabase.from('v_dashboard_global').select('*').single()
@@ -330,42 +356,38 @@ export async function getMatrizProgramasAreas() {
   })
 }
 
-export async function getIndicadoresLista() {
-  const [pages, { data: areas, error: eAreas }] = await Promise.all([
-    Promise.all([
-      supabase.from('indicadores').select('id, nombre, nivel_mir, area_id').order('nombre').range(0,   59),
-      supabase.from('indicadores').select('id, nombre, nivel_mir, area_id').order('nombre').range(60,  119),
-      supabase.from('indicadores').select('id, nombre, nivel_mir, area_id').order('nombre').range(120, 179),
-      supabase.from('indicadores').select('id, nombre, nivel_mir, area_id').order('nombre').range(180, 239),
-    ]),
+// `anio` acota la lista al ejercicio pedido (fase_mml_21). Sin él devuelve el
+// catálogo completo, que es lo que necesita quien no razona por año.
+export async function getIndicadoresLista(anio = null) {
+  const [todos, { data: areas, error: eAreas }, aniosPorIndicador] = await Promise.all([
+    paginarTodo(() =>
+      supabase.from('indicadores').select('id, nombre, nivel_mir, area_id').order('nombre')),
     supabase.from('areas').select('id, nombre').range(0, 199),
+    anio == null ? null : getAniosPorIndicador(),
   ])
-  pages.forEach(p => { if (p.error) throw p.error })
   if (eAreas) throw eAreas
 
-  const todos = pages.flatMap(p => p.data || [])
   const areasMap = Object.fromEntries((areas || []).map(a => [a.id, a.nombre]))
-
-  return todos.map(i => ({
+  const lista = todos.map(i => ({
     ...i,
     area_nombre: areasMap[i.area_id] || 'Sin area'
   }))
+
+  return anio == null
+    ? lista
+    : lista.filter(i => esDelAnio(aniosPorIndicador, i.id, anio))
 }
 
 export async function getMetasResultados(anio = 2026) {
-  const [pages, { data: areas, error: eAreas }, { data: ejes, error: eEjes }, { data: avances, error: eAv }, metasCatalogo] = await Promise.all([
-    Promise.all([
-      supabase.from('indicadores').select('id,nombre,nivel_mir,area_id').order('id').range(0,   59),
-      supabase.from('indicadores').select('id,nombre,nivel_mir,area_id').order('id').range(60,  119),
-      supabase.from('indicadores').select('id,nombre,nivel_mir,area_id').order('id').range(120, 179),
-      supabase.from('indicadores').select('id,nombre,nivel_mir,area_id').order('id').range(180, 239),
-    ]),
+  const [todosCatalogo, { data: areas, error: eAreas }, { data: ejes, error: eEjes }, { data: avances, error: eAv }, metasCatalogo, aniosPorIndicador] = await Promise.all([
+    paginarTodo(() =>
+      supabase.from('indicadores').select('id,nombre,nivel_mir,area_id').order('id')),
     supabase.from('areas').select('id,nombre,eje_id'),
     supabase.from('ejes').select('id,codigo,nombre,orden').order('orden'),
     supabase.from('avances').select('indicador_id,mes,resultado,pct_cumplimiento,semaforo').eq('anio', anio),
     getMetasCatalogo(anio),
+    getAniosPorIndicador(),
   ])
-  pages.forEach(p => { if (p.error) throw p.error })
   if (eAreas || eEjes || eAv) throw eAreas || eEjes || eAv
 
   const areasMap  = Object.fromEntries((areas  || []).map(a => [a.id, a]))
@@ -376,7 +398,9 @@ export async function getMetasResultados(anio = 2026) {
     avMap[av.indicador_id][av.mes] = { resultado: av.resultado, pct: av.pct_cumplimiento, semaforo: av.semaforo }
   })
 
-  const todos = pages.flatMap(p => p.data || [])
+  // Solo los indicadores del ejercicio: los del 2027 entraban aquí con avances
+  // y metas vacías y contaban como "sin captura", bajando la cobertura del 2026.
+  const todos = todosCatalogo.filter(ind => esDelAnio(aniosPorIndicador, ind.id, anio))
   return todos.map(ind => {
     const area = areasMap[ind.area_id] || {}
     const eje  = ejesMap[area.eje_id]  || {}

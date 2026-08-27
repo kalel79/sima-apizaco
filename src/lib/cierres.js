@@ -1,7 +1,7 @@
 // ── Cierre mensual congelado (fase 1.3) ────────────────────────────────────────
 // Snapshot inmutable del resumen (global/eje/área) al cerrar un periodo, para
 // poder regenerar reportes de meses pasados aunque después se corrijan avances.
-import { supabase } from './supabaseClient.js'
+import { supabase, paginarTodo } from './supabaseClient.js'
 
 export async function getCierresMensuales() {
   const { data, error } = await supabase
@@ -63,17 +63,11 @@ export async function cerrarMesActual(anio, mes, usuarioId) {
 // v_indicadores_acum), con los mismos campos que ya consumen
 // reporteMensualPDF.js/reportesExcel.js vía indicadoresPorEje[eje.codigo].
 export async function getIndicadoresPorEjeCatalogo() {
-  const [pages, { data: areas, error: eAreas }, { data: ejes, error: eEjes }] = await Promise.all([
-    Promise.all([
-      supabase.from('indicadores').select('id,nombre,nivel_mir,area_id').range(0,   59),
-      supabase.from('indicadores').select('id,nombre,nivel_mir,area_id').range(60,  119),
-      supabase.from('indicadores').select('id,nombre,nivel_mir,area_id').range(120, 179),
-      supabase.from('indicadores').select('id,nombre,nivel_mir,area_id').range(180, 239),
-    ]),
+  const [indicadores, { data: areas, error: eAreas }, { data: ejes, error: eEjes }] = await Promise.all([
+    paginarTodo(() => supabase.from('indicadores').select('id,nombre,nivel_mir,area_id')),
     supabase.from('areas').select('id,nombre,eje_id'),
     supabase.from('ejes').select('id,codigo').order('orden'),
   ])
-  pages.forEach(p => { if (p.error) throw p.error })
   if (eAreas) throw eAreas
   if (eEjes) throw eEjes
 
@@ -81,7 +75,7 @@ export async function getIndicadoresPorEjeCatalogo() {
   const ejesMap  = Object.fromEntries((ejes  || []).map(e => [e.id, e]))
 
   const porEje = {}
-  pages.flatMap(p => p.data || []).forEach(ind => {
+  indicadores.forEach(ind => {
     const area   = areasMap[ind.area_id] || {}
     const eje    = ejesMap[area.eje_id]  || {}
     const codigo = eje.codigo || 'SIN_EJE'

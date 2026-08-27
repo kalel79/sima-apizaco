@@ -1,6 +1,6 @@
 // ── Metas multi-año (tabla `metas`, fase 1.1) ──────────────────────────────────
 // mes: 1-12 = meta mensual, 0 = meta anual.
-import { supabase } from './supabaseClient.js'
+import { supabase, paginarTodo } from './supabaseClient.js'
 import { sortByMIR } from '../utils/reportesBase.js'
 
 const PAGE_SIZE = 500
@@ -70,24 +70,18 @@ export async function getMetasArea(areaId, anio) {
 // cada eje, por nivel MIR (Fin, Propósito, Componente, Actividad) — para la
 // plantilla de importación de metas.
 export async function getIndicadoresOrdenados() {
-  const [pages, { data: areas, error: eAreas }, { data: ejes, error: eEjes }] = await Promise.all([
-    Promise.all([
-      supabase.from('indicadores').select('id,clave,nombre,nivel_mir,area_id').range(0,   59),
-      supabase.from('indicadores').select('id,clave,nombre,nivel_mir,area_id').range(60,  119),
-      supabase.from('indicadores').select('id,clave,nombre,nivel_mir,area_id').range(120, 179),
-      supabase.from('indicadores').select('id,clave,nombre,nivel_mir,area_id').range(180, 239),
-    ]),
+  const [indicadores, { data: areas, error: eAreas }, { data: ejes, error: eEjes }] = await Promise.all([
+    paginarTodo(() => supabase.from('indicadores').select('id,clave,nombre,nivel_mir,area_id')),
     supabase.from('areas').select('id,nombre,eje_id'),
     supabase.from('ejes').select('id,codigo,orden').order('orden'),
   ])
-  pages.forEach(p => { if (p.error) throw p.error })
   if (eAreas) throw eAreas
   if (eEjes) throw eEjes
 
   const areasMap = Object.fromEntries((areas || []).map(a => [a.id, a]))
   const ejesMap  = Object.fromEntries((ejes  || []).map(e => [e.id, e]))
 
-  const todos = pages.flatMap(p => p.data || []).map(ind => {
+  const todos = indicadores.map(ind => {
     const area = areasMap[ind.area_id] || {}
     const eje  = ejesMap[area.eje_id]  || {}
     return { ...ind, area_nombre: area.nombre || '', eje_codigo: eje.codigo || '', eje_orden: eje.orden ?? 99 }

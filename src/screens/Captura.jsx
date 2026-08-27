@@ -19,8 +19,15 @@ const MESES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV'
 
 export default function PantallaCaptura({ areaCoordinador }) {
   const { profile, isEnlace, isAdmin, isPlaneacion, user, area } = useAuth()
-  const {data:listaCompleta, loading:loadLista} = useIndicadoresLista()
   const { mesActual, anioActual, loading: cfgLoading } = useConfiguracionCtx()
+
+  // `form` se declara antes que la lista porque el año elegido es lo que la
+  // acota: `indicadores` es un catálogo acumulado sin año propio, así que sin
+  // este filtro la captura del 2026 mostraba también los indicadores dados de
+  // alta al capturar la MIR 2027 (fase_mml_21).
+  const [form,   setForm]   = useState({indicadorId:'', mes: mesActual ?? 5, anio: anioActual ?? 2026, resultado:'', observaciones:''})
+  const {data:listaCompleta, loading:loadLista} = useIndicadoresLista(+form.anio)
+
   const lista = useMemo(() => {
     if (!listaCompleta) return []
     if (areaCoordinador) return listaCompleta.filter(i => i.area_nombre === areaCoordinador)
@@ -41,7 +48,6 @@ export default function PantallaCaptura({ areaCoordinador }) {
   const areaIdActivo     = isEnlace ? profile?.area_id : areaValidacion?.id ?? null
   const areaNombreActivo = isEnlace ? area : areaValidacion?.nombre ?? null
 
-  const [form,   setForm]   = useState({indicadorId:'', mes: mesActual ?? 5, anio: anioActual ?? 2026, resultado:'', observaciones:''})
   const [status, setStatus] = useState(null)
   const [saving, setSaving] = useState(false)
   const [busq,   setBusq]   = useState('')
@@ -258,7 +264,10 @@ export default function PantallaCaptura({ areaCoordinador }) {
               </div>
               <div>
                 <label style={{fontSize:'0.68rem',color:C.txtSub,textTransform:'uppercase',letterSpacing:1,display:'block',marginBottom:4}}>Año</label>
-                <select value={form.anio} onChange={e=>setForm(f=>({...f,anio:+e.target.value}))} style={inp}>
+                {/* Cambiar de año recarga la lista con los indicadores de ese
+                    ejercicio: se limpia la selección para no dejar apuntando
+                    un indicador que ya no está en la lista. */}
+                <select value={form.anio} onChange={e=>setForm(f=>({...f,anio:+e.target.value,indicadorId:''}))} style={inp}>
                   {ANIOS_PROGRAMA.map(a=><option key={a} value={a}>{a}</option>)}
                 </select>
               </div>
