@@ -28,6 +28,13 @@ export default function ExpedienteMML() {
   // presupuesto (admin/planeación), que es lo que refuerza la RLS de
   // ficha_proyecto/ficha_fuente_financiamiento.
   const puedeEditarFicha = isAdmin || isPlaneacion
+  // fase_mml_23: la ESTRUCTURA de los dos árboles (Problema y Objetivos) es de
+  // admin/planeación. El enlace los ve de solo lectura y sigue capturando los
+  // supuestos, los medios de verificación y el indicador de los Componentes/
+  // Actividades de SU área en la pestaña Riesgos/MIR — eso escribe en las mismas
+  // filas de arbol_nodos, pero solo en esas 3 columnas, que es justo lo que dejan
+  // pasar la política arbol_update_area y el trigger.
+  const puedeEditarArbol = isAdmin || isPlaneacion
   // Generar PDF/plantilla/instructivo: reservado a admin/planeación — un
   // enlace no debe generar el documento oficial ni la plantilla en blanco,
   // aunque en el futuro se le habilite la pestaña.
@@ -247,7 +254,7 @@ export default function ExpedienteMML() {
               puedeCopiar={puedeCopiarAnioAnterior} anioOrigenDisponible={anioOrigenDisponible} onChange={cargar} />
           )}
           {tab === 'arbolProblema' && (
-            <SeccionArbol programaId={programaId} anio={anio} arbol="PROBLEMA" nodos={datos.arbolProblema} puedeEditar={puedeEditarEsteArea}
+            <SeccionArbol programaId={programaId} anio={anio} arbol="PROBLEMA" nodos={datos.arbolProblema} puedeEditar={puedeEditarArbol}
               puedeCopiar={puedeCopiarAnioAnterior} anioOrigenDisponible={anioOrigenDisponible} onChange={cargar} />
           )}
           {tab === 'involucrados' && (
@@ -256,7 +263,7 @@ export default function ExpedienteMML() {
           )}
           {tab === 'arbolObjetivos' && (
             <SeccionArbol programaId={programaId} anio={anio} arbol="OBJETIVOS" nodos={datos.arbolObjetivos}
-              puedeEditar={puedeEditarEsteArea} puedeAsignarArea={puedeAsignarArea}
+              puedeEditar={puedeEditarArbol} puedeAsignarArea={puedeAsignarArea}
               puedeCopiar={puedeCopiarAnioAnterior} anioOrigenDisponible={anioOrigenDisponible} onChange={cargar} />
           )}
           {tab === 'acciones' && (
