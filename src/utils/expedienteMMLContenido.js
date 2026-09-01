@@ -1,3 +1,5 @@
+import { metaEfectivaVariable } from '../lib/metaVariable.js'
+
 // ── Catálogos fijos del Expediente MML (folios oficiales, capítulos, índice) ──
 
 export const INDICE_FORMATOS = [
@@ -296,7 +298,10 @@ export function resolverFichaIndicador(datos, nivel, anio) {
     etiqueta: v.simbolo ? `${v.simbolo} — ${v.nombre || '—'}` : (v.nombre || '—'),
     unidad: v.unidad_medida || '—',
     alcanzada: v.valor?.valor_alcanzado ?? null,
-    meta: v.valor?.valor_meta ?? null,
+    // fase_mml_26: en Componente/Actividad con el POA completo, la Meta es el
+    // anual del POA, no lo tecleado aquí — así el documento no puede contradecir
+    // al POA del que sale.
+    meta: metaEfectivaVariable(nivel, v).valor,
   }))
 
   // Resultado del Indicador = numerador / denominador × 100, NO la suma de la

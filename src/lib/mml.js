@@ -8,6 +8,7 @@
 // Componente; cada nodo que cuelga de un Medio es una Actividad de ese
 // Componente.
 import { supabase } from './supabaseClient.js'
+import { contarMesesPOA } from './metaVariable.js'
 
 // Resuelve el área/programa propio de un enlace (mismo criterio que Captura.jsx
 // usa con profile.area_id, aquí resuelto hasta el programa vía areas.programa_id).
@@ -248,13 +249,20 @@ export async function resolverDatosMML(programaId, anio) {
     }, {})
   }
 
-  const nivelesMIR = nivelesMIRBase.map(n => ({
-    ...n,
-    tipo: n.mirTipo, // FIN/PROPOSITO/COMPONENTE/ACTIVIDAD, no OBJETIVO/MEDIO del árbol
-    resumen_narrativo: n.texto, // una sola redacción: se edita en Árbol de Objetivos
-    variables: n.indicador_id ? (variablesPorIndicador[n.indicador_id] || []) : [],
-    metas: n.indicador_id ? (metasPorIndicador[n.indicador_id] || {}) : {},
-  }))
+  const nivelesMIR = nivelesMIRBase.map(n => {
+    const metas = n.indicador_id ? (metasPorIndicador[n.indicador_id] || {}) : {}
+    const poaMesesCapturados = contarMesesPOA(metas)
+    return {
+      ...n,
+      tipo: n.mirTipo, // FIN/PROPOSITO/COMPONENTE/ACTIVIDAD, no OBJETIVO/MEDIO del árbol
+      resumen_narrativo: n.texto, // una sola redacción: se edita en Árbol de Objetivos
+      variables: n.indicador_id ? (variablesPorIndicador[n.indicador_id] || []) : [],
+      metas,
+      poaMesesCapturados,
+      poaCompleto: poaMesesCapturados === 12,
+      poaAnual: metas[0] ?? null,
+    }
+  })
 
   // Medios de primer nivel (candidatos a Componente) para Acciones/Alternativas.
   const medios = nodosObjetivos

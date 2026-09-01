@@ -6,6 +6,7 @@ import {
   upsertVariable, eliminarVariable, upsertValorVariable,
   puedeEditarDatosIndicador,
 } from '../../lib/supabase'
+import { metaEfectivaVariable, ANIO_META_DERIVADA } from '../../lib/metaVariable.js'
 import {
   etiquetaNivelMIR, componerFormula,
   TIPOS_INDICADOR, DIMENSIONES_INDICADOR, SENTIDOS_INDICADOR, FRECUENCIAS_INDICADOR,
@@ -367,13 +368,13 @@ function FichaIndicador({ nivel, ind, anio, puedeEditar, conGuardado, setGuardan
           style={inp} />
       </div>
 
-      <VariablesIndicador indicadorId={ind.id} anio={anio} variables={Array.isArray(nivel.variables) ? nivel.variables : []}
+      <VariablesIndicador indicadorId={ind.id} anio={anio} nivel={nivel} variables={Array.isArray(nivel.variables) ? nivel.variables : []}
         puedeEditar={puedeEditar} onChange={onChange} setGuardando={setGuardando} setError={setError} />
     </div>
   )
 }
 
-function VariablesIndicador({ indicadorId, anio, variables, puedeEditar, onChange, setGuardando, setError }) {
+function VariablesIndicador({ indicadorId, anio, nivel, variables, puedeEditar, onChange, setGuardando, setError }) {
   async function conGuardado(key, fn) {
     setGuardando(key); setError(null)
     try {
@@ -394,7 +395,9 @@ function VariablesIndicador({ indicadorId, anio, variables, puedeEditar, onChang
   return (
     <div>
       <label style={lbl}>Variables de la fórmula</label>
-      {variables.map(v => (
+      {variables.map(v => {
+        const meta = metaEfectivaVariable(nivel, v)
+        return (
         <div key={v.id} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 110px 90px 90px 32px', gap: 5, marginBottom: 5, alignItems: 'center' }}>
           <input defaultValue={v.nombre} disabled={!puedeEditar} placeholder="Nombre"
             onBlur={e => { if (e.target.value !== v.nombre) conGuardado('var-' + v.id, () => upsertVariable({ id: v.id, indicadorId, nombre: e.target.value, simbolo: v.simbolo, unidadMedida: v.unidad_medida, fuente: v.fuente, orden: v.orden })) }}
@@ -408,9 +411,18 @@ function VariablesIndicador({ indicadorId, anio, variables, puedeEditar, onChang
           <input type="number" step="0.01" defaultValue={v.valor?.valor_alcanzado ?? ''} disabled={!puedeEditar} placeholder="Alcanzada"
             onBlur={e => { const val = e.target.value; if (val !== String(v.valor?.valor_alcanzado ?? '')) conGuardado('valor-' + v.id, () => upsertValorVariable({ id: v.valor?.id, variableId: v.id, anio, valorAlcanzado: val, valorMeta: v.valor?.valor_meta })) }}
             style={inp} />
-          <input type="number" step="0.01" defaultValue={v.valor?.valor_meta ?? ''} disabled={!puedeEditar} placeholder="Meta"
-            onBlur={e => { const val = e.target.value; if (val !== String(v.valor?.valor_meta ?? '')) conGuardado('valor-' + v.id, () => upsertValorVariable({ id: v.valor?.id, variableId: v.id, anio, valorAlcanzado: v.valor?.valor_alcanzado, valorMeta: val })) }}
-            style={inp} />
+          {meta.origen === 'POA' ? (
+            // fase_mml_26: con el POA completo la Meta ES el anual del POA. Se
+            // muestra en solo lectura para que no puedan volver a separarse; se
+            // corrige en la pestaña de Metas/POA, que es donde vive el dato.
+            <input type="number" value={meta.valor ?? ''} readOnly disabled={!puedeEditar}
+              title={'Meta tomada del anual del POA (' + (nivel?.poaMesesCapturados ?? 0) + '/12 meses capturados). Para cambiarla, edita el POA.'}
+              style={{ ...inp, color: C.txtSub, cursor: 'not-allowed' }} />
+          ) : (
+            <input type="number" step="0.01" defaultValue={v.valor?.valor_meta ?? ''} disabled={!puedeEditar} placeholder="Meta"
+              onBlur={e => { const val = e.target.value; if (val !== String(v.valor?.valor_meta ?? '')) conGuardado('valor-' + v.id, () => upsertValorVariable({ id: v.valor?.id, variableId: v.id, anio, valorAlcanzado: v.valor?.valor_alcanzado, valorMeta: val })) }}
+              style={inp} />
+          )}
           {puedeEditar && (
             <button onClick={() => conGuardado('var-del-' + v.id, () => eliminarVariable(v.id))}
               style={{ background: 'none', border: `1px solid ${C.criticoB}55`, borderRadius: 6, color: C.criticoB, padding: '0.3rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', justifyContent: 'center' }}>
@@ -418,8 +430,15 @@ function VariablesIndicador({ indicadorId, anio, variables, puedeEditar, onChang
             </button>
           )}
         </div>
-      ))}
+        )
+      })}
       {!variables.length && <div style={{ fontSize: '0.68rem', color: C.txtMuted, marginBottom: 6 }}>Sin variables capturadas.</div>}
+      {!!variables.length && (nivel?.anio ?? 0) >= ANIO_META_DERIVADA
+        && (nivel?.tipo === 'COMPONENTE' || nivel?.tipo === 'ACTIVIDAD') && !nivel?.poaCompleto && (
+        <div style={{ fontSize: '0.68rem', color: C.txtMuted, marginBottom: 6 }}>
+          POA {nivel?.poaMesesCapturados ?? 0}/12 meses. Al completar los 12, la Meta se tomará del anual del POA.
+        </div>
+      )}
       {puedeEditar && (
         <button onClick={handleAgregar}
           style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: `1px dashed ${C.border}`, borderRadius: 6, color: C.doradoLight, padding: '0.35rem 0.6rem', fontSize: '0.68rem', cursor: 'pointer', fontFamily: 'inherit' }}>
