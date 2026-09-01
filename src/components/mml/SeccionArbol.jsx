@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { XCircle, Loader2, Trash2, Plus, Copy } from 'lucide-react'
 import { upsertArbolNodo, eliminarArbolNodo, actualizarAreaResponsable, getAreasDePrograma, copiarArbolDeAnioAnterior } from '../../lib/supabase'
 import { C } from '../../theme.js'
@@ -40,6 +40,35 @@ export default function SeccionArbol({ programaId, anio, arbol, nodos, puedeEdit
   // servidor en get_area_efectiva_nodo, sin cambio ahí).
   const raiz = arbol === 'OBJETIVOS' ? nodos.find(n => n.tipo === 'OBJETIVO' && !n.padre_id) : null
   const padreDe = id => nodos.find(n => n.id === id)
+
+  // fase_mml_25: un nodo no puede colgar de sí mismo ni de un descendiente
+  // suyo. Eso forma un ciclo y el Componente, con todas sus Actividades,
+  // desaparece de la MIR y del POA sin dar error — le pasó al Módulo Canino
+  // en el 032/2027 y al 033/2027, las dos veces desde este mismo <select>.
+  // La base ya lo rechaza (trigger arbol_nodos_valida_datos_indicador); aquí
+  // esas opciones ni siquiera se ofrecen. El `vistos` no es defensivo de más:
+  // sin él, un árbol que todavía trajera un ciclo colgaría el navegador aquí.
+  const descendientesPorNodo = useMemo(() => {
+    const hijos = new Map()
+    for (const n of nodos) {
+      if (n.padre_id == null) continue
+      if (!hijos.has(n.padre_id)) hijos.set(n.padre_id, [])
+      hijos.get(n.padre_id).push(n.id)
+    }
+    const resolver = raizId => {
+      const vistos = new Set()
+      const pila = [raizId]
+      while (pila.length) {
+        for (const hijo of hijos.get(pila.pop()) || []) {
+          if (vistos.has(hijo)) continue
+          vistos.add(hijo)
+          pila.push(hijo)
+        }
+      }
+      return vistos
+    }
+    return new Map(nodos.map(n => [n.id, resolver(n.id)]))
+  }, [nodos])
 
   useEffect(() => {
     if (arbol !== 'OBJETIVOS' || !programaId) return
@@ -129,7 +158,7 @@ export default function SeccionArbol({ programaId, anio, arbol, nodos, puedeEdit
             <select value={nodo.padre_id || ''} disabled={!puedeEditar}
               onChange={e => handleCampo(nodo, 'padre_id', e.target.value ? +e.target.value : null)} style={sel}>
               <option value="">— sin padre (raíz) —</option>
-              {nodos.filter(n => n.id !== nodo.id).map(n => (
+              {nodos.filter(n => n.id !== nodo.id && !descendientesPorNodo.get(nodo.id)?.has(n.id)).map(n => (
                 <option key={n.id} value={n.id}>[{n.tipo}] {n.texto.slice(0, 40)}</option>
               ))}
             </select>
