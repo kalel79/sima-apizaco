@@ -12,8 +12,20 @@
 -- huerfanos a 674, 675, 679, 680, 681 y 682: por eso no colgaban de la raiz,
 -- y por eso copiarArbolDeAnioAnterior() nunca habria podido reconstruirlo.
 --
+-- ⚠ CORRECCION 2026-09-02 · ESTE RESPALDO ESTA INCOMPLETO.
+-- El volcado se tomo al inicio de la sesion, pero el DELETE se ejecuto
+-- despues. En ese lapso, el 2026-08-31 a las 13:33 hora local, la enlace de
+-- Gobernacion vinculo el indicador 192 ("documento generado por participacion
+-- ciudadana") al Componente 4 de este arbol vIa crear_indicador_y_vincular().
+-- El DELETE se llevo ese nodo y dejo al indicador huerfano, lo que inflo el
+-- denominador de agosto 2026 a 171. Se resolvio el 2026-09-02 vinculando el
+-- 192 al nodo 852 del arbol reconstruido (ver
+-- scripts/sql/gobernacion_c4_2027_indicador_192.sql).
+-- Si algun dia se restaura este archivo, NINGUNA fila de aqui trae ese
+-- vinculo: hay que rehacerlo a mano.
+--
 -- Ningun nodo tenia indicador_id, area_responsable_id, supuestos ni
--- medios_verificacion; no habia acciones alternativas, mir_niveles ni
+-- medios_verificacion AL MOMENTO DEL VOLCADO; no habia acciones alternativas, mir_niveles ni
 -- presupuesto para 2027, y ninguna meta colgaba de estos nodos. La unica fila
 -- 2027 que NO se borro es la de ficha_proyecto (no bloquea ninguna copia).
 --
