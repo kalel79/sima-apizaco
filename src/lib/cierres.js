@@ -2,6 +2,7 @@
 // Snapshot inmutable del resumen (global/eje/área) al cerrar un periodo, para
 // poder regenerar reportes de meses pasados aunque después se corrijan avances.
 import { supabase, paginarTodo } from './supabaseClient.js'
+import { getAniosPorIndicador, esDelAnio } from './consultas.js'
 
 export async function getCierresMensuales() {
   const { data, error } = await supabase
@@ -62,11 +63,18 @@ export async function cerrarMesActual(anio, mes, usuarioId) {
 // Catálogo indicador→eje SIN filtro de periodo (a diferencia de
 // v_indicadores_acum), con los mismos campos que ya consumen
 // reporteMensualPDF.js/reportesExcel.js vía indicadoresPorEje[eje.codigo].
-export async function getIndicadoresPorEjeCatalogo() {
-  const [indicadores, { data: areas, error: eAreas }, { data: ejes, error: eEjes }] = await Promise.all([
+//
+// `anio` acota el catálogo al ejercicio (null = catálogo completo, como antes).
+// Sin él, el reporte de un mes cerrado de 2026 listaba también los indicadores
+// dados de alta para la MIR 2027, todos con guiones: `indicadores` es un
+// catálogo acumulado sin columna de año y el año se deriva de v_indicador_anio
+// (ver getAniosPorIndicador/esDelAnio en consultas.js).
+export async function getIndicadoresPorEjeCatalogo(anio = null) {
+  const [indicadores, { data: areas, error: eAreas }, { data: ejes, error: eEjes }, aniosPorIndicador] = await Promise.all([
     paginarTodo(() => supabase.from('indicadores').select('id,nombre,nivel_mir,area_id')),
     supabase.from('areas').select('id,nombre,eje_id'),
     supabase.from('ejes').select('id,codigo').order('orden'),
+    anio == null ? Promise.resolve(null) : getAniosPorIndicador(),
   ])
   if (eAreas) throw eAreas
   if (eEjes) throw eEjes
@@ -74,8 +82,12 @@ export async function getIndicadoresPorEjeCatalogo() {
   const areasMap = Object.fromEntries((areas || []).map(a => [a.id, a]))
   const ejesMap  = Object.fromEntries((ejes  || []).map(e => [e.id, e]))
 
+  const delEjercicio = anio == null
+    ? indicadores
+    : indicadores.filter(ind => esDelAnio(aniosPorIndicador, ind.id, anio))
+
   const porEje = {}
-  indicadores.forEach(ind => {
+  delEjercicio.forEach(ind => {
     const area   = areasMap[ind.area_id] || {}
     const eje    = ejesMap[area.eje_id]  || {}
     const codigo = eje.codigo || 'SIN_EJE'

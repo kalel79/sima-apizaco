@@ -23,7 +23,7 @@ export async function getAniosPorIndicador() {
 // Un indicador que no cuelga de ningún nodo (huérfano) se deja pasar en TODOS
 // los años. Así el filtro nunca esconde nada en silencio: solo saca de la lista
 // lo que positivamente se sabe de otro ejercicio.
-function esDelAnio(aniosPorIndicador, indicadorId, anio) {
+export function esDelAnio(aniosPorIndicador, indicadorId, anio) {
   const anios = aniosPorIndicador.get(indicadorId)
   return !anios || anios.size === 0 || anios.has(anio)
 }

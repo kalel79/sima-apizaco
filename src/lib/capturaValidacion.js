@@ -1,5 +1,6 @@
 // ── Captura de avances, validación mensual y correcciones (con audit_log) ─────
-import { supabase } from './supabaseClient.js'
+import { supabase, paginarTodo } from './supabaseClient.js'
+import { esDelAnio } from './consultas.js'
 import { getMetasIndicadorAnio } from './metas.js'
 import { getCierreMensual } from './cierres.js'
 
@@ -22,12 +23,36 @@ async function getIndicadoresAreaAnio(areaId, anio, columnas = 'id') {
     .from('v_indicador_anio').select('indicador_id, anio').in('indicador_id', ids)
   if (eAnio) throw eAnio
 
-  // Un indicador huérfano (sin nodo en ningún ejercicio) se deja pasar en todos
-  // los años: el filtro solo saca lo que positivamente se sabe de otro año.
-  // Mismo criterio que esDelAnio() en consultas.js.
-  const conAnio  = new Set((filas || []).map(f => f.indicador_id))
-  const delAnio  = new Set((filas || []).filter(f => f.anio === anio).map(f => f.indicador_id))
-  return (inds || []).filter(i => !conAnio.has(i.id) || delAnio.has(i.id))
+  // El criterio del filtro vive en esDelAnio() (consultas.js), no aquí: un
+  // indicador huérfano —sin nodo en ningún ejercicio— pasa en todos los años,
+  // así el filtro nunca esconde nada en silencio.
+  const aniosPorIndicador = new Map()
+  ;(filas || []).forEach(({ indicador_id, anio: a }) => {
+    if (!aniosPorIndicador.has(indicador_id)) aniosPorIndicador.set(indicador_id, new Set())
+    aniosPorIndicador.get(indicador_id).add(a)
+  })
+  return (inds || []).filter(i => esDelAnio(aniosPorIndicador, i.id, anio))
+}
+
+// Meta y resultado acumulados ENE→mes por indicador. El pct_cumplimiento que
+// guarda `avances` NO es del mes suelto: guardarAvance()/corregirAvance() lo
+// calculan sobre el acumulado del ejercicio. Sin estas dos cifras, el acuse
+// imprimía un porcentaje sin numerador ni denominador visibles al lado de una
+// meta y un resultado mensuales, y salían renglones "Meta 0 · Resultado 0 ·
+// 200%" que son aritméticamente correctos pero ilegibles.
+async function getAcumuladoHastaMes(ids, mes, anio) {
+  const filas = await paginarTodo(() => supabase
+    .from('avances')
+    .select('indicador_id, meta_programada, resultado')
+    .in('indicador_id', ids).eq('anio', anio).gte('mes', 1).lte('mes', mes))
+
+  const acum = {}
+  filas.forEach(f => {
+    if (!acum[f.indicador_id]) acum[f.indicador_id] = { meta: 0, resultado: 0 }
+    acum[f.indicador_id].meta      += Number(f.meta_programada) || 0
+    acum[f.indicador_id].resultado += Number(f.resultado) || 0
+  })
+  return acum
 }
 
 export async function getAvanceActual(indicadorId, mes, anio) {
@@ -96,22 +121,29 @@ export async function getAvancesValidadosMes(areaId, mes, anio) {
   const ids = inds.map(i => i.id)
   if (!ids.length) return []
 
-  const { data: avs, error: eAv } = await supabase
-    .from('avances')
-    .select('indicador_id, meta_programada, resultado, pct_cumplimiento, semaforo')
-    .in('indicador_id', ids).eq('mes', mes).eq('anio', anio).eq('validado', true)
+  const [{ data: avs, error: eAv }, acum] = await Promise.all([
+    supabase
+      .from('avances')
+      .select('indicador_id, meta_programada, resultado, pct_cumplimiento, semaforo')
+      .in('indicador_id', ids).eq('mes', mes).eq('anio', anio).eq('validado', true),
+    getAcumuladoHastaMes(ids, mes, anio),
+  ])
   if (eAv) throw eAv
 
   const indMap = Object.fromEntries(inds.map(i => [i.id, i]))
   return (avs || [])
     .map(av => {
       const ind = indMap[av.indicador_id] || {}
+      const ac  = acum[av.indicador_id] || { meta: 0, resultado: 0 }
       return {
         clave:             ind.clave || '-',
         nombre:            ind.nombre || '',
         nivel_mir:         ind.nivel_mir || '-',
         meta_programada:   av.meta_programada,
         resultado:         av.resultado,
+        // Numerador y denominador del pct_cumplimiento, que es acumulado.
+        meta_acum:         ac.meta,
+        resultado_acum:    ac.resultado,
         pct_cumplimiento:  av.pct_cumplimiento,
         semaforo:          av.semaforo,
       }
@@ -132,17 +164,22 @@ export async function registrarAuditLog({ tabla, accion, registro_id, usuario_id
 // Todos los indicadores de un área con su avance del mes (incluye validado=false
 // y los que aún no tienen avance capturado), para el panel "Ver indicadores".
 export async function getAvancesDetalleArea(areaId, mes, anio) {
-  const [{ data: inds, error: eInd }, { data: avs, error: eAv }] = await Promise.all([
-    supabase.from('indicadores').select('id, clave, nombre, nivel_mir').eq('area_id', areaId).order('clave'),
-    supabase.from('avances')
-      .select('id, indicador_id, meta_programada, resultado, pct_cumplimiento, semaforo, validado, validado_at')
-      .eq('mes', mes).eq('anio', anio),
-  ])
-  if (eInd) throw eInd
+  const inds = await getIndicadoresAreaAnio(areaId, anio, 'id, clave, nombre, nivel_mir')
+  const ids = inds.map(i => i.id)
+  if (!ids.length) return []
+
+  // Acotada a los indicadores del área: sin el .in() esta consulta pedía TODOS
+  // los avances del mes (170 en 2026) contra el tope de 1000 filas de
+  // PostgREST, así que al seguir creciendo el catálogo habría empezado a
+  // mostrar como no capturados avances que sí existen, y sin dar error.
+  const { data: avs, error: eAv } = await supabase
+    .from('avances')
+    .select('id, indicador_id, meta_programada, resultado, pct_cumplimiento, semaforo, validado, validado_at')
+    .in('indicador_id', ids).eq('mes', mes).eq('anio', anio)
   if (eAv) throw eAv
 
   const avMap = Object.fromEntries((avs || []).map(a => [a.indicador_id, a]))
-  return (inds || []).map(ind => {
+  return inds.map(ind => {
     const av = avMap[ind.id] || {}
     return {
       avance_id:         av.id ?? null,
@@ -157,7 +194,7 @@ export async function getAvancesDetalleArea(areaId, mes, anio) {
       validado:          av.validado ?? false,
       validado_at:       av.validado_at ?? null,
     }
-  })
+  }).sort((a, b) => (a.clave || '').localeCompare(b.clave || '', 'es'))
 }
 
 // Recalcula pct_cumplimiento/semaforo sustituyendo el mes corregido dentro del

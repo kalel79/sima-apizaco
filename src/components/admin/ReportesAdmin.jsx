@@ -57,7 +57,7 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
 
     const [resumen, catalogoPorEje, avancesMensuales, correcciones] = await Promise.all([
       cierreSel ? Promise.resolve(cierreSel) : getResumenPeriodo(periodoSel.anio, periodoSel.mes),
-      getIndicadoresPorEjeCatalogo(),
+      getIndicadoresPorEjeCatalogo(periodoSel.anio),
       getAvancesMensualesPDF(periodoSel.anio),
       getCorreccionesExtemporaneas(periodoSel.anio, periodoSel.mes),
     ])

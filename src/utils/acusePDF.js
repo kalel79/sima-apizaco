@@ -15,6 +15,9 @@ const SEM_ACUSE = {
   'CRÍTICO':  { fill: [192,   0,   0], txt: BLANCO },
 }
 
+const MESES_LARGOS = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO',
+                      'AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE']
+
 function slugArea(nombre) {
   return (nombre || 'AREA')
     .normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -29,6 +32,16 @@ export function generarFolioAcuse(areaId, mes, anio) {
   return `SIMA-${anio}-${mesStr}-${areaId}-${ts}`
 }
 
+// El acuse maneja DOS escalas y tiene que decirlo en todos lados: la meta y el
+// resultado son del mes que se acaba de validar, mientras que el
+// pct_cumplimiento y el semáforo que guarda `avances` son del acumulado
+// ENE→mes del ejercicio. Antes el encabezado decía solo "Periodo capturado:
+// ENE-AGO 2026" y la tabla ponía las cuatro cifras en fila, así que en agosto
+// los 121 indicadores con meta 0 en el mes salían como "Meta 0 · Resultado 0 ·
+// 200% ÓPTIMO" sin nada que explicara de dónde venía el porcentaje.
+//
+// `periodoLabel` es el rango del acumulado ("ENE-AGO 2026"); el mes suelto se
+// arma aquí a partir de `mes`/`anio`.
 // datos: { area, enlaceNombre, mes, anio, periodoLabel, indicadores, folio, validadoAt }
 export function generarAcusePDF({
   area, enlaceNombre, mes, anio, periodoLabel, indicadores, folio, validadoAt,
@@ -54,10 +67,12 @@ export function generarAcusePDF({
   // ── Datos del acuse ───────────────────────────────────────────────────────
   let y = 54
   doc.setFontSize(9); setColor(doc, [30, 30, 30])
+  const mesLabel = `${MESES_LARGOS[(mes || 1) - 1]} ${anio}`
   const campos = [
     ['Área:',                     area || '-'],
     ['Enlace responsable:',       enlaceNombre || '-'],
-    ['Periodo capturado:',        periodoLabel || '-'],
+    ['Mes capturado:',            mesLabel],
+    ['Avance acumulado:',         periodoLabel || '-'],
     ['Fecha y hora de validación:', fechaStr],
     ['Folio de acuse:',           folio],
   ]
@@ -80,38 +95,58 @@ export function generarAcusePDF({
     ind.nivel_mir || '-',
     numStr(ind.meta_programada),
     numStr(ind.resultado),
+    numStr(ind.meta_acum),
+    numStr(ind.resultado_acum),
     ind.pct_cumplimiento,
     ind.semaforo || 'SIN DATO',
   ])
 
+  // Dos renglones de encabezado: el porcentaje y el semáforo cuelgan del grupo
+  // "Acumulado", junto a la meta y el resultado con los que se calcularon, para
+  // que no se lean como si fueran del mes.
   autoTable(doc, {
-    head: [['#', 'Clave', 'Indicador', 'Nivel MIR', 'Meta del mes', 'Resultado', '% Avance', 'Semáforo']],
+    head: [
+      [
+        { content: '#',         rowSpan: 2 },
+        { content: 'Clave',     rowSpan: 2 },
+        { content: 'Indicador', rowSpan: 2 },
+        { content: 'Nivel MIR', rowSpan: 2 },
+        { content: mesLabel, colSpan: 2 },
+        { content: `Acumulado ${periodoLabel || ''}`.trim(), colSpan: 4 },
+      ],
+      ['Meta', 'Resultado', 'Meta', 'Resultado', '% Avance', 'Semáforo'],
+    ],
     body: rows,
     startY: y,
     margin: { left: ML, right: ML },
     styles: {
-      fontSize: 8, cellPadding: [2.2, 2, 2.2, 2],
+      fontSize: 7, cellPadding: [1.6, 1.6, 1.6, 1.6],
       lineColor: [220, 220, 220], lineWidth: 0.1,
       halign: 'center', valign: 'middle', overflow: 'linebreak', textColor: [20, 20, 20],
     },
-    headStyles: { fillColor: GUINDA, textColor: BLANCO, fontStyle: 'bold', fontSize: 8 },
+    headStyles: { fillColor: GUINDA, textColor: BLANCO, fontStyle: 'bold', fontSize: 7 },
     columnStyles: {
+      // 188 mm utiles en carta vertical. Clave y Nivel MIR llevan el ancho
+      // justo para no partirse a 7 pt ('E7-IMM-A1.1-01', 'Actividad 1.1');
+      // lo que sobra se va al nombre del indicador.
       0: { cellWidth: 8 },
-      1: { cellWidth: 20 },
+      1: { cellWidth: 21 },
       2: { cellWidth: 'auto', halign: 'left' },
-      3: { cellWidth: 24 },
-      4: { cellWidth: 20 },
-      5: { cellWidth: 20 },
-      6: { cellWidth: 18 },
-      7: { cellWidth: 22 },
+      3: { cellWidth: 20 },
+      4: { cellWidth: 14 },
+      5: { cellWidth: 16 },
+      6: { cellWidth: 14 },
+      7: { cellWidth: 16 },
+      8: { cellWidth: 15 },
+      9: { cellWidth: 20 },
     },
     alternateRowStyles: { fillColor: [245, 232, 234] },
     didParseCell: (data) => {
       if (data.section === 'body') {
-        if (data.column.index === 6) {
+        if (data.column.index === 8) {
           data.cell.text = [pctStr(data.cell.raw)]
         }
-        if (data.column.index === 7) {
+        if (data.column.index === 9) {
           const sc = SEM_ACUSE[data.cell.raw] || { fill: [230, 230, 230], txt: [80, 80, 80] }
           data.cell.styles.fillColor  = sc.fill
           data.cell.styles.textColor  = sc.txt
@@ -134,7 +169,13 @@ export function generarAcusePDF({
 
   doc.setFontSize(8); doc.setFont('helvetica', 'italic'); setColor(doc, GRIS)
   doc.text('Este documento es el acuse oficial de captura de avances en SIMA.', W / 2, fy, { align: 'center' })
-  fy += 5.5
+  fy += 4.5
+  doc.setFontSize(7)
+  doc.text(`La meta y el resultado son los capturados en ${mesLabel}; el % de avance y el semaforo se`, W / 2, fy, { align: 'center' })
+  fy += 4
+  doc.text(`calculan sobre el acumulado ${periodoLabel || ''} del ejercicio.`.trim(), W / 2, fy, { align: 'center' })
+  fy += 5
+  doc.setFontSize(8)
   doc.text(`Generado el ${fechaStr} por ${enlaceNombre || '-'}`, W / 2, fy, { align: 'center' })
   fy += 16
 
@@ -147,8 +188,7 @@ export function generarAcusePDF({
   doc.setFontSize(7); doc.setFont('helvetica', 'normal'); setColor(doc, GRIS)
   doc.text(`Folio: ${folio}`, W / 2, fy, { align: 'center' })
 
-  const MESES_ARCHIVO = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC']
-  const fileName = `ACUSE_SIMA_${slugArea(area)}_${MESES_ARCHIVO[(mes || 1) - 1]}_${anio}.pdf`
+  const fileName = `ACUSE_SIMA_${slugArea(area)}_${MESES_LARGOS[(mes || 1) - 1].slice(0, 3)}_${anio}.pdf`
   doc.save(fileName)
   return fileName
 }
