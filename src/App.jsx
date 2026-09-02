@@ -36,7 +36,7 @@ const NAV_DESPUES_PMD = [
 
 export default function App() {
   const [pan, setPan] = useState('dashboard')
-  const { user, profile, loading, error: authError, rol, area, isEnlace, isAdmin, isPlaneacion, isDirectivo, refetchProfile, recoveryMode, clearRecoveryMode } = useAuth()
+  const { user, profile, loading, error: authError, rol, area, isEnlace, isAdmin, isPlaneacion, isDirectivo, isCoordinador, refetchProfile, recoveryMode, clearRecoveryMode } = useAuth()
 
   // PMD: visible para admin/planeación/directivo — el enlace solo captura sus indicadores
   const puedeVerPMD = isAdmin || isPlaneacion || isDirectivo
@@ -45,7 +45,12 @@ export default function App() {
   // ASM: por ahora restringido a admin/planeación/directivo (sin enlace).
   const puedeVerASM = isAdmin || isPlaneacion || isDirectivo
   // Expediente MML: liberado a admin/planeación/directivo/enlace.
-  const puedeVerMML = isAdmin || isPlaneacion || isDirectivo || isEnlace
+  // fase_mml_24: coordinador entra en modo consulta — la RLS solo le abre la
+  // lectura de arbol_nodos (los dos árboles y, derivada de ellos, la pestaña
+  // Riesgos/MIR); las demás pestañas le salen vacías porque sigue fuera del
+  // SELECT de diagnóstico, involucrados, acciones, ficha y presupuesto. Todos
+  // los flags de edición de ExpedienteMML ya lo excluyen por construcción.
+  const puedeVerMML = isAdmin || isPlaneacion || isDirectivo || isEnlace || isCoordinador
   const NAV = [...NAV_ANTES_PMD, ...(puedeVerPMD ? [NAV_PMD] : []), ...NAV_DESPUES_PMD, ...(puedeVerASM ? [NAV_ASM] : []), ...(puedeVerMML ? [NAV_MML] : []), ...(puedeCapturar ? [NAV_CAPTURA] : [])]
   const { mesActual, anioActual, loading: cfgLoading, refetch: refetchCfg } = useConfiguracion()
   const periodoLabel = formatPeriodoLabel(mesActual, anioActual)

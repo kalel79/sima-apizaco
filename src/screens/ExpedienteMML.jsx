@@ -21,7 +21,7 @@ const ANIOS = [2026, 2027]
 const inp = { background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 6, color: C.txt, padding: '0.45rem 0.7rem', fontSize: '0.78rem', fontFamily: 'inherit', outline: 'none' }
 
 export default function ExpedienteMML() {
-  const { profile, isAdmin, isPlaneacion, isEnlace } = useAuth()
+  const { profile, isAdmin, isPlaneacion, isEnlace, isCoordinador } = useAuth()
   const puedeEditarContenido = isAdmin || isPlaneacion || isEnlace
   // La Ficha del Proyecto (fase_mml_14) reúne clasificaciones, capítulos y
   // datos del líder en un solo apartado: mismo permiso que ya tenía el
@@ -57,7 +57,10 @@ export default function ExpedienteMML() {
   const [datos, setDatos] = useState(null)
   const [cargandoInicial, setCargandoInicial] = useState(true)
   const [error, setError] = useState(null)
-  const [tab, setTab] = useState('encabezado')
+  // fase_mml_24: el coordinador solo tiene lectura de arbol_nodos, así que la
+  // pestaña de Encabezado le saldría vacía. Se le abre directo en el Árbol de
+  // Objetivos, que es lo único que sí puede consultar.
+  const [tab, setTab] = useState(isCoordinador ? 'arbolObjetivos' : 'encabezado')
   const [generandoPdf, setGenerandoPdf] = useState(false)
   const [generandoExcel, setGenerandoExcel] = useState(false)
 
