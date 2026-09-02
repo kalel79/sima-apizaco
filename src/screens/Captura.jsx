@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { PenLine, CheckCircle2, XCircle, Calendar, Loader2, Save, Building2, Lock, FileText } from 'lucide-react'
+import { PenLine, CheckCircle2, XCircle, Calendar, Clock, Loader2, Save, Building2, Lock, FileText } from 'lucide-react'
 import { useIndicadoresLista } from '../hooks/useSupabase'
 import {
   guardarAvance, getAvanceActual, getResumenValidacionArea,
@@ -186,6 +186,12 @@ export default function PantallaCaptura({ areaCoordinador }) {
       setAcuseError(e.message)
     }
   }
+
+  // Indicadores del ejercicio que el área todavía no captura. Es lo que separa
+  // "ya validé lo que capturé" de "el mes está completo y ya hay acuse".
+  const faltanPorCapturar = resumenVal
+    ? Math.max(0, resumenVal.totalIndicadores - resumenVal.capturados)
+    : 0
 
   const selInd = (lista||[]).find(i=>i.id===+form.indicadorId)
   const inp = {width:'100%',background:C.bgPanel,border:`1px solid ${C.border}`,borderRadius:6,color:C.txt,padding:'0.5rem 0.75rem',fontSize:'0.8rem',fontFamily:'inherit',outline:'none',boxSizing:'border-box'}
@@ -376,11 +382,15 @@ export default function PantallaCaptura({ areaCoordinador }) {
             </button>
           ) : (
             <div>
-              <div style={{fontSize:'0.78rem',color:C.optimoB,fontWeight:acuseGenerado?700:400,marginBottom:10,display:'flex',alignItems:'center',gap:7}}>
-                <CheckCircle2 size={15}/>
+              {/* Sin capturar todos los indicadores del ejercicio no hay acuse: el
+                  mensaje tiene que decir cuántos faltan, no "todo validado". */}
+              <div style={{fontSize:'0.78rem',color:faltanPorCapturar > 0 ? C.riesgoB : C.optimoB,fontWeight:acuseGenerado?700:400,marginBottom:10,display:'flex',alignItems:'center',gap:7}}>
+                {faltanPorCapturar > 0 ? <Clock size={15}/> : <CheckCircle2 size={15}/>}
                 {acuseGenerado
                   ? 'Has completado la captura del mes. Tu acuse se descargó automáticamente.'
-                  : 'Toda la información de este mes ya fue validada.'}
+                  : faltanPorCapturar > 0
+                    ? `Ya validaste lo capturado, pero falta${faltanPorCapturar === 1 ? '' : 'n'} ${faltanPorCapturar} indicador${faltanPorCapturar === 1 ? '' : 'es'} por capturar. El acuse se emite al completar el mes.`
+                    : 'Toda la información de este mes ya fue validada.'}
               </div>
               {resumenVal.totalIndicadores > 0 && resumenVal.validados === resumenVal.totalIndicadores && (
                 <button onClick={generarYDescargarAcuse} disabled={acuseDescargando}

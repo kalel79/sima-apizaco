@@ -4,6 +4,32 @@ import { getMetasIndicadorAnio } from './metas.js'
 import { getCierreMensual } from './cierres.js'
 
 /* ── VALIDACIÓN DE CAPTURA (enlace) ─────────────────────────────── */
+
+// Indicadores de un área que pertenecen a un ejercicio. `indicadores` es un
+// catálogo acumulado sin columna de año (fase_mml_21): el año se deriva de los
+// nodos que lo referencian, vía v_indicador_anio. Sin este filtro, los
+// indicadores dados de alta al capturar la MIR del año siguiente entraban al
+// denominador del mes en curso y el área nunca llegaba al 100%, así que su
+// acuse no se generaba ni podía descargarse a mano.
+async function getIndicadoresAreaAnio(areaId, anio, columnas = 'id') {
+  const { data: inds, error: eInd } = await supabase
+    .from('indicadores').select(columnas).eq('area_id', areaId)
+  if (eInd) throw eInd
+  const ids = (inds || []).map(i => i.id)
+  if (!ids.length) return []
+
+  const { data: filas, error: eAnio } = await supabase
+    .from('v_indicador_anio').select('indicador_id, anio').in('indicador_id', ids)
+  if (eAnio) throw eAnio
+
+  // Un indicador huérfano (sin nodo en ningún ejercicio) se deja pasar en todos
+  // los años: el filtro solo saca lo que positivamente se sabe de otro año.
+  // Mismo criterio que esDelAnio() en consultas.js.
+  const conAnio  = new Set((filas || []).map(f => f.indicador_id))
+  const delAnio  = new Set((filas || []).filter(f => f.anio === anio).map(f => f.indicador_id))
+  return (inds || []).filter(i => !conAnio.has(i.id) || delAnio.has(i.id))
+}
+
 export async function getAvanceActual(indicadorId, mes, anio) {
   const { data, error } = await supabase
     .from('avances')
@@ -15,10 +41,8 @@ export async function getAvanceActual(indicadorId, mes, anio) {
 }
 
 export async function getResumenValidacionArea(areaId, mes, anio) {
-  const { data: inds, error: eInd } = await supabase
-    .from('indicadores').select('id').eq('area_id', areaId)
-  if (eInd) throw eInd
-  const ids = (inds || []).map(i => i.id)
+  const inds = await getIndicadoresAreaAnio(areaId, anio)
+  const ids = inds.map(i => i.id)
   if (!ids.length) return { totalIndicadores: 0, capturados: 0, validados: 0, pendientes: 0 }
 
   const { data: avs, error: eAv } = await supabase
@@ -46,10 +70,8 @@ export async function getEnlaceDeArea(areaId) {
 }
 
 export async function validarInformacionMes({ areaId, mes, anio, usuarioId }) {
-  const { data: inds, error: eInd } = await supabase
-    .from('indicadores').select('id').eq('area_id', areaId)
-  if (eInd) throw eInd
-  const ids = (inds || []).map(i => i.id)
+  const inds = await getIndicadoresAreaAnio(areaId, anio)
+  const ids = inds.map(i => i.id)
   if (!ids.length) return []
 
   const { data, error } = await supabase
@@ -70,10 +92,8 @@ export async function reautenticar(email, password) {
 
 // Indicadores validados de un área/mes/año, con datos completos para el acuse de captura.
 export async function getAvancesValidadosMes(areaId, mes, anio) {
-  const { data: inds, error: eInd } = await supabase
-    .from('indicadores').select('id, clave, nombre, nivel_mir').eq('area_id', areaId)
-  if (eInd) throw eInd
-  const ids = (inds || []).map(i => i.id)
+  const inds = await getIndicadoresAreaAnio(areaId, anio, 'id, clave, nombre, nivel_mir')
+  const ids = inds.map(i => i.id)
   if (!ids.length) return []
 
   const { data: avs, error: eAv } = await supabase
@@ -82,7 +102,7 @@ export async function getAvancesValidadosMes(areaId, mes, anio) {
     .in('indicador_id', ids).eq('mes', mes).eq('anio', anio).eq('validado', true)
   if (eAv) throw eAv
 
-  const indMap = Object.fromEntries((inds || []).map(i => [i.id, i]))
+  const indMap = Object.fromEntries(inds.map(i => [i.id, i]))
   return (avs || [])
     .map(av => {
       const ind = indMap[av.indicador_id] || {}
