@@ -62,7 +62,41 @@ export async function getFichaIndicador(indicadorId, anio) {
   const pctAcumuladoAnual = metaAcum > 0 ? resultAcum / metaAcum : (resultAcum > 0 ? resultAcum : null)
   const semaforoAcumulado = pctAcumuladoAnual == null ? null : getSemaforo(pctAcumuladoAnual)
 
-  return { meses, pctAcumuladoAnual, semaforoAcumulado }
+  // ── Promedio alcanzado con corte al último mes capturado ───────────────────
+  // Mismo criterio de guardarAvance(): razón de acumulados ENE→mes de corte,
+  // NO media aritmética de los % mensuales. La media simple es inservible con
+  // estos datos: muchas áreas programan la meta trimestral o semestral (meses
+  // con meta 0) pero capturan resultado todos los meses, así que el % del mes
+  // suelto se dispara — E4-TUR-C4-01/2026 promedia 6,293% con la regla meta=1,
+  // y 65% si se excluyen los meses sin meta, cuando su cumplimiento real es
+  // 100%. Tampoco sirve promediar avances.pct_cumplimiento: esa columna ya es
+  // acumulada, promediarla sería promediar acumulados.
+  //
+  // Diferencia con pctAcumuladoAnual: aquél sólo suma las metas de los meses
+  // CON captura; éste suma todas las metas hasta el corte, así que un mes con
+  // meta programada y sin resultado cuenta como cero y baja el promedio, que es
+  // justamente lo que debe verse. En 2026 ambos coinciden en los 170
+  // indicadores (los huecos caen en meses de meta 0); divergirán en cuanto el
+  // POA traiga metas en los 12 meses.
+  const capturados = meses.filter(m => m.resultado != null)
+  const mesCorte = capturados.length ? capturados[capturados.length - 1].mes : null
+  let metaCorte = 0, resCorte = 0
+  if (mesCorte != null) {
+    meses.filter(m => m.mes <= mesCorte).forEach(m => {
+      metaCorte += Number(m.meta || 0)
+      resCorte  += Number(m.resultado || 0)
+    })
+  }
+  // regla meta=1 de la captura: sin meta pero con resultado, denominador 1
+  const promedioAlCorte = mesCorte == null ? null
+    : (metaCorte > 0 ? resCorte / metaCorte : (resCorte > 0 ? resCorte : null))
+  const semaforoPromedio = promedioAlCorte == null ? null : getSemaforo(promedioAlCorte)
+
+  return {
+    meses, pctAcumuladoAnual, semaforoAcumulado,
+    promedioAlCorte, semaforoPromedio, metaCorte, resCorte,
+    mesCorte, mesesCapturados: capturados.length,
+  }
 }
 
 // Mapa { indicador_id: [12 resultados|null] } de un año — para los sparklines

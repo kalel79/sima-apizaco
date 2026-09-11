@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { TrendingUp, X, Loader2, Image, FileText, Target, Calendar, CheckCircle2 } from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { TrendingUp, X, Loader2, Image, FileText, Target, Calendar, CheckCircle2, Gauge } from 'lucide-react'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, ResponsiveContainer } from 'recharts'
 import { jsPDF } from 'jspdf'
 import { useAuth } from '../hooks/useAuth'
 import { getAniosDisponiblesIndicador, getFichaIndicador } from '../lib/supabase'
@@ -19,6 +19,11 @@ const modalBox = {
   boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
 }
 const COLORES_COMPARACION = ['#4A90D9', '#9B59B6', '#2ECC71']
+
+const num = v => {
+  const n = Number(v || 0)
+  return n.toLocaleString('es-MX', { maximumFractionDigits: Number.isInteger(n) ? 0 : 2 })
+}
 
 function CustomDot(props) {
   const { cx, cy, payload } = props
@@ -104,6 +109,20 @@ export default function FichaIndicador({ indicadorId, nombre, area, ejeCodigo, n
     return row
   })
 
+  // Leyenda del promedio: deja a la vista el periodo y el numerador/denominador
+  // del corte, para que el porcentaje no quede sin respaldo aritmético visible.
+  const mesCorteLabel = principal?.mesCorte != null ? MESES_NOMBRES[principal.mesCorte - 1] : null
+  const subPromedio = mesCorteLabel == null
+    ? 'sin meses capturados'
+    : `${MESES_NOMBRES[0]}–${mesCorteLabel} · ${num(principal.resCorte)} de ${num(principal.metaCorte)}`
+
+  // El promedio es un porcentaje y las series están en unidades del indicador,
+  // así que va sobre un eje derecho propio: sin él la línea no tendría escala
+  // que leer. El tope sube si el promedio se pasa de 120% (regla meta=1).
+  const pctPromedio = principal?.promedioAlCorte != null ? principal.promedioAlCorte * 100 : null
+  const topeDerecho = Math.max(120, Math.ceil((pctPromedio ?? 0) / 10) * 10)
+  const colorPromedio = principal?.semaforoPromedio ? semColor(principal.semaforoPromedio) : C.txtMuted
+
   return (
     <div style={overlay} onClick={onClose}>
       <div style={modalBox} onClick={e => e.stopPropagation()}>
@@ -147,22 +166,35 @@ export default function FichaIndicador({ indicadorId, nombre, area, ejeCodigo, n
 
         {!loading && principal && (
           <div ref={contenidoRef} style={{ background: C.bg, padding: '0.4rem' }}>
-            <div className="sima-grid-stack" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: '0.65rem', marginBottom: '1rem' }}>
+            <div className="sima-grid-stack" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '0.65rem', marginBottom: '1rem' }}>
               <KPI label={`Acumulado ${anioPrincipal}`} value={principal.pctAcumuladoAnual != null ? `${(principal.pctAcumuladoAnual * 100).toFixed(1)}%` : 'Sin datos'} sub={principal.semaforoAcumulado || ''} icon={Target} color={principal.semaforoAcumulado ? semColor(principal.semaforoAcumulado) : C.txtMuted} />
-              <KPI label="Meses capturados" value={principal.meses.filter(m => m.resultado != null).length} sub="de 12 meses" icon={Calendar} color={C.dorado} />
+              <KPI label={`Promedio alcanzado al corte${mesCorteLabel ? ` · ${mesCorteLabel}` : ''}`} value={principal.promedioAlCorte != null ? `${(principal.promedioAlCorte * 100).toFixed(1)}%` : 'Sin datos'} sub={subPromedio} icon={Gauge} color={principal.semaforoPromedio ? semColor(principal.semaforoPromedio) : C.txtMuted} />
+              <KPI label="Meses capturados" value={principal.mesesCapturados} sub="de 12 meses" icon={Calendar} color={C.dorado} />
             </div>
 
             <ResponsiveContainer width="100%" height={260}>
               <LineChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0f" />
                 <XAxis dataKey="mesLabel" tick={{ fill: C.txtMuted, fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: C.txtMuted, fontSize: 10 }} />
+                <YAxis yAxisId="left" tick={{ fill: C.txtMuted, fontSize: 10 }} />
+                {pctPromedio != null && (
+                  <YAxis yAxisId="right" orientation="right" domain={[0, topeDerecho]} width={44}
+                    tick={{ fill: C.txtMuted, fontSize: 10 }} tickFormatter={v => `${v}%`} />
+                )}
                 <Tooltip contentStyle={{ background: '#1C1C1C', border: '1px solid #C8A96E', borderRadius: 8, color: '#F0EAE0', fontSize: 12 }} labelStyle={{ color: '#C8A96E', fontWeight: 600 }} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Line type="monotone" dataKey="meta" name="Meta" stroke={C.dorado} strokeDasharray="4 3" dot={false} connectNulls />
-                <Line type="monotone" dataKey="resultado" name={`Resultado ${anioPrincipal}`} stroke={C.guinda} strokeWidth={2} dot={<CustomDot />} connectNulls={false} />
+                {mesCorteLabel && (
+                  <ReferenceLine yAxisId="left" x={mesCorteLabel} stroke={C.doradoLight} strokeDasharray="2 4"
+                    label={{ value: 'corte', position: 'insideTopRight', fill: C.doradoLight, fontSize: 10 }} />
+                )}
+                {pctPromedio != null && (
+                  <ReferenceLine yAxisId="right" y={pctPromedio} stroke={colorPromedio} strokeDasharray="6 4" strokeWidth={1.5}
+                    label={{ value: `Promedio al corte ${pctPromedio.toFixed(1)}%`, position: 'insideTopLeft', fill: colorPromedio, fontSize: 10, fontWeight: 700 }} />
+                )}
+                <Line yAxisId="left" type="monotone" dataKey="meta" name="Meta" stroke={C.dorado} dot={false} connectNulls />
+                <Line yAxisId="left" type="monotone" dataKey="resultado" name={`Resultado ${anioPrincipal}`} stroke={C.guinda} strokeWidth={2} dot={<CustomDot />} connectNulls={false} />
                 {aniosComparar.map((a, i) => (
-                  <Line key={a} type="monotone" dataKey={`resultado_${a}`} name={`Resultado ${a}`} stroke={COLORES_COMPARACION[i % COLORES_COMPARACION.length]} strokeWidth={1.5} dot={false} connectNulls={false} />
+                  <Line yAxisId="left" key={a} type="monotone" dataKey={`resultado_${a}`} name={`Resultado ${a}`} stroke={COLORES_COMPARACION[i % COLORES_COMPARACION.length]} strokeWidth={1.5} dot={false} connectNulls={false} />
                 ))}
               </LineChart>
             </ResponsiveContainer>

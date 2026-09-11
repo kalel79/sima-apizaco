@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { FolderOpen, RefreshCw, Loader2, FileText, FileSpreadsheet, PenLine, BookOpen, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { FolderOpen, RefreshCw, Loader2, FileText, FileSpreadsheet, PenLine, BookOpen, CheckCircle2, AlertTriangle, Calendar } from 'lucide-react'
 import { getProgramaIdDeArea, getProgramasLista, resolverDatosMML } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { C } from '../theme.js'
@@ -17,6 +17,13 @@ import { generarPlantillaExpedienteMML } from '../utils/reportePlantillaMML.js'
 import { generarInstructivoExpedienteMML } from '../utils/reporteInstructivoMML.js'
 
 const ANIOS = [2026, 2027]
+
+// El 2026 del Expediente MML es un ejercicio cerrado: el enlace solo trabaja el
+// que está en captura, así que no se le ofrece ni se le deja seleccionar. Se
+// filtra por año (no se fija un año duro) para que al abrir el 2028 el enlace
+// herede los dos ejercicios vivos sin tocar esto.
+const ANIO_CERRADO_ENLACE = 2026
+const aniosVisibles = esEnlace => esEnlace ? ANIOS.filter(a => a !== ANIO_CERRADO_ENLACE) : ANIOS
 
 const inp = { background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 6, color: C.txt, padding: '0.45rem 0.7rem', fontSize: '0.78rem', fontFamily: 'inherit', outline: 'none' }
 
@@ -53,7 +60,8 @@ export default function ExpedienteMML() {
 
   const [programas, setProgramas] = useState([])
   const [programaId, setProgramaId] = useState(null)
-  const [anio, setAnio] = useState(2026)
+  const aniosDisponibles = useMemo(() => aniosVisibles(isEnlace), [isEnlace])
+  const [anio, setAnio] = useState(aniosDisponibles[0])
   const [datos, setDatos] = useState(null)
   const [cargandoInicial, setCargandoInicial] = useState(true)
   const [error, setError] = useState(null)
@@ -101,6 +109,15 @@ export default function ExpedienteMML() {
       .then(d => { setDatos(d); setCargandoInicial(false) })
       .catch(e => { setError(e.message); setCargandoInicial(false) })
   }, [programaId, anio])
+
+  // El valor inicial del useState se fija con el isEnlace del primer render. Si
+  // el rol se resuelve o cambia después (perfil recargado, sesión reanudada),
+  // el año seleccionado puede quedar fuera de los permitidos — un enlace parado
+  // en 2026 — y el useState ya no se vuelve a evaluar. Este effect lo devuelve
+  // al primer año permitido, así que el enlace nunca puede quedarse en 2026.
+  useEffect(() => {
+    if (!aniosDisponibles.includes(anio)) setAnio(aniosDisponibles[0])
+  }, [aniosDisponibles, anio])
 
   useEffect(() => { setDatos(null); setCargandoInicial(true) }, [programaId, anio])
   useEffect(() => { cargar() }, [cargar])
@@ -183,9 +200,15 @@ export default function ExpedienteMML() {
         <select value={programaId || ''} disabled={isEnlace} onChange={e => setProgramaId(+e.target.value)} style={inp}>
           {programas.map(p => <option key={p.id} value={p.id}>{p.clave} {p.nombre}</option>)}
         </select>
-        <select value={anio} onChange={e => setAnio(+e.target.value)} style={inp}>
-          {ANIOS.map(a => <option key={a} value={a}>{a}</option>)}
-        </select>
+        {aniosDisponibles.length > 1 ? (
+          <select value={anio} onChange={e => setAnio(+e.target.value)} style={inp}>
+            {aniosDisponibles.map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
+        ) : (
+          <div style={{ ...inp, display: 'flex', alignItems: 'center', gap: 6, color: C.txtSub }}>
+            <Calendar size={13}/> Ejercicio <strong style={{ color: C.doradoLight }}>{anio}</strong>
+          </div>
+        )}
         <button onClick={cargar} style={{ ...inp, cursor: 'pointer', background: C.bgPanel, display: 'flex', alignItems: 'center' }}><RefreshCw size={14}/></button>
         {puedeGenerarDocumentos && (
           <button onClick={handleGenerarPdf} disabled={!datos || generandoPdf}
