@@ -1,0 +1,39 @@
+-- Definicion de los 20 indicadores de las MIR 2027 que la tenian vacia.
+-- Redactadas a partir de las variables, fuentes e interpretacion ya capturadas
+-- de cada indicador. Aplicado 2026-09-22 — no re-ejecutar.
+-- Solo escribe donde la definicion esta vacia (no pisa nada capturado).
+-- Ojo: indicadores es catalogo acumulado; los 20 tambien estan en la MIR 2026,
+-- asi que la definicion aparece en la ficha de ambos anios.
+UPDATE public.indicadores i
+SET definicion = d.definicion
+FROM (VALUES
+  -- 012 Fomento a la Produccion y Comercializacion
+  (62,  'Mide la variación porcentual del Indicador Trimestral de la Actividad Económica Estatal (ITAEE) que publica el INEGI en el año de medición, respecto de su valor en el año base, como aproximación al crecimiento de la actividad económica en la que se inserta el municipio de Apizaco y a su capacidad para generar recaudación e inversión.'),
+  (63,  'Mide la variación porcentual del número de empleos formales registrados en el municipio de Apizaco en el año de medición, respecto del número de empleos del año base, con información del IMSS, de la Secretaría del Trabajo y Previsión Social y de los registros municipales de licencias comerciales, como reflejo del efecto de las estrategias municipales de desarrollo económico en la generación de empleo digno y productivo.'),
+  -- 018 Fortalecimiento a la Calidad Educativa, Cultural y Deportiva
+  (25,  'Mide el porcentaje de la población del municipio de Apizaco que se encuentra en situación de pobreza multidimensional, es decir, que presenta al menos una carencia social y un ingreso inferior a la línea de pobreza por ingresos, respecto de la población total del municipio, de acuerdo con la medición municipal de la pobreza que publica el CONEVAL.'),
+  (26,  'Mide el porcentaje de la población del municipio de Apizaco que tiene acceso efectivo a los servicios sociales básicos de salud, educación, deporte y cultura, respecto de la población total del municipio, con base en los indicadores de carencias sociales que publica el CONEVAL. Un valor mayor indica una menor proporción de población vulnerable por carencia social.'),
+  -- 021 Desarrollo Integral para la Familia
+  (132, 'Mide la variación porcentual del número de casos de violencia de género y de feminicidio en grado de tentativa registrados en el municipio de Apizaco en el año de medición, respecto del número de casos registrados en el año base, con información de la Dirección de Seguridad Pública, de la Fiscalía General del Estado y del INEGI, para verificar si dichos casos disminuyen.'),
+  (133, 'Mide el porcentaje de programas en materia de igualdad sustantiva, prevención de la violencia de género y participación plena de las mujeres que el Instituto Municipal de la Mujer implementa efectivamente y que llegan a su población objetivo, respecto del total de programas de esa materia programados en el Programa Operativo Anual durante el periodo de medición.'),
+  (139, 'Mide el porcentaje de pláticas comunitarias de sensibilización sobre derechos de niñas, niños y adolescentes, igualdad y prevención de la violencia que se realizan en escuelas y comunidades del municipio, respecto del total de pláticas programadas para el periodo de medición.'),
+  -- 024 Infraestructura y Equipamiento para el Desarrollo Urbano
+  (47,  'Mide el porcentaje de ciudadanas y ciudadanos encuestados que manifiestan un nivel alto de satisfacción con los servicios públicos municipales, como alumbrado público, vialidades y espacios públicos, respecto del total de personas encuestadas, con base en encuestas municipales de percepción y en las encuestas del INEGI (ENCIG y ENSU).'),
+  (48,  'Mide el porcentaje de servicios públicos municipales básicos, con énfasis en el alumbrado público, las vialidades y los espacios públicos, que operan con cobertura continua y eficiente, respecto del total de servicios públicos básicos a cargo del municipio durante el periodo de medición.'),
+  -- 032 Proteccion al Ambiente
+  (114, 'Mide la variación porcentual de la superficie de áreas verdes del municipio de Apizaco en el año de medición, respecto de la superficie registrada en el año base, como aproximación al avance del municipio hacia un entorno sustentable, con mayor equilibrio ecológico y menor vulnerabilidad al cambio climático.'),
+  (115, 'Mide el porcentaje de programas ambientales municipales de reforestación, transición energética, educación ecológica y modernización administrativa que la Dirección de Ecología implementa efectivamente y con resultados verificables, respecto del total de programas ambientales programados en el Programa Operativo Anual durante el periodo de medición.'),
+  -- 033 Apoyo a las Politicas Gubernamentales
+  (147, 'Mide el porcentaje de ciudadanas y ciudadanos encuestados que tienen una percepción favorable del desempeño de las dependencias e instancias de la administración pública municipal y de la calidad de los servicios que prestan, respecto del total de personas encuestadas, con base en encuestas municipales de percepción y en las encuestas del INEGI (ENCIG y ENSU).'),
+  (154, 'Mide el porcentaje de procesos administrativos y de atención ciudadana de las Presidencias de Comunidad que han sido estandarizados mediante procedimientos y formatos homologados, validados por la Secretaría del Ayuntamiento o la Dirección de Gobernación, y que se aplican efectivamente, respecto del total de procesos identificados durante el periodo de medición.'),
+  (160, 'Mide el porcentaje de trámites y servicios que las Presidencias de Comunidad registran en los formatos oficiales establecidos, respecto del total de trámites y servicios que realizan durante el periodo de medición, como evidencia de la operación de un sistema uniforme de registro y control.'),
+  -- 037 Fiscalizar, Controlar y Evaluar la Gestion Municipal
+  (88,  'Mide el porcentaje de ciudadanas y ciudadanos encuestados que se declaran satisfechos con la gestión y los servicios públicos del gobierno municipal, respecto del total de personas encuestadas, con base en encuestas municipales de percepción y en la Encuesta Nacional de Calidad e Impacto Gubernamental (ENCIG) del INEGI, como aproximación a la confianza ciudadana en una administración moderna, eficiente y transparente.'),
+  (89,  'Mide el porcentaje de trámites y servicios municipales que se encuentran digitalizados y disponibles para realizarse en línea, respecto del total de trámites y servicios identificados en el inventario municipal durante el periodo de medición, como expresión del avance en innovación tecnológica, transparencia y modernización de la gestión pública.'),
+  (95,  'Mide el porcentaje de cuentas públicas y estados financieros del municipio que se entregan en tiempo y forma ante el órgano de fiscalización superior del Congreso del Estado, respecto del total de entregas programadas conforme al calendario que establece la normativa aplicable durante el periodo de medición.'),
+  (111, 'Mide el porcentaje de cuentas públicas, con sus anexos, que la Tesorería integra y entrega en tiempo y forma, respecto del total de entregas programadas para el periodo de medición, como evidencia de la existencia y aplicación de controles administrativos.'),
+  (112, 'Mide el porcentaje de campañas de invitación y promoción del pago de contribuciones municipales que realiza la Tesorería, respecto del total de campañas programadas durante el periodo de medición, como medio para fortalecer la recaudación de ingresos propios.'),
+  (113, 'Mide el porcentaje del presupuesto de egresos que se ejerce en el periodo de medición, respecto del presupuesto programado y autorizado para ese mismo periodo, como reflejo de la ejecución oportuna y adecuada del gasto público municipal.')
+) AS d(id, definicion)
+WHERE i.id = d.id
+  AND nullif(trim(coalesce(i.definicion, '')), '') IS NULL;
