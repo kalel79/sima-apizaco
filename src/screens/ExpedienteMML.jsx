@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { FolderOpen, RefreshCw, Loader2, FileText, FileSpreadsheet, PenLine, BookOpen, CheckCircle2, AlertTriangle, Calendar } from 'lucide-react'
+import { FolderOpen, RefreshCw, Loader2, FileText, FileSpreadsheet, PenLine, BookOpen, CheckCircle2, AlertTriangle, Calendar, Files } from 'lucide-react'
 import { getProgramaIdDeArea, getProgramasLista, resolverDatosMML } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { C } from '../theme.js'
@@ -11,7 +11,7 @@ import SeccionInvolucrados from '../components/mml/SeccionInvolucrados.jsx'
 import SeccionAccionesAlternativas from '../components/mml/SeccionAccionesAlternativas.jsx'
 import SeccionMIR from '../components/mml/SeccionMIR.jsx'
 import SeccionMetas from '../components/mml/SeccionMetas.jsx'
-import { generarExpedienteMML } from '../utils/reporteExpedienteMML.js'
+import { generarExpedienteMML, generarMIRPOAConsolidado } from '../utils/reporteExpedienteMML.js'
 import { generarExpedienteMMLExcel } from '../utils/reporteExpedienteMMLExcel.js'
 import { generarPlantillaExpedienteMML } from '../utils/reportePlantillaMML.js'
 import { generarInstructivoExpedienteMML } from '../utils/reporteInstructivoMML.js'
@@ -71,6 +71,7 @@ export default function ExpedienteMML() {
   const [tab, setTab] = useState(isCoordinador ? 'arbolObjetivos' : 'encabezado')
   const [generandoPdf, setGenerandoPdf] = useState(false)
   const [generandoExcel, setGenerandoExcel] = useState(false)
+  const [generandoConsolidado, setGenerandoConsolidado] = useState(false)
 
   // Solo tiene sentido copiar si el año anterior existe en el selector —
   // hoy solo 2026 -> 2027.
@@ -175,6 +176,18 @@ export default function ExpedienteMML() {
     }
   }
 
+  // MIR + POA de TODOS los programas del año seleccionado en un solo PDF.
+  async function handleGenerarConsolidado() {
+    setGenerandoConsolidado(true); setError(null)
+    try {
+      await generarMIRPOAConsolidado(programas, anio)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setGenerandoConsolidado(false)
+    }
+  }
+
   function handleGenerarPlantilla() {
     generarPlantillaExpedienteMML({ programa: datos?.programa })
   }
@@ -224,6 +237,16 @@ export default function ExpedienteMML() {
             {generandoExcel
               ? <><Loader2 size={13} style={{animation:'spin 0.8s linear infinite'}}/> Generando…</>
               : <><FileSpreadsheet size={13}/> Generar Excel del Expediente</>}
+          </button>
+        )}
+        {/* Solo admin: extracto de MIR + POA de todos los programas. */}
+        {isAdmin && (
+          <button onClick={handleGenerarConsolidado} disabled={!programas.length || generandoConsolidado}
+            title={`MIR y POA ${anio} de los ${programas.length} programas en un solo PDF`}
+            style={{ ...inp, cursor: !programas.length || generandoConsolidado ? 'default' : 'pointer', background: C.bgPanel, color: C.dorado, fontWeight: 700, opacity: !programas.length || generandoConsolidado ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+            {generandoConsolidado
+              ? <><Loader2 size={13} style={{animation:'spin 0.8s linear infinite'}}/> Generando…</>
+              : <><Files size={13}/> MIR y POA de todos los programas</>}
           </button>
         )}
         {puedeGenerarDocumentos && (
