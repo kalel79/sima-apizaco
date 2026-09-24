@@ -11,6 +11,7 @@ import SeccionInvolucrados from '../components/mml/SeccionInvolucrados.jsx'
 import SeccionAccionesAlternativas from '../components/mml/SeccionAccionesAlternativas.jsx'
 import SeccionMIR from '../components/mml/SeccionMIR.jsx'
 import SeccionMetas from '../components/mml/SeccionMetas.jsx'
+import PanelAcuseArea from '../components/mml/PanelAcuseArea.jsx'
 import { generarExpedienteMML, generarMIRPOAConsolidado } from '../utils/reporteExpedienteMML.js'
 import { generarExpedienteMMLExcel } from '../utils/reporteExpedienteMMLExcel.js'
 import { generarPlantillaExpedienteMML } from '../utils/reportePlantillaMML.js'
@@ -331,6 +332,12 @@ export default function ExpedienteMML() {
           )}
           {tab === 'mir' && !sinObjetivoCentral && (
             <SeccionMIR programaId={programaId} anio={anio} mirNiveles={datos.mirNiveles} rolInfo={rolInfo} onChange={cargar} />
+          )}
+          {/* Acuse de captura por área: solo el ejercicio en captura (2026 está
+              cerrado) y solo quien captura o revisa. */}
+          {tab === 'metas' && !sinObjetivoCentral && anio !== ANIO_CERRADO_ENLACE && (isEnlace || isAdmin || isPlaneacion) && (
+            <PanelAcuseArea datos={datos} anio={anio} profile={profile}
+              isEnlace={isEnlace} isAdmin={isAdmin} isPlaneacion={isPlaneacion} />
           )}
           {tab === 'metas' && !sinObjetivoCentral && (
             <SeccionMetas anio={anio} mirNiveles={datos.mirNiveles} rolInfo={rolInfo}

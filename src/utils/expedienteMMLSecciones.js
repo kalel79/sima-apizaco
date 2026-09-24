@@ -47,6 +47,8 @@ export function drawDatosPrograma(doc, datos, startY) {
     ['Eje:', `${p.eje_id ?? ''} — ${datos.ejeNombre || ''}`],
     ['Programa:', `${p.clave || ''} ${p.nombre || ''}`],
     ['Unidad Responsable:', p.unidad_resp || '—'],
+    // Solo el acuse por área (acuseMIRPOA.js) trae areaAcuse.
+    ...(datos.areaAcuse ? [['Área:', datos.areaAcuse]] : []),
   ]
   autoTable(doc, {
     startY, margin: { left: ML, right: ML },
@@ -892,9 +894,11 @@ export function drawAlternativas(doc, datos) {
 }
 
 // ── PP-FM-0E: Matriz de Riesgos y MIR ─────────────────────────────────────────
-export function drawMatrizMIR(doc, datos) {
+// `opts` (acuse por área): `folio` sustituye la clave del formato en el banner
+// y `firmas(doc, y)` a las 4 firmas del programa.
+export function drawMatrizMIR(doc, datos, opts = {}) {
   const H = doc.internal.pageSize.height
-  let y = drawEncabezado(doc, 'MATRIZ DE INDICADORES Y RIESGOS (MIR)', 'PP-FM-0E-01', subtituloAnteproyecto(datos.anio))
+  let y = drawEncabezado(doc, 'MATRIZ DE INDICADORES Y RIESGOS (MIR)', opts.folio || 'PP-FM-0E-01', subtituloAnteproyecto(datos.anio))
   y = drawDatosPrograma(doc, datos, y)
 
   const niveles = datos.mirNiveles || []
@@ -910,6 +914,9 @@ export function drawMatrizMIR(doc, datos) {
       n.medios_verificacion || '—',
     ]),
     theme: 'grid',
+    // Un renglón no se parte entre hojas (antes podía quedar una sola palabra
+    // del renglón en la hoja siguiente).
+    rowPageBreak: 'avoid',
     headStyles: { fillColor: GUINDA, textColor: BLANCO, fontSize: 7, halign: 'center' },
     styles: { fontSize: 6.5, cellPadding: 1.5 },
     columnStyles: {
@@ -918,15 +925,15 @@ export function drawMatrizMIR(doc, datos) {
     },
   })
 
-  drawFirmasMML(doc, datos, H - FIRMAS_MARGEN_INF)
+  ;(opts.firmas || ((d, yy) => drawFirmasMML(d, datos, yy)))(doc, H - FIRMAS_MARGEN_INF)
 }
 
 // ── PP-FM-0F: Cronograma de Metas (POA) ──────────────────────────────────────
 const MESES = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC']
 
-export function drawCronogramaMetas(doc, datos) {
+export function drawCronogramaMetas(doc, datos, opts = {}) {
   const H = doc.internal.pageSize.height
-  let y = drawEncabezado(doc, 'CRONOGRAMA DE METAS (POA)', 'PP-FM-0F-01', subtituloAnteproyecto(datos.anio))
+  let y = drawEncabezado(doc, 'CRONOGRAMA DE METAS (POA)', opts.folio || 'PP-FM-0F-01', subtituloAnteproyecto(datos.anio))
   y = drawDatosPrograma(doc, datos, y)
 
   const niveles = (datos.mirNiveles || []).filter(n => n.indicador_id)
@@ -940,12 +947,15 @@ export function drawCronogramaMetas(doc, datos) {
       n.metas?.[0] ?? '0',
     ]),
     theme: 'grid',
+    // Un renglón no se parte entre hojas (antes podía quedar una sola palabra
+    // del renglón en la hoja siguiente).
+    rowPageBreak: 'avoid',
     headStyles: { fillColor: GUINDA, textColor: BLANCO, fontSize: 6.5, halign: 'center' },
     styles: { fontSize: 6, cellPadding: 1, halign: 'center' },
     columnStyles: { 0: { cellWidth: 16, halign: 'left' }, 1: { cellWidth: 34, halign: 'left' } },
   })
 
-  drawFirmasMML(doc, datos, H - FIRMAS_MARGEN_INF)
+  ;(opts.firmas || ((d, yy) => drawFirmasMML(d, datos, yy)))(doc, H - FIRMAS_MARGEN_INF)
 }
 
 // ── Fichas de indicador (una por nivel MIR vinculado a un indicador) ─────────
