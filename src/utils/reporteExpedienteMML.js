@@ -26,6 +26,33 @@ export const TIPO_CONFIG_OBJETIVOS = {
 }
 
 export async function generarExpedienteMML(programaId, anio) {
+  const { doc, nombreArchivo } = await construirExpedienteMML(programaId, anio)
+  doc.save(nombreArchivo)
+}
+
+// ── Los Expedientes de TODOS los programas, un PDF por programa, en un .zip
+// (el navegador bloquea 9 descargas seguidas). `incluirFicha: false` omite la
+// Ficha del Proyecto — la que se turna a Tesorería mientras ella misma no
+// envía los datos presupuestales para requisitarla. ──
+export async function generarExpedientesTodos(programas, anio, { incluirFicha = true, onProgreso } = {}) {
+  const { default: JSZip } = await import('jszip')
+  const zip = new JSZip()
+  // Uno por uno para no disparar 9 × 14 consultas a la vez contra Supabase.
+  for (const [i, prog] of programas.entries()) {
+    onProgreso?.(i + 1, programas.length, prog)
+    const { doc, nombreArchivo } = await construirExpedienteMML(prog.id, anio, { incluirFicha })
+    zip.file(nombreArchivo, doc.output('arraybuffer'))
+  }
+  const blob = await zip.generateAsync({ type: 'blob' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `Expedientes_MML_${anio}${incluirFicha ? '' : '_sin_Ficha_Proyecto'}.zip`
+  document.body.appendChild(a); a.click(); a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+async function construirExpedienteMML(programaId, anio, { incluirFicha = true } = {}) {
   // limpiarDatosPDF: los fonts estándar de jsPDF no soportan caracteres fuera
   // de Latin-1 (guion largo "–", viñeta "•", "≥"...) — sin esto, cualquier
   // texto capturado con ese tipo de carácter se corrompe/desaparece en el PDF
@@ -37,12 +64,15 @@ export async function generarExpedienteMML(programaId, anio) {
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
 
-  drawFichaProyecto(doc, datos, anio)
+  // Sin Ficha, la primera Descripción ocupa la hoja que jsPDF ya trae creada.
+  let hojaInicialLibre = !incluirFicha
+  if (incluirFicha) drawFichaProyecto(doc, datos, anio)
 
   // Descripción de Programa y Descripción de Proyectos: mismo formato, el
   // documento oficial las pide como dos hojas consecutivas.
   DESCRIPCION_HOJAS.forEach(({ titulo }) => {
-    doc.addPage('letter', 'portrait')
+    if (hojaInicialLibre) hojaInicialLibre = false
+    else doc.addPage('letter', 'portrait')
     drawDescripcion(doc, datos, anio, titulo)
   })
 
@@ -81,7 +111,7 @@ export async function generarExpedienteMML(programaId, anio) {
 
   const p = datos.programa || {}
   const nombreArchivo = `Expediente_MML_${p.clave || programaId}_${anio}.pdf`.replace(/\s+/g, '_')
-  doc.save(nombreArchivo)
+  return { doc, nombreArchivo }
 }
 
 // ── Extracto consolidado: solo la MIR (PP-FM-0E) y el POA (PP-FM-0F) de todos

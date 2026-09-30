@@ -939,10 +939,11 @@ export function drawCronogramaMetas(doc, datos, opts = {}) {
   const niveles = (datos.mirNiveles || []).filter(n => n.indicador_id)
   autoTable(doc, {
     startY: y, margin: { left: ML, right: ML, bottom: TABLA_MARGEN_INF },
-    head: [['Nivel', 'Meta (verbos en infinitivo)', ...MESES, 'Anual']],
+    head: [['Nivel', 'Meta (verbos en infinitivo)', 'Área responsable', ...MESES, 'Anual']],
     body: niveles.map(n => [
       etiquetaNivelMIR(n),
       n.indicador?.nombre || '—',
+      n.areaResponsableNombre || '—',
       ...MESES.map((_, i) => n.metas?.[i + 1] ?? '0'),
       n.metas?.[0] ?? '0',
     ]),
@@ -952,7 +953,7 @@ export function drawCronogramaMetas(doc, datos, opts = {}) {
     rowPageBreak: 'avoid',
     headStyles: { fillColor: GUINDA, textColor: BLANCO, fontSize: 6.5, halign: 'center' },
     styles: { fontSize: 6, cellPadding: 1, halign: 'center' },
-    columnStyles: { 0: { cellWidth: 16, halign: 'left' }, 1: { cellWidth: 34, halign: 'left' } },
+    columnStyles: { 0: { cellWidth: 16, halign: 'left' }, 1: { cellWidth: 34, halign: 'left' }, 2: { cellWidth: 24, halign: 'left' } },
   })
 
   ;(opts.firmas || ((d, yy) => drawFirmasMML(d, datos, yy)))(doc, H - FIRMAS_MARGEN_INF)

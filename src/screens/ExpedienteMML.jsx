@@ -12,7 +12,7 @@ import SeccionAccionesAlternativas from '../components/mml/SeccionAccionesAltern
 import SeccionMIR from '../components/mml/SeccionMIR.jsx'
 import SeccionMetas from '../components/mml/SeccionMetas.jsx'
 import PanelAcuseArea from '../components/mml/PanelAcuseArea.jsx'
-import { generarExpedienteMML, generarMIRPOAConsolidado } from '../utils/reporteExpedienteMML.js'
+import { generarExpedienteMML, generarMIRPOAConsolidado, generarExpedientesTodos } from '../utils/reporteExpedienteMML.js'
 import { generarExpedienteMMLExcel } from '../utils/reporteExpedienteMMLExcel.js'
 import { generarPlantillaExpedienteMML } from '../utils/reportePlantillaMML.js'
 import { generarInstructivoExpedienteMML } from '../utils/reporteInstructivoMML.js'
@@ -73,6 +73,9 @@ export default function ExpedienteMML() {
   const [generandoPdf, setGenerandoPdf] = useState(false)
   const [generandoExcel, setGenerandoExcel] = useState(false)
   const [generandoConsolidado, setGenerandoConsolidado] = useState(false)
+  // Los 9 Expedientes en un .zip: progreso "3/9" en el botón mientras genera.
+  const [progresoTodos, setProgresoTodos] = useState(null)
+  const [todosConFicha, setTodosConFicha] = useState(false)
 
   // Solo tiene sentido copiar si el año anterior existe en el selector —
   // hoy solo 2026 -> 2027.
@@ -189,6 +192,20 @@ export default function ExpedienteMML() {
     }
   }
 
+  async function handleGenerarTodos() {
+    setProgresoTodos(`0/${programas.length}`); setError(null)
+    try {
+      await generarExpedientesTodos(programas, anio, {
+        incluirFicha: todosConFicha,
+        onProgreso: (i, total) => setProgresoTodos(`${i}/${total}`),
+      })
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setProgresoTodos(null)
+    }
+  }
+
   function handleGenerarPlantilla() {
     generarPlantillaExpedienteMML({ programa: datos?.programa })
   }
@@ -249,6 +266,24 @@ export default function ExpedienteMML() {
               ? <><Loader2 size={13} style={{animation:'spin 0.8s linear infinite'}}/> Generando…</>
               : <><Files size={13}/> MIR y POA de todos los programas</>}
           </button>
+        )}
+        {/* Solo admin: un PDF de Expediente por programa, todos en un .zip. */}
+        {isAdmin && (
+          <div style={{ ...inp, padding: 0, display: 'flex', alignItems: 'stretch', overflow: 'hidden' }}>
+            <button onClick={handleGenerarTodos} disabled={!programas.length || progresoTodos != null}
+              title={`Expediente MML ${anio} de cada uno de los ${programas.length} programas (un PDF por programa, en un .zip)`}
+              style={{ ...inp, border: 'none', borderRadius: 0, cursor: !programas.length || progresoTodos != null ? 'default' : 'pointer', background: C.bgPanel, color: C.dorado, fontWeight: 700, opacity: !programas.length || progresoTodos != null ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+              {progresoTodos != null
+                ? <><Loader2 size={13} style={{animation:'spin 0.8s linear infinite'}}/> Generando {progresoTodos}…</>
+                : <><FolderOpen size={13}/> Expedientes de los {programas.length} programas</>}
+            </button>
+            <label title="Si no se marca, los Expedientes salen sin la Ficha del Proyecto"
+              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '0 0.7rem', borderLeft: `1px solid ${C.border}`, fontSize: '0.72rem', color: C.txtSub, cursor: 'pointer' }}>
+              <input type="checkbox" checked={todosConFicha} disabled={progresoTodos != null}
+                onChange={e => setTodosConFicha(e.target.checked)} />
+              Con Ficha del Proyecto
+            </label>
+          </div>
         )}
         {puedeGenerarDocumentos && (
           <button onClick={handleGenerarPlantilla} style={{ ...inp, cursor: 'pointer', background: C.bgPanel, display: 'flex', alignItems: 'center', gap: 6 }}>

@@ -249,6 +249,18 @@ export async function resolverDatosMML(programaId, anio) {
     }, {})
   }
 
+  // Área responsable de cada nivel, para la columna del Cronograma de Metas:
+  // la asignada al Componente/Actividad (areaEfectivaId) o, en Fin/Propósito
+  // (que no la tienen), la dueña del indicador. Consulta aparte porque el área
+  // asignada puede no pertenecer al programa (no viene en areasPrograma).
+  const areaIds = [...new Set(nivelesMIRBase.map(n => n.areaEfectivaId).filter(id => id != null))]
+  let nombreArea = {}
+  if (areaIds.length) {
+    const { data: areasNivel, error: eAN } = await supabase.from('areas').select('id, nombre').in('id', areaIds)
+    if (eAN) throw eAN
+    nombreArea = Object.fromEntries((areasNivel || []).map(a => [a.id, a.nombre]))
+  }
+
   const nivelesMIR = nivelesMIRBase.map(n => {
     const metas = n.indicador_id ? (metasPorIndicador[n.indicador_id] || {}) : {}
     const poaMesesCapturados = contarMesesPOA(metas)
@@ -261,6 +273,7 @@ export async function resolverDatosMML(programaId, anio) {
       poaMesesCapturados,
       poaCompleto: poaMesesCapturados === 12,
       poaAnual: metas[0] ?? null,
+      areaResponsableNombre: nombreArea[n.areaEfectivaId] || n.indicador?.areas?.nombre || null,
     }
   })
 
