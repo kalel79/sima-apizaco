@@ -19,7 +19,7 @@ export default function AdminUsuarios() {
   const TABS = [
     ...(isAdmin ? [{ id: 'usuarios', label: 'Gestión de Usuarios', icon: Users }] : []),
     ...((isAdmin || isPlaneacion) ? [{ id: 'captura', label: 'Avance de Captura', icon: BarChart3 }] : []),
-    ...((isAdmin || isPlaneacion) ? [{ id: 'mml', label: 'Avance Expediente MML', icon: ClipboardList }] : []),
+    ...(isAdmin ? [{ id: 'mml', label: 'Avance Expediente MML', icon: ClipboardList }] : []),
     ...(puedeVerReportesAdmin ? [{ id: 'evidencias', label: 'Seguimiento de Evidencias', icon: Paperclip }] : []),
     ...(puedeVerReportesAdmin ? [{ id: 'reportes', label: 'Reportes', icon: FileText }] : []),
   ]
@@ -56,7 +56,7 @@ export default function AdminUsuarios() {
 
       {adminTab === 'captura' && (isAdmin || isPlaneacion) && <AvanceCaptura/>}
 
-      {adminTab === 'mml' && (isAdmin || isPlaneacion) && <AvanceCapturaMML/>}
+      {adminTab === 'mml' && isAdmin && <AvanceCapturaMML/>}
 
       {adminTab === 'usuarios' && isAdmin && (
         <div style={{ maxWidth: 560 }}>
