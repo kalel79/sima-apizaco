@@ -1,5 +1,6 @@
 // ── Evidencias: Storage + tabla evidencias ────────────────────────────────────
 import { supabase, paginarTodo } from './supabaseClient.js'
+import { getAniosPorIndicador, esDelAnio } from './consultas.js'
 
 export const EVIDENCIAS_BUCKET = 'evidencias'
 export const EVIDENCIAS_MAX_BYTES = 10 * 1024 * 1024
@@ -90,17 +91,21 @@ export async function getEvidenciaUrl(path) {
 // Matriz área → indicador → mes de carga de evidencias, para el panel de
 // Seguimiento de Evidencias (Admin). "meses" son solo los meses con al menos
 // un avance capturado en el año — evita columnas vacías de meses futuros.
+// Solo los indicadores del ejercicio: `indicadores` es catálogo acumulado y sin
+// el filtro los del MIR 2027 entraban al 2026 (204 en vez de 170) como filas
+// sin avance, bajando el % de evidencia de las áreas.
 export async function getMatrizEvidencias(anio) {
-  const [{ data: areas, error: eArea }, { data: inds, error: eInd }, avances, { data: evid, error: eEvid }] = await Promise.all([
+  const [{ data: areas, error: eArea }, todosInds, avances, evid, aniosPorIndicador] = await Promise.all([
     supabase.from('areas').select('id, nombre').eq('activo', true).order('nombre'),
-    supabase.from('indicadores').select('id, clave, nombre, area_id').eq('activo', true).order('clave'),
+    paginarTodo(() =>
+      supabase.from('indicadores').select('id, clave, nombre, area_id').eq('activo', true).order('clave')),
     paginarTodo(() =>
       supabase.from('avances').select('id, indicador_id, mes, resultado').eq('anio', anio).order('id')),
-    supabase.from('evidencias').select('id, avance_id'),
+    paginarTodo(() => supabase.from('evidencias').select('id, avance_id').order('id')),
+    getAniosPorIndicador(),
   ])
   if (eArea) throw eArea
-  if (eInd) throw eInd
-  if (eEvid) throw eEvid
+  const inds = todosInds.filter(i => esDelAnio(aniosPorIndicador, i.id, anio))
 
   const evidPorAvance = {}
   ;(evid || []).forEach(e => {
