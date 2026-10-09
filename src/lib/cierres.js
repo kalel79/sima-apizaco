@@ -100,8 +100,7 @@ export async function getIndicadoresPorEjeCatalogo(anio = null) {
 // Pares (anio, mes) que tienen al menos un avance capturado — para ofrecer
 // en el selector de reportes los meses pasados que nunca se cerraron.
 export async function getPeriodosConDatos() {
-  const { data, error } = await supabase.from('avances').select('anio, mes')
-  if (error) throw error
+  const data = await paginarTodo(() => supabase.from('avances').select('anio, mes').order('id'))
   const set = new Set((data || []).map(r => `${r.anio}-${r.mes}`))
   return [...set]
     .map(k => { const [anio, mes] = k.split('-').map(Number); return { anio, mes } })

@@ -1,5 +1,5 @@
 // ── Evidencias: Storage + tabla evidencias ────────────────────────────────────
-import { supabase } from './supabaseClient.js'
+import { supabase, paginarTodo } from './supabaseClient.js'
 
 export const EVIDENCIAS_BUCKET = 'evidencias'
 export const EVIDENCIAS_MAX_BYTES = 10 * 1024 * 1024
@@ -91,15 +91,15 @@ export async function getEvidenciaUrl(path) {
 // Seguimiento de Evidencias (Admin). "meses" son solo los meses con al menos
 // un avance capturado en el año — evita columnas vacías de meses futuros.
 export async function getMatrizEvidencias(anio) {
-  const [{ data: areas, error: eArea }, { data: inds, error: eInd }, { data: avances, error: eAv }, { data: evid, error: eEvid }] = await Promise.all([
+  const [{ data: areas, error: eArea }, { data: inds, error: eInd }, avances, { data: evid, error: eEvid }] = await Promise.all([
     supabase.from('areas').select('id, nombre').eq('activo', true).order('nombre'),
     supabase.from('indicadores').select('id, clave, nombre, area_id').eq('activo', true).order('clave'),
-    supabase.from('avances').select('id, indicador_id, mes, resultado').eq('anio', anio),
+    paginarTodo(() =>
+      supabase.from('avances').select('id, indicador_id, mes, resultado').eq('anio', anio).order('id')),
     supabase.from('evidencias').select('id, avance_id'),
   ])
   if (eArea) throw eArea
   if (eInd) throw eInd
-  if (eAv) throw eAv
   if (eEvid) throw eEvid
 
   const evidPorAvance = {}

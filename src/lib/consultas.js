@@ -249,14 +249,14 @@ export async function getProgramasPresupuestariosDePmd(programaPmdId, anio) {
 // mes dado), agrupados por programa_pmd_id — usado por el reporte PDF
 // cuando se activa "incluir detalle" (evita 43 consultas individuales).
 export async function getDetalleIndicadoresPMD(mes, anio) {
-  const [{ data: inds, error: eInd }, { data: areas, error: eAreas }, { data: avs, error: eAv }] = await Promise.all([
+  const [{ data: inds, error: eInd }, { data: areas, error: eAreas }, avs] = await Promise.all([
     supabase.from('indicadores').select('id, clave, nombre, area_id, programa_pmd_id, nivel_mir').order('nombre'),
     supabase.from('areas').select('id, nombre'),
-    supabase.from('avances').select('indicador_id, meta_programada, resultado').eq('anio', anio).gte('mes', 1).lte('mes', mes),
+    paginarTodo(() =>
+      supabase.from('avances').select('indicador_id, meta_programada, resultado').eq('anio', anio).gte('mes', 1).lte('mes', mes).order('id')),
   ])
   if (eInd) throw eInd
   if (eAreas) throw eAreas
-  if (eAv) throw eAv
 
   const areasMap = Object.fromEntries((areas || []).map(a => [a.id, a.nombre]))
   const acumulados = acumularAvancesPorIndicador(avs)
@@ -379,16 +379,17 @@ export async function getIndicadoresLista(anio = null) {
 }
 
 export async function getMetasResultados(anio = 2026) {
-  const [todosCatalogo, { data: areas, error: eAreas }, { data: ejes, error: eEjes }, { data: avances, error: eAv }, metasCatalogo, aniosPorIndicador] = await Promise.all([
+  const [todosCatalogo, { data: areas, error: eAreas }, { data: ejes, error: eEjes }, avances, metasCatalogo, aniosPorIndicador] = await Promise.all([
     paginarTodo(() =>
       supabase.from('indicadores').select('id,nombre,nivel_mir,area_id').order('id')),
     supabase.from('areas').select('id,nombre,eje_id'),
     supabase.from('ejes').select('id,codigo,nombre,orden').order('orden'),
-    supabase.from('avances').select('indicador_id,mes,resultado,pct_cumplimiento,semaforo').eq('anio', anio),
+    paginarTodo(() =>
+      supabase.from('avances').select('indicador_id,mes,resultado,pct_cumplimiento,semaforo').eq('anio', anio).order('id')),
     getMetasCatalogo(anio),
     getAniosPorIndicador(),
   ])
-  if (eAreas || eEjes || eAv) throw eAreas || eEjes || eAv
+  if (eAreas || eEjes) throw eAreas || eEjes
 
   const areasMap  = Object.fromEntries((areas  || []).map(a => [a.id, a]))
   const ejesMap   = Object.fromEntries((ejes   || []).map(e => [e.id, e]))
@@ -415,13 +416,15 @@ export async function getMetasResultados(anio = 2026) {
   })
 }
 
+// Paginado: un año completo ya pasa de las 1000 filas que Supabase devuelve por
+// consulta (sep-2026 = 1014) y lo que sobraba se perdía en silencio — los
+// indicadores con id más alto (Dirección Jurídica) salían con los meses vacíos.
 export async function getAvancesMensualesPDF(anio) {
-  const { data, error } = await supabase
+  const data = await paginarTodo(() => supabase
     .from('avances')
     .select('indicador_id, mes, meta_programada, resultado')
     .eq('anio', anio)
-    .order('indicador_id').order('mes')
-  if (error) throw error
+    .order('indicador_id').order('mes'))
   const map = {}
   ;(data || []).forEach(av => {
     if (!map[av.indicador_id]) map[av.indicador_id] = {}
