@@ -3,7 +3,7 @@
 // directo y Planeación revisa. Eje, Nivel MIR y Programa PMD no se guardan, los
 // deriva v_informe_acciones. La RLS limita al enlace a su área y a la captura
 // abierta; el trigger valida fecha dentro del periodo e indicador del área.
-import { supabase } from './supabaseClient.js'
+import { supabase, paginarTodo } from './supabaseClient.js'
 import { getIndicadoresAreaAnio } from './capturaValidacion.js'
 
 // Las plantillas del 2º informe se armaron con el MIR 2026 (170 indicadores):
@@ -84,9 +84,109 @@ export async function guardarAccion({ id, informeId, areaId, form }) {
 }
 
 export async function eliminarAccion(id) {
+  // El ON DELETE CASCADE borra las filas de fotos, pero no los archivos del
+  // bucket: se juntan antes y se quitan después.
+  const fotos = await getFotosAcciones([id])
   const { data, error } = await supabase.from('informe_acciones').delete().eq('id', id).select('id')
   if (error) throw error
   if (!data?.length) throw new Error('No se eliminó: la captura del informe está cerrada o la acción no es de tu área.')
+  if (fotos.length) await supabase.storage.from(FOTOS_BUCKET).remove(fotos.map(f => f.storage_path))
+}
+
+// ── Fotografías de las acciones (fase_informe_02) ─────────────────────────────
+// Hasta 3 por acción; el PDF del Informe las acomoda en la página de acciones
+// relevantes del eje. Ruta en el bucket: {area_id}/{accion_id}/{archivo}.
+export const FOTOS_BUCKET = 'informe-fotos'
+export const FOTOS_MAX = 3
+
+// Antes de aplicar fase_informe_02 la tabla no existe: el PDF y la lista
+// siguen funcionando, solo que sin fotos.
+const sinTablaFotos = e => ['42P01', 'PGRST205'].includes(e?.code)
+
+export async function getFotosAcciones(accionIds) {
+  if (!accionIds.length) return []
+  try {
+    return await paginarTodo(() => supabase.from('informe_acciones_fotos')
+      .select('id, accion_id, storage_path, orden, ancho, alto')
+      .in('accion_id', accionIds).order('accion_id').order('orden'))
+  } catch (e) {
+    if (sinTablaFotos(e)) return []
+    throw e
+  }
+}
+
+// El celular entrega fotos de 4 a 8 MB; el PDF no necesita más de 1800 px por
+// lado. Se reduce en el navegador y se sube como JPEG.
+async function prepararFoto(file, maxLado = 1800) {
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error('La foto debe ser JPG, PNG o WebP.')
+  const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' })
+  const s = Math.min(1, maxLado / Math.max(bmp.width, bmp.height))
+  const w = Math.round(bmp.width * s), h = Math.round(bmp.height * s)
+  const c = document.createElement('canvas')
+  c.width = w; c.height = h
+  c.getContext('2d').drawImage(bmp, 0, 0, w, h)
+  bmp.close?.()
+  const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', 0.85))
+  if (!blob) throw new Error('No se pudo procesar la foto.')
+  return { blob, w, h }
+}
+
+export async function subirFotoAccion(accion, file, fotosActuales) {
+  const usados = new Set(fotosActuales.map(f => f.orden))
+  const orden = [1, 2, 3].find(n => !usados.has(n))
+  if (!orden) throw new Error(`Cada acción admite hasta ${FOTOS_MAX} fotografías.`)
+  const { blob, w, h } = await prepararFoto(file)
+  const path = `${accion.area_id}/${accion.id}/${Date.now()}_${orden}.jpg`
+  const { error: eUp } = await supabase.storage.from(FOTOS_BUCKET).upload(path, blob, { contentType: 'image/jpeg' })
+  if (eUp) throw eUp
+  const { data, error } = await supabase.from('informe_acciones_fotos')
+    .insert({ accion_id: accion.id, storage_path: path, orden, ancho: w, alto: h }).select().single()
+  if (error) {
+    await supabase.storage.from(FOTOS_BUCKET).remove([path])
+    throw error
+  }
+  return data
+}
+
+export async function borrarFotoAccion(foto) {
+  const { data, error } = await supabase.from('informe_acciones_fotos').delete().eq('id', foto.id).select('id')
+  if (error) throw error
+  if (!data?.length) throw new Error('No se borró: la captura del informe está cerrada o la foto no es de tu área.')
+  await supabase.storage.from(FOTOS_BUCKET).remove([foto.storage_path])
+}
+
+export async function urlsFotos(paths, segundos = 600) {
+  if (!paths.length) return {}
+  const { data, error } = await supabase.storage.from(FOTOS_BUCKET).createSignedUrls(paths, segundos)
+  if (error) throw error
+  return Object.fromEntries((data || []).filter(d => d.signedUrl).map(d => [d.path, d.signedUrl]))
+}
+
+// Para el PDF: baja las fotos de las acciones como ImageBitmap, agrupadas por
+// acción y en su orden. Una foto que no baja se omite, no tumba el Informe.
+export async function descargarFotosAcciones(accionIds) {
+  const fotos = await getFotosAcciones(accionIds)
+  if (!fotos.length) return new Map()
+  const urls = await urlsFotos(fotos.map(f => f.storage_path))
+  const porAccion = new Map()
+  await Promise.all(fotos.map(async f => {
+    try {
+      const resp = await fetch(urls[f.storage_path])
+      if (!resp.ok) return
+      const bmp = await createImageBitmap(await resp.blob())
+      if (!porAccion.has(f.accion_id)) porAccion.set(f.accion_id, [])
+      porAccion.get(f.accion_id).push({ orden: f.orden, bmp })
+    } catch (_) { /* foto omitida */ }
+  }))
+  porAccion.forEach(l => l.sort((a, b) => a.orden - b.orden))
+  return porAccion
+}
+
+// Descripción de cada eje (v_resumen_ejes no la trae) para las portadas.
+export async function getEjesCatalogo() {
+  const { data, error } = await supabase.from('ejes').select('codigo, nombre, descripcion, color_hex, orden').order('orden')
+  if (error) throw error
+  return data || []
 }
 
 export async function setRevisionAccion(id, { revisada, incluir_en_informe }) {

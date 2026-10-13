@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Pencil, Trash2, CheckCircle2, Circle, EyeOff, Eye } from 'lucide-react'
 import { C, FS } from '../../theme.js'
-import { eliminarAccion, setRevisionAccion } from '../../lib/informe.js'
+import { eliminarAccion, setRevisionAccion, getFotosAcciones, urlsFotos } from '../../lib/informe.js'
+import FotosAccion from './FotosAccion.jsx'
 
 const fmtFecha = f => f ? new Date(`${f}T12:00:00`).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) : ''
 const fmtMonto = m => m != null ? Number(m).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' }) : null
@@ -29,6 +30,20 @@ export default function ListaAccionesInforme({ acciones, puedeEditar, puedeRevis
   const [borrando, setBorrando] = useState(null)   // id en confirmación
   const [ocupado, setOcupado] = useState(null)
   const [error, setError] = useState(null)
+  const [fotos, setFotos] = useState({})          // accion_id → [{...foto, url}]
+
+  const idsClave = acciones.map(a => a.id).join(',')
+  const cargarFotos = useCallback(async () => {
+    try {
+      const filas = await getFotosAcciones(acciones.map(a => a.id))
+      const urls = await urlsFotos(filas.map(f => f.storage_path))
+      const mapa = {}
+      filas.forEach(f => { (mapa[f.accion_id] ||= []).push({ ...f, url: urls[f.storage_path] }) })
+      setFotos(mapa)
+    } catch (e) { setError(e.message) }
+  }, [idsClave]) // eslint-disable-line
+
+  useEffect(() => { cargarFotos() }, [cargarFotos])
 
   async function ejecutar(id, fn) {
     setOcupado(id); setError(null)
@@ -76,6 +91,9 @@ export default function ListaAccionesInforme({ acciones, puedeEditar, puedeRevis
             {a.beneficiarios != null && <span>Beneficiarios: <b style={{ color: C.txt }}>{a.beneficiarios.toLocaleString('es-MX')}</b></span>}
             <span>Foto: {a.tiene_foto ? 'Sí' : 'No'} · Video: {a.tiene_video ? 'Sí' : 'No'}</span>
           </div>
+
+          <FotosAccion accion={a} fotos={fotos[a.id] || []} puedeEditar={puedeEditar}
+            onCambio={() => { cargarFotos(); onCambio() }} />
 
           {(puedeEditar || puedeRevisar) && (
             <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>

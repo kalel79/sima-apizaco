@@ -1,5 +1,5 @@
 // ── Secciones del Expediente MML — una función por formato PP-FM ─────────────
-// Mismo patrón que informeGobiernoSecciones.js: cada función dibuja un bloque
+// Mismo patrón que informePDF/paginas.js: cada función dibuja un bloque
 // visual completo sobre un `doc` de jsPDF ya posicionado en la página correcta.
 import autoTable from 'jspdf-autotable'
 import { LOGO_BASE64 } from '../logo.js'

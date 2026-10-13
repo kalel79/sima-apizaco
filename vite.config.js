@@ -23,6 +23,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // Escudo y logo del PDF del Informe (~1.4 MB): se bajan solo al generarlo.
+        globIgnores: ['**/escudo_*.png', '**/logo_blanco-*.png', '**/logo_guinda-*.png'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // 4 MiB
       }
     })

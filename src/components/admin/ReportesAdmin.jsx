@@ -4,8 +4,7 @@ import {
   TreePine, Presentation, Search, FileText, FileSpreadsheet, FileBarChart2,
 } from 'lucide-react'
 import { generarPDF, generarExcel, generarExcelEjecutivo, generarPDFPiloto, generarExcelPiloto, generarExcelMetas } from '../../utils/reportes'
-import { generarInformeGobierno } from '../../utils/informeGobierno'
-import { getInformeActual, getAccionesInforme } from '../../lib/informe.js'
+import { getInformeActual, getAccionesInforme, getEjesCatalogo, descargarFotosAcciones } from '../../lib/informe.js'
 import { generarArbolProblemaObjetivosMIR } from '../../utils/reporteArbolMIR'
 import { generarMatrizPMDAreas } from '../../utils/reporteMatrizPMD'
 import {
@@ -137,13 +136,16 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
     setGenStatus('cargando')
     try {
       if (!global) await cargar()
-      const [pmdProgramas, claves, informe] = await Promise.all([
+      const [pmdProgramas, claves, informe, catalogo] = await Promise.all([
         getComparativoPMD(),
         getClavesIndicadores(),
         getInformeActual(),
+        getEjesCatalogo(),
       ])
       const acciones = informe ? await getAccionesInforme(informe.id, { soloIncluidas: true }) : []
-      await generarInformeGobierno({ ejes, indicadoresPorEje, claves, pmdProgramas, acciones })
+      const fotosPorAccion = await descargarFotosAcciones(acciones.map(a => a.id))
+      const { generarInformeGobierno } = await import('../../utils/informeGobierno')
+      await generarInformeGobierno({ ejes, indicadoresPorEje, claves, pmdProgramas, acciones, catalogo, fotosPorAccion })
       setGenStatus('ok')
     } catch (e) {
       setGenStatus('error:' + e.message)

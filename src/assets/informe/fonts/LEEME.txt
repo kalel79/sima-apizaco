@@ -1,0 +1,3 @@
+Tipografías del PDF del Informe de Gobierno (se cargan solo al generarlo).
+Cormorant Garamond y Source Sans 3: licencia SIL Open Font License 1.1 (Google Fonts),
+tomadas de los paquetes @expo-google-fonts/cormorant-garamond y @expo-google-fonts/source-sans-3 (v0.2.3).
