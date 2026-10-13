@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { generarPDF, generarExcel, generarExcelEjecutivo, generarPDFPiloto, generarExcelPiloto, generarExcelMetas } from '../../utils/reportes'
 import { generarInformeGobierno } from '../../utils/informeGobierno'
+import { getInformeActual, getAccionesInforme } from '../../lib/informe.js'
 import { generarArbolProblemaObjetivosMIR } from '../../utils/reporteArbolMIR'
 import { generarMatrizPMDAreas } from '../../utils/reporteMatrizPMD'
 import {
@@ -136,11 +137,13 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
     setGenStatus('cargando')
     try {
       if (!global) await cargar()
-      const [pmdProgramas, claves] = await Promise.all([
+      const [pmdProgramas, claves, informe] = await Promise.all([
         getComparativoPMD(),
         getClavesIndicadores(),
+        getInformeActual(),
       ])
-      await generarInformeGobierno({ ejes, indicadoresPorEje, claves, pmdProgramas })
+      const acciones = informe ? await getAccionesInforme(informe.id, { soloIncluidas: true }) : []
+      await generarInformeGobierno({ ejes, indicadoresPorEje, claves, pmdProgramas, acciones })
       setGenStatus('ok')
     } catch (e) {
       setGenStatus('error:' + e.message)
@@ -248,7 +251,7 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
       {/* Informe de Gobierno */}
       <div style={{ marginBottom: '1rem' }}>
         <div style={{ fontSize: '0.62rem', color: C.txtMuted, marginBottom: '0.5rem', letterSpacing: 1 }}>
-          SEGUNDO INFORME DE GOBIERNO — Sep 2025 – Ago 2026, portada + 9 ejes:
+          SEGUNDO INFORME DE GOBIERNO — Sep 2025 – Ago 2026, portada + 9 ejes + acciones relevantes capturadas por las áreas:
         </div>
         <Button variant="doradoOsc" icon={Landmark} loading={genStatus === 'cargando'} disabled={rLoading} onClick={handleInformeGobierno}>
           Descargar Informe de Gobierno

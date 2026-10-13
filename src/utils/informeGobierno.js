@@ -13,7 +13,7 @@ import {
 } from './informeGobiernoSecciones.js'
 
 // ── Sección por Eje ──────────────────────────────────────────────────────
-function drawEjeSection(doc, eje, indicadores, pmdList) {
+function drawEjeSection(doc, eje, indicadores, pmdList, acciones) {
   doc.addPage('letter', 'portrait')
   const page = doc.internal.getNumberOfPages()
   const W = doc.internal.pageSize.width, H = doc.internal.pageSize.height, ML = 15
@@ -116,7 +116,101 @@ function drawEjeSection(doc, eje, indicadores, pmdList) {
     })
   }
 
+  if (acciones && acciones.length) drawAccionesEje(doc, acciones, tituloEje)
+
   return page
+}
+
+// ── Acciones relevantes del Eje (fase_informe_01) ────────────────────────
+// Capturadas por las áreas en SIMA; solo llegan aquí las que Planeación no
+// quitó del informe. Agrupadas por programa PMD; las no vinculadas a la MIR
+// van al final bajo "Otras acciones relevantes".
+const fmtMonto = m => Number(m).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
+const fmtFechaCorta = f => new Date(`${f}T12:00:00`).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
+
+// Anchos fijos: la columna "Acción" se parte de antemano en renglones (nombre
+// en negritas + descripción) para que el alto de la celda sea el correcto.
+const ACC_COLS = [20, null, 28, 24, 24]
+const ACC_FS = 7.5, ACC_PAD = 2
+
+function lineasAccion(doc, a, ancho) {
+  doc.setFontSize(ACC_FS)
+  doc.setFont('helvetica', 'bold')
+  const titulo = doc.splitTextToSize(a.accion, ancho)
+  doc.setFont('helvetica', 'normal')
+  const desc = doc.splitTextToSize(a.descripcion, ancho)
+  return { content: [...titulo, ...desc].join('\n'), nNegritas: titulo.length }
+}
+
+function drawAccionesEje(doc, acciones, tituloEje) {
+  const W = doc.internal.pageSize.width, H = doc.internal.pageSize.height, ML = 15
+  const anchoAccion = W - ML * 2 - ACC_COLS.reduce((s, c) => s + (c || 0), 0)
+  let yy = doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : 40
+  if (yy + 40 > H - 20) {
+    doc.addPage('letter', 'portrait')
+    drawRunningHeaderSimple(doc, tituloEje)
+    yy = 26
+  }
+
+  const monto = acciones.reduce((s, a) => s + (Number(a.monto) || 0), 0)
+  const benef = acciones.reduce((s, a) => s + (a.beneficiarios || 0), 0)
+  doc.setFontSize(10); doc.setFont('helvetica', 'bold'); setColor(doc, GUINDA)
+  doc.text('Acciones relevantes', ML, yy)
+  doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); setColor(doc, GRIS)
+  const resumen = [`${acciones.length} ${acciones.length === 1 ? 'acción' : 'acciones'}`]
+  if (monto > 0) resumen.push(`${fmtMonto(monto)} invertidos`)
+  if (benef > 0) resumen.push(`${benef.toLocaleString('es-MX')} beneficiarios`)
+  doc.text(resumen.join('  ·  '), ML, yy + 5)
+
+  const grupos = new Map()
+  acciones.forEach(a => {
+    const k = a.programa_pmd || 'Otras acciones relevantes'
+    if (!grupos.has(k)) grupos.set(k, { orden: a.programa_pmd ? (a.programa_pmd_numero ?? 0) : 9999, filas: [] })
+    grupos.get(k).filas.push(a)
+  })
+  const body = []
+  ;[...grupos.entries()].sort((x, y) => x[1].orden - y[1].orden).forEach(([nombre, g]) => {
+    body.push([{ content: nombre, colSpan: 5, styles: { fontStyle: 'bold', textColor: GUINDA, fillColor: [250, 248, 244] } }])
+    g.filas
+      .sort((x, y) => (x.fecha || '').localeCompare(y.fecha || ''))
+      .forEach(a => body.push([
+        fmtFechaCorta(a.fecha),
+        lineasAccion(doc, a, anchoAccion - ACC_PAD * 2),
+        a.area || '-',
+        a.monto != null ? fmtMonto(a.monto) : '-',
+        a.beneficiarios != null ? a.beneficiarios.toLocaleString('es-MX') : '-',
+      ]))
+  })
+
+  autoTable(doc, {
+    head: [['Fecha', 'Acción', 'Área', 'Monto', 'Beneficiarios']],
+    body,
+    startY: yy + 9,
+    margin: { left: ML, right: ML, bottom: 20 },
+    styles: { fontSize: ACC_FS, cellPadding: ACC_PAD, lineColor: [220, 220, 220], lineWidth: 0.1, valign: 'top', overflow: 'linebreak' },
+    headStyles: { fillColor: GUINDA, textColor: BLANCO, fontStyle: 'bold' },
+    columnStyles: {
+      0: { cellWidth: ACC_COLS[0] }, 1: { cellWidth: anchoAccion }, 2: { cellWidth: ACC_COLS[2] },
+      3: { cellWidth: ACC_COLS[3], halign: 'right' }, 4: { cellWidth: ACC_COLS[4], halign: 'right' },
+    },
+    // autoTable dibuja la celda sin texto y aquí se escribe con el nombre de
+    // la acción en negritas y la descripción en normal.
+    willDrawCell: (data) => {
+      if (data.section === 'body' && data.cell.raw?.nNegritas != null) data.cell.text = []
+    },
+    didDrawCell: (data) => {
+      const n = data.cell.raw?.nNegritas
+      if (data.section !== 'body' || n == null) return
+      const lh = (ACC_FS * doc.getLineHeightFactor()) / doc.internal.scaleFactor
+      doc.setFontSize(ACC_FS)
+      data.cell.raw.content.split('\n').forEach((ln, k) => {
+        doc.setFont('helvetica', k < n ? 'bold' : 'normal')
+        setColor(doc, k < n ? [30, 30, 30] : [80, 80, 80])
+        doc.text(ln, data.cell.x + ACC_PAD, data.cell.y + ACC_PAD + lh * k, { baseline: 'top' })
+      })
+    },
+    didDrawPage: (data) => { if (data.pageNumber > 1) drawRunningHeaderSimple(doc, tituloEje) },
+  })
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -126,7 +220,8 @@ function drawEjeSection(doc, eje, indicadores, pmdList) {
 // indicadoresPorEje: { [eje_codigo]: fila[] } de v_indicadores_acum
 // claves:            { [indicador_id]: clave } (tabla indicadores, cruzado en cliente)
 // pmdProgramas:      filas de v_comparativo_pmd
-export async function generarInformeGobierno({ ejes, indicadoresPorEje, claves, pmdProgramas }) {
+// acciones:          filas de v_informe_acciones con incluir_en_informe
+export async function generarInformeGobierno({ ejes, indicadoresPorEje, claves, pmdProgramas, acciones = [] }) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
   const fechaGen = new Date()
   const folio = generarFolioInforme()
@@ -176,7 +271,8 @@ export async function generarInformeGobierno({ ejes, indicadoresPorEje, claves, 
     const inds = indsRaw
       .map(ind => ({ ...ind, clave: claves[ind.indicador_id] || '-' }))
       .sort((a, b) => (a.clave || '').localeCompare(b.clave || '', 'es'))
-    const pPag = drawEjeSection(doc, eje, inds, pmdPorEje[eje.codigo])
+    const accsEje = acciones.filter(a => a.eje_codigo === eje.codigo)
+    const pPag = drawEjeSection(doc, eje, inds, pmdPorEje[eje.codigo], accsEje)
     indiceEntries.push({ label: `${eje.codigo} · ${eje.eje}`, page: pPag })
   })
 

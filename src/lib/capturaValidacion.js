@@ -12,7 +12,7 @@ import { getCierreMensual } from './cierres.js'
 // indicadores dados de alta al capturar la MIR del año siguiente entraban al
 // denominador del mes en curso y el área nunca llegaba al 100%, así que su
 // acuse no se generaba ni podía descargarse a mano.
-async function getIndicadoresAreaAnio(areaId, anio, columnas = 'id') {
+export async function getIndicadoresAreaAnio(areaId, anio, columnas = 'id') {
   const { data: inds, error: eInd } = await supabase
     .from('indicadores').select(columnas).eq('area_id', areaId)
   if (eInd) throw eInd

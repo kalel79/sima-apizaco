@@ -1,6 +1,6 @@
 import { LOGO_BASE64 } from './logo.js'
 import { useState, useEffect } from 'react'
-import { LayoutDashboard, Target, Building2, Map, PenLine, ClipboardList, FolderOpen, Bell, Settings } from 'lucide-react'
+import { LayoutDashboard, Target, Building2, Map, PenLine, ClipboardList, FolderOpen, Bell, Settings, Landmark } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
 import { useConfiguracion } from './hooks/useConfiguracion'
 import { ConfiguracionContext } from './contexts/ConfiguracionContext'
@@ -19,6 +19,7 @@ import PantallaAlertas from './screens/Alertas.jsx'
 import PantallaCaptura from './screens/Captura.jsx'
 import PantallaASM from './screens/PantallaASM.jsx'
 import ExpedienteMML from './screens/ExpedienteMML.jsx'
+import InformeGobierno from './screens/InformeGobierno.jsx'
 
 /* ── APP PRINCIPAL ───────────────────────────────────────────── */
 const NAV_ANTES_PMD = [
@@ -30,6 +31,7 @@ const NAV_PMD = {id:'pmd', l:'PMD', icon:Map}
 const NAV_CAPTURA = {id:'captura', l:'Captura', icon:PenLine}
 const NAV_ASM = {id:'asm', l:'ASM', icon:ClipboardList}
 const NAV_MML = {id:'mml', l:'Expediente MML', icon:FolderOpen}
+const NAV_INFORME = {id:'informe', l:'Informe', icon:Landmark}
 const NAV_DESPUES_PMD = [
   {id:'alertas',    l:'Alertas',    icon:Bell},
 ]
@@ -48,7 +50,11 @@ export default function App() {
   // enlace/coordinador; se cierra en la UI pero la RLS de las tablas MML se
   // deja igual (fase_mml_24/29), así que no es una restricción de seguridad.
   const puedeVerMML = isAdmin
-  const NAV = [...NAV_ANTES_PMD, ...(puedeVerPMD ? [NAV_PMD] : []), ...NAV_DESPUES_PMD, ...(puedeVerASM ? [NAV_ASM] : []), ...(puedeVerMML ? [NAV_MML] : []), ...(puedeCapturar ? [NAV_CAPTURA] : [])]
+  // Informe de Gobierno (fase_informe_01): por ahora solo admin. El diseño es
+  // que el enlace capture las acciones de su área, admin/planeación revisen y
+  // directivo consulte; la RLS ya lo contempla, solo se cierra en la UI.
+  const puedeVerInforme = isAdmin
+  const NAV = [...NAV_ANTES_PMD, ...(puedeVerPMD ? [NAV_PMD] : []), ...NAV_DESPUES_PMD, ...(puedeVerASM ? [NAV_ASM] : []), ...(puedeVerMML ? [NAV_MML] : []), ...(puedeVerInforme ? [NAV_INFORME] : []), ...(puedeCapturar ? [NAV_CAPTURA] : [])]
   const { mesActual, anioActual, loading: cfgLoading, refetch: refetchCfg } = useConfiguracion()
   const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
 
@@ -167,6 +173,7 @@ export default function App() {
         {pan==='alertas'     && <PantallaAlertas/>}
         {pan==='asm'         && puedeVerASM && <PantallaASM/>}
         {pan==='mml'         && puedeVerMML && <ExpedienteMML/>}
+        {pan==='informe'     && puedeVerInforme && <InformeGobierno areaIdPropia={profile?.area_id ?? null} isEnlace={isEnlace} isAdmin={isAdmin} isPlaneacion={isPlaneacion}/>}
         {pan==='captura'     && puedeCapturar && <PantallaCaptura areaCoordinador={isEnlace ? area : null}/>}
         {pan==='admin'       && puedeVerAdmin && <AdminUsuarios/>}
       </main>
