@@ -52,26 +52,50 @@ function icono(svg, x, y, t, color, opacidad = 1) {
     .replace('<svg ', `<svg x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${t.toFixed(2)}" height="${t.toFixed(2)}" fill="${color}" opacity="${opacidad}" `)
 }
 
-// Diagrama conceptual del eje: ícono central, órbita y satélites (los
-// programas del PMD del eje), unidos con filetes finos. Íconos en blanco
-// dentro de aros blancos; el relleno del aro es el tono del fondo, para que
-// los filetes no crucen por detrás del ícono.
+// Diagrama conceptual del eje: ícono central y satélites (los programas del
+// PMD del eje) repartidos en una órbita, con radios finos desde el centro.
+// Acabado: halos de luz, doble órbita con marcas, disco central con volumen.
+// Íconos en blanco dentro de aros blancos; el relleno del aro es el tono del
+// fondo para que los radios no crucen por detrás del ícono.
 function diagramaSvg(d, colorFondo) {
   const { cx, cy, rx, ry, rC, rS, centro, satelites } = d
-  let o = `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width=".2" stroke-dasharray=".7 1.1"/>`
+  const f = n => n.toFixed(2)
+  const enOrbita = (a, k = 1) => [cx + rx * k * Math.cos(a), cy + ry * k * Math.sin(a)]
+  let o = `<defs>
+    <radialGradient id="haloC"><stop offset="0" stop-color="#fff" stop-opacity=".2"/><stop offset=".55" stop-color="#fff" stop-opacity=".06"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="haloS"><stop offset="0" stop-color="#fff" stop-opacity=".15"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="discoC" cx="50%" cy="34%" r="70%"><stop offset="0" stop-color="${matiz(colorFondo, .22)}"/><stop offset="1" stop-color="${matiz(colorFondo, -.18)}"/></radialGradient>
+    <radialGradient id="discoS" cx="50%" cy="30%" r="75%"><stop offset="0" stop-color="${matiz(colorFondo, .12)}"/><stop offset="1" stop-color="${matiz(colorFondo, -.12)}"/></radialGradient>
+  </defs>`
+  // Halo del centro y órbitas: una sólida fina y otra interior punteada.
+  o += `<ellipse cx="${cx}" cy="${cy}" rx="${f(rC * 3)}" ry="${f(rC * 3)}" fill="url(#haloC)"/>`
+  o += `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="none" stroke="#fff" stroke-opacity=".24" stroke-width=".22"/>`
+  o += `<ellipse cx="${cx}" cy="${cy}" rx="${f(rx * .64)}" ry="${f(ry * .64)}" fill="none" stroke="#fff" stroke-opacity=".14" stroke-width=".16" stroke-dasharray=".45 1.3" stroke-linecap="round"/>`
+  // Marcas finas sobre la órbita exterior, como una escala.
+  for (let g = 0; g < 360; g += 6) {
+    const a = g * Math.PI / 180
+    const [x1, y1] = enOrbita(a, 1), [x2, y2] = enOrbita(a, g % 30 ? 1.025 : 1.05)
+    o += `<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="#fff" stroke-opacity="${g % 30 ? '.16' : '.3'}" stroke-width=".18"/>`
+  }
+  // Radios del centro a cada satélite, con un punto en el arranque.
   satelites.forEach(s => {
     const dx = s.x - cx, dy = s.y - cy, L = Math.hypot(dx, dy) || 1
-    const x1 = cx + dx / L * (rC + 2.6), y1 = cy + dy / L * (rC + 2.6)
-    const x2 = s.x - dx / L * rS, y2 = s.y - dy / L * rS
-    o += `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="#fff" stroke-opacity=".45" stroke-width=".22"/>`
+    const x1 = cx + dx / L * (rC + 3.4), y1 = cy + dy / L * (rC + 3.4)
+    const x2 = s.x - dx / L * (rS + 0.9), y2 = s.y - dy / L * (rS + 0.9)
+    o += `<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="#fff" stroke-opacity=".42" stroke-width=".24"/>`
+    o += `<circle cx="${f(x1)}" cy="${f(y1)}" r=".55" fill="#fff" fill-opacity=".75"/>`
   })
-  o += `<circle cx="${cx}" cy="${cy}" r="${rC + 2.6}" fill="none" stroke="#fff" stroke-opacity=".3" stroke-width=".15"/>`
-  o += `<circle cx="${cx}" cy="${cy}" r="${rC}" fill="${colorFondo}" stroke="#fff" stroke-opacity=".85" stroke-width=".35"/>`
-  const tC = rC * 1.15
+  // Centro: aro exterior fino, disco con volumen e ícono.
+  o += `<circle cx="${cx}" cy="${cy}" r="${f(rC + 3.4)}" fill="none" stroke="#fff" stroke-opacity=".32" stroke-width=".18"/>`
+  o += `<circle cx="${cx}" cy="${cy}" r="${rC}" fill="url(#discoC)" stroke="#fff" stroke-opacity=".92" stroke-width=".42"/>`
+  const tC = rC * 1.12
   o += icono(centro, cx - tC / 2, cy - tC / 2, tC, '#fff')
+  // Satélites: halo, aro con doble filete e ícono.
   satelites.forEach(s => {
-    o += `<circle cx="${s.x.toFixed(2)}" cy="${s.y.toFixed(2)}" r="${rS}" fill="${colorFondo}" stroke="#fff" stroke-opacity=".9" stroke-width=".3"/>`
-    const t = rS * 1.05
+    o += `<circle cx="${f(s.x)}" cy="${f(s.y)}" r="${f(rS * 2)}" fill="url(#haloS)"/>`
+    o += `<circle cx="${f(s.x)}" cy="${f(s.y)}" r="${f(rS + 0.9)}" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width=".14"/>`
+    o += `<circle cx="${f(s.x)}" cy="${f(s.y)}" r="${rS}" fill="url(#discoS)" stroke="#fff" stroke-opacity=".92" stroke-width=".32"/>`
+    const t = rS * 1.04
     o += icono(s.svg, s.x - t / 2, s.y - t / 2, t, '#fff')
   })
   return o
@@ -106,7 +130,7 @@ export async function artePortadaEje(colorHex, foto, diagrama) {
   }
 
   let capa = ''
-  if (!foto) capa += icono(diagrama.centro, W_MM - 120, 110, 170, '#fff', 0.04)
+  if (!foto) capa += icono(diagrama.centro, W_MM - 118, 120, 165, '#fff', 0.035)
   capa += diagramaSvg(diagrama, matiz(colorHex, -.32))
   ctx.drawImage(await capaSvg(capa), 0, 0)
   return c.toDataURL('image/jpeg', 0.9)

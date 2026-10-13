@@ -452,36 +452,47 @@ export async function portadaEje(doc, ctx, d, foto, satelites = []) {
   const yNomFin = yDescIni - (desc.length ? 10 : 2)
   const yNomIni = yNomFin - (nom.length - 1) * lhn
   const yRegla = yNomIni - altoLinea(36, 0.78) - 5
-  const tamN = d.n.length > 1 ? 118 : 170
+  const tamN = d.n.length > 1 ? 100 : 136
   const yKick = yRegla - 5 - tamN * 0.3528 * 0.68 - 6
 
-  // 2) Diagrama en el espacio libre entre el encabezado y el numeral.
-  // Los satélites van en dos arcos laterales (±60° de la horizontal), nunca
-  // arriba o abajo del centro, para no encimarse con el pictograma central.
-  const top = 52, bottom = yKick - 9
-  const rS = 7, cx = W / 2, cy = (top + bottom) / 2, mitad = (bottom - top) / 2
-  const der = Math.ceil(satelites.length / 2), izq = satelites.length - der
-  const angulo = (j, m) => -60 + 120 * (j + 0.5) / m
-  const senMax = Math.max(0.01, ...[der, izq].filter(Boolean).map(m => Math.abs(Math.sin(angulo(0, m) * Math.PI / 180))))
-  const ry = Math.max(10, Math.min(40, (mitad - rS - 6) / senMax))
-  const rx = 58, rC = Math.max(9, Math.min(15.5, mitad - 6))
+  // 2) Diagrama en el espacio libre entre el encabezado y el numeral: los
+  // satélites se reparten parejo en una órbita elíptica alrededor del centro.
+  // Con número par se gira medio paso para que ninguno quede justo arriba o
+  // abajo (con 2 quedan a izquierda y derecha); con impar, uno va arriba.
+  const top = 48, bottom = yKick - 8
+  const rS = 7.2, cx = W / 2, cy = (top + bottom) / 2, mitad = (bottom - top) / 2
+  const n = satelites.length
+  const paso = 360 / Math.max(n, 1)
+  const inicio = n % 2 === 0 ? -90 + paso / 2 : -90
+  const ry = Math.max(17, Math.min(33, mitad - rS - 7))
+  const rx = Math.min(60, ry * 1.85)
+  const rC = Math.max(9.5, Math.min(14.5, ry - rS - 4))
   const sats = satelites.map((st, i) => {
-    const deg = i < der ? angulo(i, der) : 180 - angulo(i - der, izq)
-    const a = deg * Math.PI / 180
-    return { ...st, x: cx + rx * Math.cos(a), y: cy + ry * Math.sin(a) }
+    const a = (inicio + i * paso) * Math.PI / 180
+    return { ...st, a, x: cx + rx * Math.cos(a), y: cy + ry * Math.sin(a) }
   })
   const arte = await artePortadaEje(d.color, foto, { cx, cy, rx, ry, rC, rS, centro: CENTRO[d.cod] || CENTRO.E5, satelites: sats })
   doc.addImage(arte, 'JPEG', 0, 0, W, H, `arteEje${d.cod}`, 'FAST')
   marco(doc, DORADO_CLARO, 9, 0.25)
-  // Rótulos de los satélites al costado exterior de cada círculo, centrados
-  // en su altura: así no chocan entre sí ni con el pictograma central.
+  // Rótulos hacia afuera de la órbita: arriba o abajo de los satélites cercanos
+  // al eje vertical, al costado en los demás (sin salirse del marco).
+  const TAM_R = 7, LH_R = 2.95
   sats.forEach(st => {
-    const ls = lineas(doc, st.rotulo, 25, F.SANS, 'bold', 6.3).slice(0, 2)
-    fuente(doc, F.SANS, 'bold', 6.3, BLANCO)
-    const derecha = st.x > cx
-    const x = derecha ? st.x + rS + 2.2 : st.x - rS - 2.2
-    const y0 = st.y + 0.8 - (ls.length - 1) * 1.35
-    ls.forEach((l, k) => doc.text(l, x, y0 + k * 2.7, { align: derecha ? 'left' : 'right' }))
+    const cos = Math.cos(st.a), sin = Math.sin(st.a)
+    const vertical = Math.abs(cos) < 0.34
+    const derecha = cos > 0
+    const xLado = derecha ? st.x + rS + 2.6 : st.x - rS - 2.6
+    const ancho = vertical ? 34 : Math.max(18, Math.min(31, derecha ? W - 13 - xLado : xLado - 13))
+    const ls = lineas(doc, st.rotulo, ancho, F.SANS, 'bold', TAM_R).slice(0, 2)
+    fuente(doc, F.SANS, 'bold', TAM_R, BLANCO)
+    ls.forEach((l, k) => {
+      if (vertical) {
+        const y = sin < 0 ? st.y - rS - 2.6 - (ls.length - 1 - k) * LH_R : st.y + rS + 4.4 + k * LH_R
+        doc.text(l, st.x, y, { align: 'center' })
+      } else {
+        doc.text(l, xLado, st.y + 0.9 - (ls.length - 1) * LH_R / 2 + k * LH_R, { align: derecha ? 'left' : 'right' })
+      }
+    })
   })
 
   // 3) Encabezado: escudo, leyenda y logo.
