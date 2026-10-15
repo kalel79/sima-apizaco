@@ -476,21 +476,21 @@ export async function portadaEje(doc, ctx, d, foto, satelites = []) {
   marco(doc, DORADO_CLARO, 9, 0.25)
   // Rótulos hacia afuera de la órbita: arriba o abajo de los satélites cercanos
   // al eje vertical, al costado en los demás (sin salirse del marco).
-  const TAM_R = 7, LH_R = 2.95
+  const TAM_R = 6, CS_R = 0.32, LH_R = 2.75, ROTULO = [250, 244, 236]
   sats.forEach(st => {
     const cos = Math.cos(st.a), sin = Math.sin(st.a)
     const vertical = Math.abs(cos) < 0.34
     const derecha = cos > 0
-    const xLado = derecha ? st.x + rS + 2.6 : st.x - rS - 2.6
-    const ancho = vertical ? 34 : Math.max(18, Math.min(31, derecha ? W - 13 - xLado : xLado - 13))
-    const ls = lineas(doc, st.rotulo, ancho, F.SANS, 'bold', TAM_R).slice(0, 2)
-    fuente(doc, F.SANS, 'bold', TAM_R, BLANCO)
+    const xLado = derecha ? st.x + rS + 3.2 : st.x - rS - 3.2
+    const ancho = vertical ? 38 : Math.max(20, Math.min(34, derecha ? W - 13 - xLado : xLado - 13))
+    const ls = lineasVersalitas(doc, st.rotulo, ancho, TAM_R, CS_R).slice(0, 2)
+    const op = { tam: TAM_R, color: ROTULO, cs: CS_R }
     ls.forEach((l, k) => {
       if (vertical) {
-        const y = sin < 0 ? st.y - rS - 2.6 - (ls.length - 1 - k) * LH_R : st.y + rS + 4.4 + k * LH_R
-        doc.text(l, st.x, y, { align: 'center' })
+        const y = sin < 0 ? st.y - rS - 3.4 - (ls.length - 1 - k) * LH_R : st.y + rS + 5.2 + k * LH_R
+        versalitas(doc, l, st.x, y, { ...op, align: 'center' })
       } else {
-        doc.text(l, xLado, st.y + 0.9 - (ls.length - 1) * LH_R / 2 + k * LH_R, { align: derecha ? 'left' : 'right' })
+        versalitas(doc, l, xLado, st.y + 0.8 - (ls.length - 1) * LH_R / 2 + k * LH_R, { ...op, align: derecha ? 'left' : 'right' })
       }
     })
   })

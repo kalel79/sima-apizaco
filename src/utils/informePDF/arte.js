@@ -52,58 +52,66 @@ function icono(svg, x, y, t, color, opacidad = 1) {
     .replace('<svg ', `<svg x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${t.toFixed(2)}" height="${t.toFixed(2)}" fill="${color}" opacity="${opacidad}" `)
 }
 
-// Diagrama conceptual del eje: ícono central y satélites (los programas del
-// PMD del eje) repartidos en una órbita, con radios finos desde el centro.
-// Acabado: halos de luz, doble órbita con marcas, disco central con volumen.
-// Íconos en blanco dentro de aros blancos; el relleno del aro es el tono del
-// fondo para que los radios no crucen por detrás del ícono.
+// Diagrama conceptual del eje: medalla central y satélites (los programas
+// del PMD del eje) repartidos en una órbita elíptica, unidos por filetes.
+// Acabado de medalla institucional: disco con volumen, bisel dorado y filete
+// interior blanco; ícono central en dorado y los de los satélites en blanco.
+// Una sola órbita dorada muy fina; sin marcas ni punteados.
+const ORO = '#E2C998', ORO_OSCURO = '#B8955A'
+
+function medalla(id, x, y, r, colorFondo, oro = 1) {
+  const f = n => n.toFixed(2)
+  let o = ''
+  // Sombra suave debajo (desplazada hacia abajo) para separar del fondo.
+  o += `<ellipse cx="${f(x)}" cy="${f(y + r * .16)}" rx="${f(r * 1.32)}" ry="${f(r * 1.26)}" fill="url(#sombra)"/>`
+  // Bisel dorado: aro con degradado de claro (arriba) a oscuro (abajo).
+  o += `<circle cx="${f(x)}" cy="${f(y)}" r="${f(r + .55 * oro)}" fill="url(#bisel)"/>`
+  // Disco con volumen.
+  o += `<circle cx="${f(x)}" cy="${f(y)}" r="${f(r)}" fill="url(#${id})"/>`
+  // Filete interior blanco.
+  o += `<circle cx="${f(x)}" cy="${f(y)}" r="${f(r * .86)}" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width=".16"/>`
+  return o
+}
+
 function diagramaSvg(d, colorFondo) {
   const { cx, cy, rx, ry, rC, rS, centro, satelites } = d
   const f = n => n.toFixed(2)
-  const enOrbita = (a, k = 1) => [cx + rx * k * Math.cos(a), cy + ry * k * Math.sin(a)]
   let o = `<defs>
-    <radialGradient id="haloC"><stop offset="0" stop-color="#fff" stop-opacity=".2"/><stop offset=".55" stop-color="#fff" stop-opacity=".06"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
-    <radialGradient id="haloS"><stop offset="0" stop-color="#fff" stop-opacity=".15"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
-    <radialGradient id="discoC" cx="50%" cy="34%" r="70%"><stop offset="0" stop-color="${matiz(colorFondo, .22)}"/><stop offset="1" stop-color="${matiz(colorFondo, -.18)}"/></radialGradient>
-    <radialGradient id="discoS" cx="50%" cy="30%" r="75%"><stop offset="0" stop-color="${matiz(colorFondo, .12)}"/><stop offset="1" stop-color="${matiz(colorFondo, -.12)}"/></radialGradient>
+    <radialGradient id="luz"><stop offset="0" stop-color="#fff" stop-opacity=".13"/><stop offset=".6" stop-color="#fff" stop-opacity=".035"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="sombra"><stop offset=".6" stop-color="#000" stop-opacity=".28"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+    <linearGradient id="bisel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F3E3C0"/><stop offset=".5" stop-color="${ORO}"/><stop offset="1" stop-color="${ORO_OSCURO}"/></linearGradient>
+    <radialGradient id="discoC" cx="50%" cy="28%" r="80%"><stop offset="0" stop-color="${matiz(colorFondo, .2)}"/><stop offset=".65" stop-color="${matiz(colorFondo, -.12)}"/><stop offset="1" stop-color="${matiz(colorFondo, -.3)}"/></radialGradient>
+    <radialGradient id="discoS" cx="50%" cy="28%" r="80%"><stop offset="0" stop-color="${matiz(colorFondo, .16)}"/><stop offset=".7" stop-color="${matiz(colorFondo, -.1)}"/><stop offset="1" stop-color="${matiz(colorFondo, -.26)}"/></radialGradient>
   </defs>`
-  // Halo del centro y órbitas: una sólida fina y otra interior punteada.
-  o += `<ellipse cx="${cx}" cy="${cy}" rx="${f(rC * 3)}" ry="${f(rC * 3)}" fill="url(#haloC)"/>`
-  o += `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="none" stroke="#fff" stroke-opacity=".24" stroke-width=".22"/>`
-  o += `<ellipse cx="${cx}" cy="${cy}" rx="${f(rx * .64)}" ry="${f(ry * .64)}" fill="none" stroke="#fff" stroke-opacity=".14" stroke-width=".16" stroke-dasharray=".45 1.3" stroke-linecap="round"/>`
-  // Marcas finas sobre la órbita exterior, como una escala.
-  for (let g = 0; g < 360; g += 6) {
-    const a = g * Math.PI / 180
-    const [x1, y1] = enOrbita(a, 1), [x2, y2] = enOrbita(a, g % 30 ? 1.025 : 1.05)
-    o += `<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="#fff" stroke-opacity="${g % 30 ? '.16' : '.3'}" stroke-width=".18"/>`
-  }
-  // Radios del centro a cada satélite, con un punto en el arranque.
+  // Luz detrás del conjunto y órbita dorada.
+  o += `<ellipse cx="${cx}" cy="${cy}" rx="${f(rx * 1.05)}" ry="${f(ry * 1.25)}" fill="url(#luz)"/>`
+  o += `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="none" stroke="${ORO}" stroke-opacity=".5" stroke-width=".2"/>`
+  // Filetes del centro a cada satélite, con un rombo dorado a media distancia.
   satelites.forEach(s => {
     const dx = s.x - cx, dy = s.y - cy, L = Math.hypot(dx, dy) || 1
-    const x1 = cx + dx / L * (rC + 3.4), y1 = cy + dy / L * (rC + 3.4)
-    const x2 = s.x - dx / L * (rS + 0.9), y2 = s.y - dy / L * (rS + 0.9)
-    o += `<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="#fff" stroke-opacity=".42" stroke-width=".24"/>`
-    o += `<circle cx="${f(x1)}" cy="${f(y1)}" r=".55" fill="#fff" fill-opacity=".75"/>`
+    const ux = dx / L, uy = dy / L
+    const x1 = cx + ux * (rC + 2.6), y1 = cy + uy * (rC + 2.6)
+    const x2 = s.x - ux * (rS + 1.6), y2 = s.y - uy * (rS + 1.6)
+    o += `<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${ORO}" stroke-opacity=".55" stroke-width=".18"/>`
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, k = .7
+    o += `<path d="M${f(mx)} ${f(my - k)} L${f(mx + k)} ${f(my)} L${f(mx)} ${f(my + k)} L${f(mx - k)} ${f(my)} Z" fill="${ORO}" fill-opacity=".85"/>`
   })
-  // Centro: aro exterior fino, disco con volumen e ícono.
-  o += `<circle cx="${cx}" cy="${cy}" r="${f(rC + 3.4)}" fill="none" stroke="#fff" stroke-opacity=".32" stroke-width=".18"/>`
-  o += `<circle cx="${cx}" cy="${cy}" r="${rC}" fill="url(#discoC)" stroke="#fff" stroke-opacity=".92" stroke-width=".42"/>`
-  const tC = rC * 1.12
-  o += icono(centro, cx - tC / 2, cy - tC / 2, tC, '#fff')
-  // Satélites: halo, aro con doble filete e ícono.
+  // Centro: aro fino exterior, medalla y pictograma en dorado.
+  o += `<circle cx="${cx}" cy="${cy}" r="${f(rC + 2.6)}" fill="none" stroke="${ORO}" stroke-opacity=".55" stroke-width=".16"/>`
+  o += medalla('discoC', cx, cy, rC, colorFondo, 1.3)
+  const tC = rC * 1.08
+  o += icono(centro, cx - tC / 2, cy - tC / 2, tC, ORO)
+  // Satélites: medalla con bisel dorado e ícono blanco.
   satelites.forEach(s => {
-    o += `<circle cx="${f(s.x)}" cy="${f(s.y)}" r="${f(rS * 2)}" fill="url(#haloS)"/>`
-    o += `<circle cx="${f(s.x)}" cy="${f(s.y)}" r="${f(rS + 0.9)}" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width=".14"/>`
-    o += `<circle cx="${f(s.x)}" cy="${f(s.y)}" r="${rS}" fill="url(#discoS)" stroke="#fff" stroke-opacity=".92" stroke-width=".32"/>`
-    const t = rS * 1.04
+    o += medalla('discoS', s.x, s.y, rS, colorFondo)
+    const t = rS * 1.06
     o += icono(s.svg, s.x - t / 2, s.y - t / 2, t, '#fff')
   })
   return o
 }
 
 // Portada de un eje: degradado en su color, foto en duotono (si el eje tiene
-// fotos en sus acciones) o, sin foto, su pictograma en gran formato como
-// textura; encima, el diagrama conceptual.
+// fotos en sus acciones) y encima el diagrama conceptual.
 export async function artePortadaEje(colorHex, foto, diagrama) {
   const [c, ctx] = lienzo()
   const g = ctx.createLinearGradient(0, 0, ANCHO_PX * .45, ALTO_PX)
@@ -129,10 +137,7 @@ export async function artePortadaEje(colorHex, foto, diagrama) {
     ctx.fillRect(0, 0, ANCHO_PX, ALTO_PX)
   }
 
-  let capa = ''
-  if (!foto) capa += icono(diagrama.centro, W_MM - 118, 120, 165, '#fff', 0.035)
-  capa += diagramaSvg(diagrama, matiz(colorHex, -.32))
-  ctx.drawImage(await capaSvg(capa), 0, 0)
+  ctx.drawImage(await capaSvg(diagramaSvg(diagrama, matiz(colorHex, -.32))), 0, 0)
   return c.toDataURL('image/jpeg', 0.9)
 }
 
