@@ -9,7 +9,7 @@ import { generarArbolProblemaObjetivosMIR } from '../../utils/reporteArbolMIR'
 import { generarMatrizPMDAreas } from '../../utils/reporteMatrizPMD'
 import {
   getMetasResultados, getAvancesMensualesPDF, getComparativoPMD, getClavesIndicadores,
-  getCierresMensuales, getIndicadoresPorEjeCatalogo, getCorreccionesExtemporaneas,
+  getCierresMensuales, getCierreMensual, getIndicadoresPorEjeCatalogo, getCorreccionesExtemporaneas,
   getPeriodosConDatos, getResumenPeriodo,
 } from '../../lib/supabase'
 import { formatPeriodoLabel } from '../../utils/periodo'
@@ -55,8 +55,10 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
       return { global, ejes, indicadoresPorEje, avancesMensuales, mesActual, anioActual, periodoLabel, correccionesExtemporaneas: [] }
     }
 
+    // cierreSel viene de getCierresMensuales(), que no trae las columnas de
+    // resumen — para un mes cerrado hay que leer el registro completo.
     const [resumen, catalogoPorEje, avancesMensuales, correcciones] = await Promise.all([
-      cierreSel ? Promise.resolve(cierreSel) : getResumenPeriodo(periodoSel.anio, periodoSel.mes),
+      cierreSel ? getCierreMensual(periodoSel.anio, periodoSel.mes) : getResumenPeriodo(periodoSel.anio, periodoSel.mes),
       getIndicadoresPorEjeCatalogo(periodoSel.anio),
       getAvancesMensualesPDF(periodoSel.anio),
       getCorreccionesExtemporaneas(periodoSel.anio, periodoSel.mes),
