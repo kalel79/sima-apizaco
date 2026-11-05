@@ -203,5 +203,6 @@ export function mensajeErrorAccion(e) {
   if (m.includes('fuera del periodo')) return 'La fecha debe estar dentro del periodo del informe.'
   if (m.includes('no pertenece al área')) return 'El indicador elegido no es de esta área.'
   if (m.includes('informe_acciones_vinculo_chk')) return 'Si la acción no está vinculada a un indicador MIR, escribe la justificación.'
+  if (m.includes('"monto"') || m.includes('informe_acciones_monto_chk')) return 'Captura el monto ejercido conciliado con Tesorería (0 si la acción no implicó gasto).'
   return m
 }

@@ -40,6 +40,7 @@ export default function FormAccionInforme({ informe, areaId, indicadores, accion
   const faltantes = [
     !f.accion.trim() && 'Acción',
     !f.fecha && 'Fecha',
+    (f.monto === '' || f.monto == null) && 'Monto ejercido',
     !f.descripcion.trim() && 'Descripción',
     vinculada && !f.indicador_id && 'Indicador MIR',
     !vinculada && !f.justificacion.trim() && 'Justificación',
@@ -114,10 +115,14 @@ export default function FormAccionInforme({ informe, areaId, indicadores, accion
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: '0.75rem', marginTop: '0.75rem' }}>
         <Input label="Fecha" type="date" value={f.fecha} min={informe.periodo_inicio} max={informe.periodo_fin}
           onChange={e => set('fecha', e.target.value)} />
-        <Input label="Monto ($) (opcional)" type="number" min="0" step="0.01" value={f.monto}
+        <Input label="Monto ejercido ($)" type="number" min="0" step="0.01" value={f.monto}
           onChange={e => set('monto', e.target.value)} />
         <Input label="Beneficiarios (opcional)" type="number" min="0" step="1" value={f.beneficiarios}
           onChange={e => set('beneficiarios', e.target.value)} />
+      </div>
+      <div style={{ fontSize: FS.xxs, color: C.txtMuted, marginTop: 4 }}>
+        El monto ejercido es obligatorio y debe estar proporcionado o conciliado con la Tesorería Municipal.
+        Si la acción no implicó gasto, captura 0.
       </div>
 
       <div style={{ marginTop: '0.75rem' }}>
