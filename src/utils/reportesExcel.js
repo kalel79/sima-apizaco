@@ -2,7 +2,7 @@ import ExcelJS from 'exceljs'
 import { LOGO_BASE64 } from '../logo.js'
 import { barraDataURL, lineaDataURL } from './reporteMensualGraficas.js'
 import {
-  XL, FIRMAS_RESP, PROGRAMA_EJE, ENTIDAD_NOMBRE, MESES_NOMBRES,
+  XL, firmaRespPeriodo, programaEjePeriodo, ENTIDAD_NOMBRE, MESES_NOMBRES,
   semLabel, semaforoEje, pctStr, sortByMIR, descargarExcel, alturaAjustada,
   semArgb, styleHeader, styleData, styleTotal, addSheetHeader,
 } from './reportesBase.js'
@@ -13,8 +13,8 @@ const COL_FIJO = [6, 15, 42, 20] // #, Nivel MIR, Indicador, Área
 
 // Encabezado de programa por eje (Entidad/Programa/Unidad Responsable/Elaboró) —
 // mismo contenido que drawProgramaHeader() en reporteMensualPDF.js.
-function addProgramaHeader(ws, eje) {
-  const info = PROGRAMA_EJE[eje.codigo] || {}
+function addProgramaHeader(ws, eje, anio, mes) {
+  const info = programaEjePeriodo(eje.codigo, anio, mes)
   const anchoLabel = COL_FIJO[0] + COL_FIJO[1]
   const anchoValor = COL_FIJO[2] + COL_FIJO[3]
   const filas = [
@@ -44,8 +44,8 @@ function addProgramaHeader(ws, eje) {
 // drawFirmas() en reporteMensualPDF.js (Autorizó/Vo.Bo./Elaboró/Responsable),
 // adaptado a filas de Excel: rol, línea en blanco para firmar, nombre, cargo.
 // totalCols reparte las 4 firmas en bloques iguales sobre el ancho de la tabla.
-function addFirmas(ws, ejeCodigo, totalCols) {
-  const resp = FIRMAS_RESP[ejeCodigo] || { nombre: '___________________', cargo: 'Responsable del Eje' }
+function addFirmas(ws, ejeCodigo, totalCols, anio, mes) {
+  const resp = firmaRespPeriodo(ejeCodigo, anio, mes)
   const firmantes = [
     { rol: 'AUTORIZÓ',    nombre: 'C. Javier Rivera Bonilla',            cargo: 'Presidente Municipal de Apizaco' },
     { rol: 'VO.BO.',      nombre: 'C. María de la Paz Flores Hernández', cargo: 'Síndico Municipal' },
@@ -130,7 +130,7 @@ function addGraficasEje(ws, wb, eje, indsRaw, avMap, mesAct) {
 // GENERAR EXCEL  (ExcelJS — estilos completos)
 // ══════════════════════════════════════════════════════════════════════════════
 export async function generarExcel({
-  global: g, ejes, indicadoresPorEje, avancesMensuales, mesActual,
+  global: g, ejes, indicadoresPorEje, avancesMensuales, mesActual, anioActual,
   periodoLabel, piloto = false, correccionesExtemporaneas = [],
 }) {
   const wb = new ExcelJS.Workbook()
@@ -223,7 +223,7 @@ export async function generarExcel({
     ws.properties.defaultRowHeight = 14.4
     addSheetHeader(ws, eje.eje, logoId, periodoLabel, totalCols, true)
 
-    addProgramaHeader(ws, eje)
+    addProgramaHeader(ws, eje, anioActual, mesAct)
 
     // Fila de estadísticas del eje — una sola celda fusionada a todo el ancho
     // de la tabla, para que el texto nunca se corte contra la columna vecina.
@@ -311,7 +311,7 @@ export async function generarExcel({
     for (let col = 5; col <= totalCols; col++) totRow2.getCell(col).value = ''
     totRow2.eachCell({ includeEmpty: true }, c => styleTotal(c))
 
-    addFirmas(ws, eje.codigo, totalCols)
+    addFirmas(ws, eje.codigo, totalCols, anioActual, mesAct)
     addGraficasEje(ws, wb, eje, indsRaw, avMap, mesAct)
 
     ws.columns = [

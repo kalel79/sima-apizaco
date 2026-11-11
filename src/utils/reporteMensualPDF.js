@@ -3,7 +3,7 @@ import autoTable from 'jspdf-autotable'
 import { LOGO_BASE64 } from '../logo.js'
 import {
   GUINDA, DORADO, GRIS, BLANCO, SEM_COLORS,
-  FIRMAS_RESP, PROGRAMA_EJE, ENTIDAD_NOMBRE, MESES_NOMBRES,
+  firmaRespPeriodo, programaEjePeriodo, ENTIDAD_NOMBRE, MESES_NOMBRES,
   sortByMIR, pctStr, numStr, formatFecha, setColor, setFill, setDraw,
 } from './reportesBase.js'
 import { barraDataURL, lineaDataURL } from './reporteMensualGraficas.js'
@@ -21,9 +21,9 @@ function drawRunningHeader(doc, ejeNombre) {
 // ── Bloque de encabezado de programa (Entidad/Programa/Unidad Responsable/Elaboró) ──
 // Tabla de 2 columnas (etiqueta en guinda, valor en negro) sobre fondo blanco,
 // antes de la tabla de indicadores. Devuelve la Y donde debe iniciar la tabla.
-function drawProgramaHeader(doc, eje, startY) {
+function drawProgramaHeader(doc, eje, startY, anio, mes) {
   const W = doc.internal.pageSize.width, ML = 14
-  const info = PROGRAMA_EJE[eje.codigo] || {}
+  const info = programaEjePeriodo(eje.codigo, anio, mes)
   const rows = [
     ['Entidad:',             ENTIDAD_NOMBRE],
     ['Programa:',            info.programa   || '-'],
@@ -58,8 +58,8 @@ function drawProgramaHeader(doc, eje, startY) {
 }
 
 // ── Bloque de firmas ─────────────────────────────────────────────────────────
-function drawFirmas(doc, ejeCodigo, y) {
-  const resp = FIRMAS_RESP[ejeCodigo] || { nombre: '___________________', cargo: 'Responsable del Eje' }
+function drawFirmas(doc, ejeCodigo, y, anio, mes) {
+  const resp = firmaRespPeriodo(ejeCodigo, anio, mes)
   const firmantes = [
     { rol: 'AUTORIZÓ',    nombre: 'C. Javier Rivera Bonilla',           cargo: 'Presidente Municipal de Apizaco' },
     { rol: 'VO.BO.',      nombre: 'C. María de la Paz Flores Hernández', cargo: 'Síndico Municipal' },
@@ -283,7 +283,7 @@ export function generarPDF({
 
     // ── PASO A: Encabezado de programa + tabla mensual + firmas ───────────
     doc.addPage('letter', 'landscape')
-    const tablaStartY = drawProgramaHeader(doc, eje, 20)
+    const tablaStartY = drawProgramaHeader(doc, eje, 20, anioActual, mesAct)
 
     // Encabezados dobles
     const headRow1 = [
@@ -395,16 +395,16 @@ export function generarPDF({
     if (finalY + 56 > H_L - 8) {
       doc.addPage('letter', 'landscape')
       drawRunningHeader(doc, eje.eje)
-      drawFirmas(doc, eje.codigo, 26)
+      drawFirmas(doc, eje.codigo, 26, anioActual, mesAct)
     } else {
-      drawFirmas(doc, eje.codigo, finalY + 8)
+      drawFirmas(doc, eje.codigo, finalY + 8, anioActual, mesAct)
     }
 
     // ── PASO B: Página de gráficas + firmas ────────────────────────────────
     doc.addPage('letter', 'landscape')
     drawRunningHeader(doc, eje.eje)
     drawGraficasPage(doc, eje, periodoLabel, indsRaw, avMap, mesAct)
-    drawFirmas(doc, eje.codigo, 150)
+    drawFirmas(doc, eje.codigo, 150, anioActual, mesAct)
   })
 
   // Pie de página en todas las páginas

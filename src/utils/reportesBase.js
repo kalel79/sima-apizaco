@@ -135,6 +135,38 @@ export const PROGRAMA_EJE = {
   MS: { programa: '033 Apoyo a las Políticas Gubernamentales', responsable: 'Presidencia, Secretaría del Ayuntamiento, Regidurías, Presidencias de Comunidad, Comunicación Social y Gobernación', elaboro: 'Lic. Juan Pablo Morales Rico' },
   AJ: { programa: '003 Procuración y Defensa de los Intereses Municipales', responsable: 'Sindicatura Municipal y Dirección Jurídica', elaboro: 'Lic. Omar Muñoz Torres - Director Jurídico' },
 }
+// ── Cambios de titular por periodo ───────────────────────────────────────────
+// A partir del periodo indicado (año/mes) el responsable del eje es otro. Los
+// reportes de meses anteriores conservan al titular que firmaba entonces.
+const CAMBIOS_TITULAR = {
+  MS: [
+    { desde: { anio: 2026, mes: 10 },
+      firma: { nombre: 'Mtro. Víctor Tejeda Rosales', cargo: 'Secretario del Ayuntamiento' },
+      elaboro: 'Mtro. Víctor Tejeda Rosales' },
+  ],
+}
+
+function cambioVigente(ejeCodigo, anio, mes) {
+  const a = Number(anio) || 0, m = Number(mes) || 0
+  return (CAMBIOS_TITULAR[ejeCodigo] || [])
+    .filter(c => a > c.desde.anio || (a === c.desde.anio && m >= c.desde.mes))
+    .pop() || null
+}
+
+// Responsable que firma el reporte del eje en el periodo dado.
+export function firmaRespPeriodo(ejeCodigo, anio, mes) {
+  return cambioVigente(ejeCodigo, anio, mes)?.firma
+    || FIRMAS_RESP[ejeCodigo]
+    || { nombre: '___________________', cargo: 'Responsable del Eje' }
+}
+
+// Encabezado de programa del eje en el periodo dado (con "Elaboró" vigente).
+export function programaEjePeriodo(ejeCodigo, anio, mes) {
+  const base = PROGRAMA_EJE[ejeCodigo] || {}
+  const c = cambioVigente(ejeCodigo, anio, mes)
+  return c?.elaboro ? { ...base, elaboro: c.elaboro } : base
+}
+
 export const ENTIDAD_NOMBRE = 'Ayuntamiento de Apizaco'
 
 export const MESES_NOMBRES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC']
