@@ -141,8 +141,8 @@ export const PROGRAMA_EJE = {
 const CAMBIOS_TITULAR = {
   MS: [
     { desde: { anio: 2026, mes: 10 },
-      firma: { nombre: 'Mtro. Víctor Tejeda Rosales', cargo: 'Secretario del Ayuntamiento' },
-      elaboro: 'Mtro. Víctor Tejeda Rosales' },
+      firma: { nombre: 'Mtro. José Victor Tejeda Rosales', cargo: 'Secretario del Ayuntamiento' },
+      elaboro: 'Mtro. José Victor Tejeda Rosales' },
   ],
 }
 
