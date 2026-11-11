@@ -50,10 +50,9 @@ export default function App() {
   // enlace/coordinador; se cierra en la UI pero la RLS de las tablas MML se
   // deja igual (fase_mml_24/29), así que no es una restricción de seguridad.
   const puedeVerMML = isAdmin
-  // Informe de Gobierno (fase_informe_01): por ahora solo admin. El diseño es
-  // que el enlace capture las acciones de su área, admin/planeación revisen y
-  // directivo consulte; la RLS ya lo contempla, solo se cierra en la UI.
-  const puedeVerInforme = isAdmin
+  // Informe de Gobierno (fase_informe_01): el enlace captura las acciones de su
+  // área y admin/planeación revisan; la RLS lo respalda.
+  const puedeVerInforme = isAdmin || isPlaneacion || isEnlace
   const NAV = [...NAV_ANTES_PMD, ...(puedeVerPMD ? [NAV_PMD] : []), ...NAV_DESPUES_PMD, ...(puedeVerASM ? [NAV_ASM] : []), ...(puedeVerMML ? [NAV_MML] : []), ...(puedeVerInforme ? [NAV_INFORME] : []), ...(puedeCapturar ? [NAV_CAPTURA] : [])]
   const { mesActual, anioActual, loading: cfgLoading, refetch: refetchCfg } = useConfiguracion()
   const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
