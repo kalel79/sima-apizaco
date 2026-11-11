@@ -33,7 +33,7 @@ export const CABILDO = [
 export const GABINETE = [
   ['Presidente Municipal', 'Javier Rivera Bonilla'],
   ['Presidenta Honorífica DIF', 'Anabel Monter Ríos'],
-  ['Secretaría del Ayuntamiento', 'Juan Pablo Morales Rico'],
+  ['Secretaría del Ayuntamiento', 'Víctor Tejeda Rosales'],
   ['Dirección de Gobernación', 'Karina López Guevara'],
   ['Dirección de Planeación y Evaluación', 'Abraham Padilla Vásquez'],
   ['Dirección Administrativa', 'Estela López Montiel'],
