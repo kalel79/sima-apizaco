@@ -3,7 +3,7 @@
 // celda del bloque destacado) que svg2pdf dibuja dentro del PDF como gráfico
 // vectorial: nítido a cualquier zoom e impresión, con las mismas tipografías
 // registradas en jsPDF (Sans, SansLight y Cormorant). Los datos vienen de
-// DIAGRAMAS_ACCIONES (informeGobiernoContenido.js) o de `accion.diagrama`.
+// la columna informe_acciones.diagrama ({ tipo, ...datos }; fase_informe_04).
 import { svg2pdf } from 'svg2pdf.js'
 import { F_SVG_SERIF } from './recursos.js'
 

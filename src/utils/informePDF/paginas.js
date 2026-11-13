@@ -8,7 +8,7 @@ import { artePortadaPrincipal, artePortadaEje, recortarFoto, hexARgb, matiz } fr
 import { CENTRO } from './pictogramasSvg.js'
 import { dibujarDiagrama, diagramaValido, DIAGRAMA_RATIO } from './diagramas.js'
 import {
-  CABILDO, GABINETE, PRESENTACION_PARRAFOS, PRESENTACION_EJES, MENSAJE_PRESIDENTE, DIAGRAMAS_ACCIONES,
+  CABILDO, GABINETE, PRESENTACION_PARRAFOS, PRESENTACION_EJES, MENSAJE_PRESIDENTE,
 } from '../informeGobiernoContenido.js'
 
 export const W = 215.9, H = 279.4, ML = 18, CW = W - ML * 2
@@ -678,8 +678,8 @@ function metaAccion(a) {
 // Máximo de fotos que el Informe publica por acción: con dos se ven grandes.
 export const FOTOS_INFORME = 2
 
-// Diagrama vectorial de la acción: el que traiga la fila o el del catálogo.
-const diagramaDe = a => [a.diagrama, DIAGRAMAS_ACCIONES[a.id]].find(diagramaValido) || null
+// Diagrama vectorial de la acción (columna informe_acciones.diagrama).
+const diagramaDe = a => diagramaValido(a.diagrama) ? a.diagrama : null
 
 // Celdas de la columna visual (ancho pw): diagrama arriba a todo el ancho y
 // debajo hasta dos fotos; sin diagrama, una foto apaisada o dos apiladas.
