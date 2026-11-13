@@ -90,7 +90,7 @@ export async function generarInformeGobierno({
     const areas = [...new Set(inds.map(i => i.area).filter(Boolean))]
     const pPag = await portadaEje(doc, ctx, d, null, satelitesEje(pmdPorEje[eje.codigo], areas))
     resultadosEje(doc, ctx, d, inds, pmdPorEje[eje.codigo], accs.length)
-    if (accs.length) accionesEje(doc, ctx, d, accs, fotosPorAccion)
+    if (accs.length) await accionesEje(doc, ctx, d, accs, fotosPorAccion)
     entradas.push({ label: d.nombre, cod: d.cod, color: d.color, page: pPag })
   }
 

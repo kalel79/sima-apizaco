@@ -15,6 +15,7 @@ import logoGuindaUrl   from '../../assets/informe/logo_guinda.png?url'
 // Familias registradas en jsPDF. Cormorant trae cifras de estilo antiguo (no
 // se pueden cambiar en jsPDF): las cifras van siempre en Sans o SansLight.
 export const F = { SERIF: 'Serif', SANS: 'Sans', LIGHT: 'SansLight' }
+export const F_SVG_SERIF = 'Cormorant'
 
 // Proporción ancho/alto de cada imagen (recortadas a su contenido).
 export const RATIO = { escudo: 805 / 900, logo: 659 / 700 }
@@ -75,5 +76,8 @@ export async function prepararRecursos(doc) {
     doc.addFileToVFS(f.archivo, f.b64)
     doc.addFont(f.archivo, f.fam, f.estilo)
   })
+  // svg2pdf toma "Serif" por la familia genérica serif (Times): los diagramas
+  // usan la misma Cormorant con un nombre propio.
+  doc.addFont('CG-SemiBold.ttf', F_SVG_SERIF, 'normal')
   return imgs
 }

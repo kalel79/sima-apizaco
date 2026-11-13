@@ -88,3 +88,66 @@ export const MENSAJE_PRESIDENTE = [
   'Durante este segundo año de gobierno, hemos consolidado los programas iniciados en nuestra primera etapa y avanzado con firmeza en el cumplimiento de los compromisos del Plan Municipal de Desarrollo 2024-2027. Seguimos construyendo un Apizaco más seguro, más justo, más próspero y más equitativo para todas y todos.',
   'Apizaco, Tlaxcala, 2026.',
 ]
+
+// Diagramas vectoriales de acciones del Informe, por id de informe_acciones.
+// Las plantillas están en informePDF/diagramas.js; las cifras son las de la
+// descripción de cada acción (corte al 31 de agosto de 2026).
+export const DIAGRAMAS_ACCIONES = {
+  17: {
+    tipo: 'indice', etiqueta: 'Evaluación del desempeño · MIR 2026', titulo: 'Resultados medidos por área',
+    valor: 105.8, valor_etiqueta: 'Cumplimiento global',
+    kpis: [[170, 'indicadores MIR'], [33, 'áreas evaluadas'], [132, 'con avance']],
+    semaforo_titulo: 'Semáforo al cierre de agosto', semaforo: { optimo: 22, adecuado: 93, riesgo: 8, critico: 9 },
+    flujo: ['Evaluación mensual', 'Ajuste de metas', 'Presupuesto 2027'],
+    pie: 'Enero – agosto 2026', pie_der: 'Corte al 31 ago 2026',
+  },
+  35: {
+    tipo: 'plataforma', etiqueta: 'Plataforma digital municipal', titulo: 'Una sola plataforma para medir el desempeño',
+    centro: 'SIMA', centro_sub: 'En operación',
+    nodos: [[170, 'indicadores MIR'], [33, 'áreas municipales'], [9, 'ejes rectores'], [43, 'programas del PMD']],
+    pie: 'Captura en línea · semáforo · tableros', pie_der: '5 perfiles de usuario',
+  },
+  36: {
+    tipo: 'proceso', etiqueta: 'Ciclo mensual de seguimiento', titulo: 'Cada cifra, capturada, respaldada y validada',
+    pasos: [['Captura del resultado', 'El enlace del área reporta su indicador'], ['Evidencia documental', 'Se adjunta el soporte de la cifra'],
+      ['Validación con contraseña', 'El sistema emite acuse PDF con folio'], ['Revisión y cierre del mes', 'Las cifras se revisan y se congelan']],
+    kpis: [[674, 'avances mensuales'], [269, 'evidencias']],
+    pie: 'Junio – agosto 2026', pie_der: 'Corte al 31 ago 2026',
+  },
+  37: {
+    tipo: 'productos', etiqueta: 'Información para decidir', titulo: 'Reportes generados desde el sistema',
+    origen: [9, 'ejes con datos\nvalidados'],
+    productos: [['PDF mensual por eje', 'Semáforo, metas, tendencia y firmas'], ['Excel ejecutivo y de detalle', 'Para Presidencia y direcciones'],
+      ['Ficha histórica', 'Serie mensual de cada indicador']],
+    leyenda: 'Semáforo de cumplimiento',
+    pie: 'Reporte mensual automatizado', pie_der: 'SIMA',
+  },
+  38: {
+    tipo: 'cascada', etiqueta: 'Plan Municipal de Desarrollo', titulo: 'Del compromiso del Plan al resultado medible',
+    niveles: [[9, 'Ejes rectores'], [43, 'Programas del PMD'], [33, 'Áreas responsables'], [170, 'Indicadores MIR']],
+    chips: ['Fin', 'Propósito', 'Componente', 'Actividad'],
+    pie: 'Alineación PMD – MIR 2026', pie_der: 'Cascada de resultados',
+  },
+  39: {
+    tipo: 'ciclo', etiqueta: 'Mejora continua · criterios CONEVAL', titulo: 'Cada hallazgo, con responsable y evidencia',
+    valor: 7, valor_etiqueta: 'hallazgos',
+    etapas: ['Evaluación', 'Hallazgo', 'Acción de mejora', 'Evidencia', 'Verificación'],
+    pie: 'Aspectos Susceptibles de Mejora', pie_der: 'SIMA',
+  },
+  40: {
+    tipo: 'metodologia', etiqueta: 'Presupuesto basado en Resultados 2027', titulo: 'Metodología de Marco Lógico',
+    pasos: ['Diagnóstico', 'Análisis de\ninvolucrados', 'Árbol del\nproblema', 'Árbol de\nobjetivos', 'MIR y fichas\ntécnicas', 'Ficha de proyecto\ny POA'],
+    valor: 9, valor_etiqueta: 'programas\npresupuestarios',
+    claves: ['003', '005', '012', '018', '021', '024', '032', '033', '037'],
+    pie: 'Expediente MML digital', pie_der: 'Ejercicio 2027',
+  },
+  42: {
+    tipo: 'reconocimiento', etiqueta: 'INAFED · Guía Consultiva de Desempeño Municipal', titulo: 'El mejor desempeño municipal de Tlaxcala',
+    valor: 82.57, valor_etiqueta: 'Resultado anual',
+    insignia: ['1.er lugar', 'en el estado de Tlaxcala'],
+    organismo: 'INAFED', organismo_sub: 'Guía Consultiva de Desempeño Municipal 2026',
+    lista_titulo: 'Ocho módulos evaluados',
+    lista: ['Organización', 'Hacienda', 'Gestión del territorio', 'Servicios públicos', 'Medio ambiente', 'Desarrollo social', 'Desarrollo económico', 'Gobierno abierto'],
+    pie: 'Revisión: El Colegio de Tlaxcala', pie_der: '17 ago 2026',
+  },
+}

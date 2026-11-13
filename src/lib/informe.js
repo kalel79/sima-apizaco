@@ -97,7 +97,9 @@ export async function eliminarAccion(id) {
 // Hasta 3 por acción; el PDF del Informe las acomoda en la página de acciones
 // relevantes del eje. Ruta en el bucket: {area_id}/{accion_id}/{archivo}.
 export const FOTOS_BUCKET = 'informe-fotos'
-export const FOTOS_MAX = 3
+// El PDF del Informe publica 2 fotos por acción (se ven grandes); la tabla
+// admite 3 por las acciones capturadas antes, pero ya no se suben más de 2.
+export const FOTOS_MAX = 2
 
 // Antes de aplicar fase_informe_02 la tabla no existe: el PDF y la lista
 // siguen funcionando, solo que sin fotos.
@@ -134,7 +136,7 @@ async function prepararFoto(file, maxLado = 1800) {
 export async function subirFotoAccion(accion, file, fotosActuales) {
   const usados = new Set(fotosActuales.map(f => f.orden))
   const orden = [1, 2, 3].find(n => !usados.has(n))
-  if (!orden) throw new Error(`Cada acción admite hasta ${FOTOS_MAX} fotografías.`)
+  if (!orden || fotosActuales.length >= FOTOS_MAX) throw new Error(`Cada acción admite hasta ${FOTOS_MAX} fotografías.`)
   const { blob, w, h } = await prepararFoto(file)
   const path = `${accion.area_id}/${accion.id}/${Date.now()}_${orden}.jpg`
   const { error: eUp } = await supabase.storage.from(FOTOS_BUCKET).upload(path, blob, { contentType: 'image/jpeg' })

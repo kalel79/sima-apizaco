@@ -73,6 +73,11 @@ export default function FotosAccion({ accion, fotos, puedeEditar, onCambio }) {
         <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden
           onChange={e => e.target.files?.length && subir(e.target.files)} />
       </div>
+      {fotos.length > FOTOS_MAX && (
+        <div style={{ color: C.txtMuted, fontSize: FS.xxs, marginTop: 4 }}>
+          El Informe publica solo las {FOTOS_MAX} primeras fotografías.
+        </div>
+      )}
       {error && <div style={{ color: C.criticoB, fontSize: FS.xs, marginTop: 4 }}>{error}</div>}
     </div>
   )

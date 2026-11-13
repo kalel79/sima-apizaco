@@ -138,7 +138,7 @@ export default function FormAccionInforme({ informe, areaId, indicadores, accion
           <input type="checkbox" checked={f.tiene_video} onChange={e => set('tiene_video', e.target.checked)} /> Hay video de la acción
         </label>
         <span style={{ fontSize: FS.xxs, color: C.txtMuted, alignSelf: 'center' }}>
-          Después de guardar, sube hasta 3 fotografías desde la tarjeta de la acción: son las que se publican en el Informe.
+          Después de guardar, sube hasta 2 fotografías desde la tarjeta de la acción: son las que se publican en el Informe.
         </span>
       </div>
 

@@ -6,8 +6,9 @@ import autoTable from 'jspdf-autotable'
 import { F, RATIO } from './recursos.js'
 import { artePortadaPrincipal, artePortadaEje, recortarFoto, hexARgb, matiz } from './arte.js'
 import { CENTRO } from './pictogramasSvg.js'
+import { dibujarDiagrama, diagramaValido, DIAGRAMA_RATIO } from './diagramas.js'
 import {
-  CABILDO, GABINETE, PRESENTACION_PARRAFOS, PRESENTACION_EJES, MENSAJE_PRESIDENTE,
+  CABILDO, GABINETE, PRESENTACION_PARRAFOS, PRESENTACION_EJES, MENSAJE_PRESIDENTE, DIAGRAMAS_ACCIONES,
 } from '../informeGobiernoContenido.js'
 
 export const W = 215.9, H = 279.4, ML = 18, CW = W - ML * 2
@@ -674,43 +675,65 @@ function metaAccion(a) {
   return [fechaCorta(a.fecha), a.area, a.indicador_clave, a.nivel_mir].filter(Boolean).join('  ·  ')
 }
 
-// Medidas del mosaico de fotos según cuántas haya (1 a 3).
-function mosaico(n, pw) {
-  if (n >= 3) {
-    const w1 = pw * 0.57, w2 = pw - w1 - 2, h2 = w2 * 0.76, ht = h2 * 2 + 2
-    return { h: ht, celdas: [[0, 0, w1, ht], [w1 + 2, 0, w2, h2], [w1 + 2, h2 + 2, w2, h2]] }
+// Máximo de fotos que el Informe publica por acción: con dos se ven grandes.
+export const FOTOS_INFORME = 2
+
+// Diagrama vectorial de la acción: el que traiga la fila o el del catálogo.
+const diagramaDe = a => [a.diagrama, DIAGRAMAS_ACCIONES[a.id]].find(diagramaValido) || null
+
+// Celdas de la columna visual (ancho pw): diagrama arriba a todo el ancho y
+// debajo hasta dos fotos; sin diagrama, una foto apaisada o dos apiladas.
+function mosaico(pw, diagrama, fotos) {
+  const celdas = []
+  let y = 0
+  if (diagrama) {
+    const h = pw / DIAGRAMA_RATIO
+    celdas.push({ diagrama: true, x: 0, y, w: pw, h }); y += h + 2.5
+    if (fotos.length === 1) {
+      const r = Math.min(1.9, Math.max(1.4, fotos[0].bmp.width / fotos[0].bmp.height))
+      celdas.push({ foto: 0, x: 0, y, w: pw, h: pw / r }); y += pw / r + 2.5
+    } else if (fotos.length >= 2) {
+      const w = (pw - 2.5) / 2, h = w * 0.75
+      celdas.push({ foto: 0, x: 0, y, w, h }, { foto: 1, x: w + 2.5, y, w, h }); y += h + 2.5
+    }
+  } else if (fotos.length === 1) {
+    celdas.push({ foto: 0, x: 0, y, w: pw, h: pw * 0.7 }); y += pw * 0.7 + 2.5
+  } else if (fotos.length >= 2) {
+    const h = pw * 0.6
+    celdas.push({ foto: 0, x: 0, y, w: pw, h }, { foto: 1, x: 0, y: h + 2.5, w: pw, h }); y += h * 2 + 5
   }
-  if (n === 2) {
-    const w = (pw - 2) / 2, h = w * 1.22
-    return { h, celdas: [[0, 0, w, h], [w + 2, 0, w, h]] }
-  }
-  const h = pw * 0.7
-  return { h, celdas: [[0, 0, pw, h]] }
+  return { h: Math.max(0, y - 2.5), celdas }
 }
 
-function bloqueDestacado(doc, ctx, a, fotos, y, lado, col, seccion) {
+// Medidas del bloque destacado; las usa también el salto de página del grupo.
+function medidasBloque(doc, a, fotos) {
   const pw = CW * 0.5 - 3, tw = CW - pw - 7
-  const m = mosaico(fotos.length, pw)
+  const m = mosaico(pw, diagramaDe(a), fotos)
   const tTit = lineas(doc, a.accion, tw, F.SANS, 'bold', 11.5)
   const tMeta = lineas(doc, metaAccion(a), tw, F.SANS, 'normal', 7)
   const tDesc = lineas(doc, a.descripcion, tw, F.SANS, 'normal', 9)
   const lhT = altoLinea(11.5, 1.2), lhM = altoLinea(7, 1.35), lhD = altoLinea(9, 1.42)
   const cifras = [a.beneficiarios != null && [num(a.beneficiarios), 'Beneficiarios'], a.monto != null && Number(a.monto) > 0 && [pesos(a.monto), 'Inversión']].filter(Boolean)
   const altoTexto = tTit.length * lhT + 2 + tMeta.length * lhM + 3 + tDesc.length * lhD + (cifras.length ? 15 : 0)
-  const alto = Math.max(m.h + 7, altoTexto)
+  return { pw, tw, m, tTit, tMeta, tDesc, lhT, lhM, lhD, cifras, alto: Math.max(m.h + 7, altoTexto) }
+}
+
+async function bloqueDestacado(doc, ctx, a, fotos, y, lado, col, seccion) {
+  const { pw, tw, m, tTit, tMeta, tDesc, lhT, lhM, lhD, cifras, alto } = medidasBloque(doc, a, fotos)
   if (y + alto > PIE) y = nuevaPagina(doc, ctx, seccion, col)
 
   const px = lado === 'izq' ? ML : ML + tw + 7
   const tx = lado === 'izq' ? ML + pw + 7 : ML
-  m.celdas.forEach(([cx, cy, cw, ch], i) => {
-    doc.addImage(recortarFoto(fotos[i].bmp, cw / ch), 'JPEG', px + cx, y + cy, cw, ch, undefined, 'FAST')
-  })
+  for (const c of m.celdas) {
+    if (c.diagrama) await dibujarDiagrama(doc, diagramaDe(a), px + c.x, y + c.y, c.w, c.h)
+    else doc.addImage(recortarFoto(fotos[c.foto].bmp, c.w / c.h), 'JPEG', px + c.x, y + c.y, c.w, c.h, undefined, 'FAST')
+  }
   fuente(doc, F.SERIF, 'italic', 8, SUB)
   doc.text(doc.splitTextToSize(`${a.area} · ${fechaCorta(a.fecha)}`, pw)[0], px, y + m.h + 4.2)
 
   let yt = y + lhT * 0.8
   fuente(doc, F.SANS, 'bold', 11.5, TINTA)
-  tTit.forEach(l => { doc.text(l, tx, yt); yt += lhT })
+  tTit.forEach((l, i) => { renglon(doc, l, tx, yt, tw, i < tTit.length - 1); yt += lhT })
   yt += 0.5
   fuente(doc, F.SANS, 'normal', 7, col)
   tMeta.forEach(l => { doc.text(l, tx, yt); yt += lhM })
@@ -743,7 +766,7 @@ function renglonAccion(doc, ctx, a, y, col, seccion) {
   fuente(doc, F.SANS, 'bold', 7.5, SUB)
   doc.text(fechaCorta(a.fecha), ML, y + lhT * 0.8)
   let yy = y + lhT * 0.8
-  fuente(doc, F.SANS, 'bold', 9.5, TINTA); tTit.forEach(l => { doc.text(l, cx, yy); yy += lhT })
+  fuente(doc, F.SANS, 'bold', 9.5, TINTA); tTit.forEach((l, i) => { renglon(doc, l, cx, yy, cw, i < tTit.length - 1); yy += lhT })
   yy += 0.6
   fuente(doc, F.SANS, 'normal', 8.5, [70, 58, 60]); tDesc.forEach((l, i) => { renglon(doc, l, cx, yy, cw, i < tDesc.length - 1); yy += lhD })
   yy += 1
@@ -753,9 +776,11 @@ function renglonAccion(doc, ctx, a, y, col, seccion) {
   return y + alto + 2
 }
 
-export function accionesEje(doc, ctx, d, acciones, fotosPorAccion) {
+export async function accionesEje(doc, ctx, d, acciones, fotosPorAccion) {
   const col = hexARgb(d.color)
   const seccion = `${d.kick} · Acciones relevantes`
+  const fotosDe = a => (fotosPorAccion.get(a.id) || []).slice(0, FOTOS_INFORME)
+  const destacada = a => fotosDe(a).length > 0 || !!diagramaDe(a)
   let y = nuevaPagina(doc, ctx, seccion, col)
   y = apertura(doc, y + 4, `${d.kick} · ${d.nombre}`, 'Acciones relevantes', col, 26)
   const benef = acciones.reduce((s, a) => s + (a.beneficiarios || 0), 0)
@@ -769,11 +794,12 @@ export function accionesEje(doc, ctx, d, acciones, fotosPorAccion) {
   ], col)
 
   let lado = 'izq'
-  grupos(acciones).forEach(g => {
+  for (const g of grupos(acciones)) {
     // El título del programa no se queda solo al pie: debe caber con la
-    // primera acción (bloque con fotos ≈ 80 mm; renglón ≈ 34 mm).
-    const conFotos = (fotosPorAccion.get(g.filas[0]?.id) || []).length > 0
-    if (y + (conFotos ? 80 : 34) > PIE) y = nuevaPagina(doc, ctx, seccion, col)
+    // primera acción del grupo completa.
+    const a0 = g.filas[0]
+    const minimo = destacada(a0) ? medidasBloque(doc, a0, fotosDe(a0)).alto + 18 : 34
+    if (y + minimo > PIE) y = nuevaPagina(doc, ctx, seccion, col)
     versalitas(doc, g.nombre ? 'Programa PMD' : 'Sin vínculo a la MIR', ML, y, { tam: 6.8, color: col, cs: 0.55 })
     const tt = lineas(doc, g.nombre || 'Otras acciones relevantes', CW, F.SERIF, 'normal', 15)
     fuente(doc, F.SERIF, 'normal', 15, TINTA)
@@ -781,17 +807,16 @@ export function accionesEje(doc, ctx, d, acciones, fotosPorAccion) {
     y += 6.5 + (tt.length - 1) * altoLinea(15, 1.1) + 2.5
     trazo(doc, col); doc.setLineWidth(0.35); doc.line(ML, y, W - ML, y)
     y += 7
-    g.filas.forEach(a => {
-      const fotos = fotosPorAccion.get(a.id) || []
-      if (fotos.length) {
-        y = bloqueDestacado(doc, ctx, a, fotos.slice(0, 3), y, lado, col, seccion)
+    for (const a of g.filas) {
+      if (destacada(a)) {
+        y = await bloqueDestacado(doc, ctx, a, fotosDe(a), y, lado, col, seccion)
         lado = lado === 'izq' ? 'der' : 'izq'
       } else {
         y = renglonAccion(doc, ctx, a, y, col, seccion)
       }
-    })
+    }
     y += 4
-  })
+  }
 }
 
 // ── Pie de página (todas menos las portadas) ─────────────────────────────────
