@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Save, X } from 'lucide-react'
 import { C, FS } from '../../theme.js'
 import { Button, Input, FieldLabel } from '../ui.jsx'
@@ -32,6 +32,10 @@ export default function FormAccionInforme({ informe, areaId, indicadores, accion
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const set = (k, v) => setF(prev => ({ ...prev, [k]: v }))
+  const raiz = useRef(null)
+
+  // Al abrirse, el formulario se trae a la vista (la acción puede estar abajo en la lista).
+  useEffect(() => { raiz.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }, [])
 
   const ind = indicadores.find(i => String(i.id) === f.indicador_id)
   const sinIndicadores = indicadores.length === 0
@@ -63,7 +67,7 @@ export default function FormAccionInforme({ informe, areaId, indicadores, accion
   }
 
   return (
-    <div style={{ background: C.bgCard, border: `1px solid ${C.dorado}55`, borderRadius: 12, padding: '1rem', marginBottom: '1rem' }}>
+    <div ref={raiz} style={{ background: C.bgCard, border: `1px solid ${C.dorado}55`, borderRadius: 12, padding: '1rem', marginBottom: '1rem', scrollMarginTop: 80 }}>
       <div style={{ fontSize: FS.lg, fontWeight: 700, color: C.dorado, marginBottom: '0.75rem' }}>
         {accion ? `Editar acción #${accion.id}` : 'Nueva acción'}
       </div>

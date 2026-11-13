@@ -3,6 +3,7 @@ import { Pencil, Trash2, CheckCircle2, Circle, EyeOff, Eye } from 'lucide-react'
 import { C, FS } from '../../theme.js'
 import { eliminarAccion, setRevisionAccion, getFotosAcciones, urlsFotos } from '../../lib/informe.js'
 import FotosAccion from './FotosAccion.jsx'
+import DiagramaAccion from './DiagramaAccion.jsx'
 
 const fmtFecha = f => f ? new Date(`${f}T12:00:00`).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) : ''
 const fmtMonto = m => m != null ? Number(m).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' }) : null
@@ -25,8 +26,9 @@ function BotonIcono({ icon: Icon, title, color = C.txtSub, onClick, disabled }) 
 }
 
 // Lista de acciones de un área. puedeEditar = enlace con captura abierta, o
-// admin/planeación; puedeRevisar = admin/planeación.
-export default function ListaAccionesInforme({ acciones, puedeEditar, puedeRevisar, onEditar, onCambio }) {
+// admin/planeación; puedeRevisar = admin/planeación. La acción que se edita
+// muestra el formulario (formEdicion) en el lugar de su tarjeta.
+export default function ListaAccionesInforme({ acciones, puedeEditar, puedeRevisar, onEditar, onCambio, editandoId, formEdicion }) {
   const [borrando, setBorrando] = useState(null)   // id en confirmación
   const [ocupado, setOcupado] = useState(null)
   const [error, setError] = useState(null)
@@ -62,7 +64,7 @@ export default function ListaAccionesInforme({ acciones, puedeEditar, puedeRevis
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
       {error && <div style={{ color: C.criticoB, fontSize: FS.sm }}>{error}</div>}
-      {acciones.map(a => (
+      {acciones.map(a => a.id === editandoId ? <div key={a.id}>{formEdicion}</div> : (
         <div key={a.id} style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10, padding: '0.8rem',
           opacity: a.incluir_en_informe ? 1 : 0.6 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', alignItems: 'flex-start' }}>
@@ -91,6 +93,8 @@ export default function ListaAccionesInforme({ acciones, puedeEditar, puedeRevis
             {a.beneficiarios != null && <span>Beneficiarios: <b style={{ color: C.txt }}>{a.beneficiarios.toLocaleString('es-MX')}</b></span>}
             <span>Foto: {a.tiene_foto ? 'Sí' : 'No'} · Video: {a.tiene_video ? 'Sí' : 'No'}</span>
           </div>
+
+          <DiagramaAccion accion={a} />
 
           <FotosAccion accion={a} fotos={fotos[a.id] || []} puedeEditar={puedeEditar}
             onCambio={() => { cargarFotos(); onCambio() }} />

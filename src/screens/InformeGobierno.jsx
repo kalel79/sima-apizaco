@@ -100,6 +100,13 @@ export default function InformeGobierno({ areaIdPropia, isEnlace, isAdmin, isPla
 
   function trasGuardar() { setEditando(null); cargar() }
 
+  const formulario = editando && (
+    <FormAccionInforme key={editando === 'nueva' ? 'nueva' : editando.id}
+      informe={informe} areaId={areaSel} indicadores={indicadores}
+      accion={editando === 'nueva' ? null : editando}
+      onGuardada={trasGuardar} onCancelar={() => setEditando(null)} />
+  )
+
   return (
     <div>
       <div style={{ marginBottom: '1rem' }}>
@@ -152,15 +159,12 @@ export default function InformeGobierno({ areaIdPropia, isEnlace, isAdmin, isPla
             </div>
           )}
 
-          {editando && (
-            <FormAccionInforme key={editando === 'nueva' ? 'nueva' : editando.id}
-              informe={informe} areaId={areaSel} indicadores={indicadores}
-              accion={editando === 'nueva' ? null : editando}
-              onGuardada={trasGuardar} onCancelar={() => setEditando(null)} />
-          )}
+          {/* La acción nueva se captura arriba; una existente, en el lugar de su tarjeta. */}
+          {editando === 'nueva' && formulario}
 
           <ListaAccionesInforme acciones={accionesArea} puedeEditar={puedeEditar} puedeRevisar={esPlaneacion}
-            onEditar={a => setEditando(a)} onCambio={cargar} />
+            onEditar={a => setEditando(a)} onCambio={cargar}
+            editandoId={editando && editando !== 'nueva' ? editando.id : null} formEdicion={formulario} />
         </div>
       )}
     </div>
