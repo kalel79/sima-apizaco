@@ -67,7 +67,7 @@ export default function FormAccionInforme({ informe, areaId, indicadores, accion
   }
 
   return (
-    <div ref={raiz} style={{ background: C.bgCard, border: `1px solid ${C.dorado}55`, borderRadius: 12, padding: '1rem', marginBottom: '1rem', scrollMarginTop: 80 }}>
+    <div ref={raiz} style={{ background: C.bgCard, border: `1px solid ${C.dorado}55`, borderRadius: 12, padding: '1rem', marginBottom: '1rem', scrollMarginTop: 150 }}>
       <div style={{ fontSize: FS.lg, fontWeight: 700, color: C.dorado, marginBottom: '0.75rem' }}>
         {accion ? `Editar acción #${accion.id}` : 'Nueva acción'}
       </div>
