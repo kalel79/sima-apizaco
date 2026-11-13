@@ -727,53 +727,6 @@ function bloqueDestacado(doc, ctx, a, fotos, y, lado, col, seccion) {
   return y + alto + 9
 }
 
-// Lámina: una sola imagen muy horizontal (infografía, diagrama + captura del
-// sistema) se publica a todo el ancho, bajo el texto, sin recortarla.
-const LAMINA_RATIO = 2
-const esLamina = fotos => fotos.length === 1 && fotos[0].bmp?.width / fotos[0].bmp?.height >= LAMINA_RATIO
-
-function bloqueLamina(doc, ctx, a, foto, y, col, seccion) {
-  const ratio = foto.bmp.width / foto.bmp.height
-  const ih = CW / ratio
-  const tTit = lineas(doc, a.accion, CW, F.SANS, 'bold', 11.5)
-  const tMeta = lineas(doc, metaAccion(a), CW, F.SANS, 'normal', 7)
-  const tDesc = lineas(doc, a.descripcion, CW, F.SANS, 'normal', 9)
-  const lhT = altoLinea(11.5, 1.2), lhM = altoLinea(7, 1.35), lhD = altoLinea(9, 1.42)
-  const cifras = [a.beneficiarios != null && [num(a.beneficiarios), 'Beneficiarios'], a.monto != null && Number(a.monto) > 0 && [pesos(a.monto), 'Inversión']].filter(Boolean)
-  const altoTexto = tTit.length * lhT + 0.5 + tMeta.length * lhM + 2.5 + tDesc.length * lhD + (cifras.length ? 13 : 0)
-  const alto = altoTexto + 2.5 + ih + 4.5
-  if (y + alto > PIE) y = nuevaPagina(doc, ctx, seccion, col)
-
-  let yt = y + lhT * 0.8
-  fuente(doc, F.SANS, 'bold', 11.5, TINTA)
-  tTit.forEach(l => { doc.text(l, ML, yt); yt += lhT })
-  yt += 0.5
-  fuente(doc, F.SANS, 'normal', 7, col)
-  tMeta.forEach(l => { doc.text(l, ML, yt); yt += lhM })
-  yt += 2.5
-  fuente(doc, F.SANS, 'normal', 9, [58, 46, 48])
-  tDesc.forEach((l, i) => { renglon(doc, l, ML, yt, CW, i < tDesc.length - 1); yt += lhD })
-  if (cifras.length) {
-    cifras.forEach(([v, l], i) => {
-      const xx = ML + i * 50
-      fuente(doc, F.LIGHT, 'normal', 16, col); doc.text(v, xx, yt + 6)
-      versalitas(doc, l, xx, yt + 10, { tam: 5.8, cs: 0.7 })
-    })
-    yt += 13
-  }
-
-  const yi = y + altoTexto + 2.5
-  doc.addImage(recortarFoto(foto.bmp, ratio, 2000), 'JPEG', ML, yi, CW, ih, undefined, 'FAST')
-  trazo(doc, LINEA); doc.setLineWidth(0.25); doc.rect(ML, yi, CW, ih)
-  fuente(doc, F.SERIF, 'italic', 8, SUB)
-  doc.text(`${a.area} · ${fechaCorta(a.fecha)}`, ML, yi + ih + 4)
-  return y + alto + 5
-}
-
-// Alto que necesita la primera acción de un grupo, para no dejar el título
-// del programa huérfano al pie de la página.
-const altoMinimoGrupo = (g, fotosPorAccion) => esLamina(fotosPorAccion.get(g.filas[0]?.id) || []) ? 120 : 34
-
 function renglonAccion(doc, ctx, a, y, col, seccion) {
   const cx = ML + 27, cw = CW - 27
   const tTit = lineas(doc, a.accion, cw, F.SANS, 'bold', 9.5)
@@ -815,7 +768,7 @@ export function accionesEje(doc, ctx, d, acciones, fotosPorAccion) {
 
   let lado = 'izq'
   grupos(acciones).forEach(g => {
-    if (y + altoMinimoGrupo(g, fotosPorAccion) > PIE) y = nuevaPagina(doc, ctx, seccion, col)
+    if (y + 34 > PIE) y = nuevaPagina(doc, ctx, seccion, col)
     versalitas(doc, g.nombre ? 'Programa PMD' : 'Sin vínculo a la MIR', ML, y, { tam: 6.8, color: col, cs: 0.55 })
     const tt = lineas(doc, g.nombre || 'Otras acciones relevantes', CW, F.SERIF, 'normal', 15)
     fuente(doc, F.SERIF, 'normal', 15, TINTA)
@@ -825,9 +778,7 @@ export function accionesEje(doc, ctx, d, acciones, fotosPorAccion) {
     y += 7
     g.filas.forEach(a => {
       const fotos = fotosPorAccion.get(a.id) || []
-      if (esLamina(fotos)) {
-        y = bloqueLamina(doc, ctx, a, fotos[0], y, col, seccion)
-      } else if (fotos.length) {
+      if (fotos.length) {
         y = bloqueDestacado(doc, ctx, a, fotos.slice(0, 3), y, lado, col, seccion)
         lado = lado === 'izq' ? 'der' : 'izq'
       } else {
