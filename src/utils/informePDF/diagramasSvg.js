@@ -228,8 +228,13 @@ function metodologia(d) {
     ${caja(572, 146, 254, 388, { fill: 'url(#gGuinda)', stroke: null, r: 16 })}
     ${tx(699, 262, num(d.valor), { s: 104, w: 'bold', c: C.b, a: 'middle' })}
     ${tx(699, 300, d.valor_etiqueta, { s: 19, w: 'bold', c: C.dl, a: 'middle', lh: 1.25 })}
-    ${claves}`)
+    ${claves}${!cl.length && d.extra ? metodologiaExtra(d.extra) : ''}`)
 }
+// Cifra secundaria del panel cuando no hay claves: filete dorado, cifra y etiqueta.
+const metodologiaExtra = ([v, l]) =>
+  `<rect x="659" y="372" width="80" height="3" fill="${C.d}"/>` +
+  tx(699, 450, v, { s: 58, w: 'bold', c: C.b, a: 'middle' }) +
+  tx(699, 486, l, { s: 18, w: 'bold', c: C.dl, a: 'middle', lh: 1.25 })
 
 // Reconocimiento: resultado, posición y lo evaluado.
 function reconocimiento(d) {
