@@ -768,7 +768,10 @@ export function accionesEje(doc, ctx, d, acciones, fotosPorAccion) {
 
   let lado = 'izq'
   grupos(acciones).forEach(g => {
-    if (y + 34 > PIE) y = nuevaPagina(doc, ctx, seccion, col)
+    // El título del programa no se queda solo al pie: debe caber con la
+    // primera acción (bloque con fotos ≈ 80 mm; renglón ≈ 34 mm).
+    const conFotos = (fotosPorAccion.get(g.filas[0]?.id) || []).length > 0
+    if (y + (conFotos ? 80 : 34) > PIE) y = nuevaPagina(doc, ctx, seccion, col)
     versalitas(doc, g.nombre ? 'Programa PMD' : 'Sin vínculo a la MIR', ML, y, { tam: 6.8, color: col, cs: 0.55 })
     const tt = lineas(doc, g.nombre || 'Otras acciones relevantes', CW, F.SERIF, 'normal', 15)
     fuente(doc, F.SERIF, 'normal', 15, TINTA)
