@@ -85,10 +85,10 @@ export async function generarInformeGobierno({
       .map(ind => ({ ...ind, clave: claves[ind.indicador_id] || '—' }))
       .sort((a, b) => (a.clave || '').localeCompare(b.clave || '', 'es'))
     const accs = acciones.filter(a => a.eje_codigo === eje.codigo)
-    // La portada del eje usa la primera foto de sus acciones, si hay.
-    const primera = accs.map(a => fotosPorAccion.get(a.id)?.[0]?.bmp).find(Boolean)
+    // La portada del eje va sin foto de fondo: las imágenes de las acciones
+    // son evidencias (tablas, organigramas, capturas) y no sirven de fondo.
     const areas = [...new Set(inds.map(i => i.area).filter(Boolean))]
-    const pPag = await portadaEje(doc, ctx, d, primera, satelitesEje(pmdPorEje[eje.codigo], areas))
+    const pPag = await portadaEje(doc, ctx, d, null, satelitesEje(pmdPorEje[eje.codigo], areas))
     resultadosEje(doc, ctx, d, inds, pmdPorEje[eje.codigo], accs.length)
     if (accs.length) accionesEje(doc, ctx, d, accs, fotosPorAccion)
     entradas.push({ label: d.nombre, cod: d.cod, color: d.color, page: pPag })
