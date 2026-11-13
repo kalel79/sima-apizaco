@@ -89,7 +89,9 @@ function renglon(doc, l, x, y, ancho, justificar) {
   if (!justificar || p.length < 2) { doc.text(l, x, y); return }
   const anchos = p.map(w => doc.getTextWidth(w))
   const gap = (ancho - anchos.reduce((t, w) => t + w, 0)) / (p.length - 1)
-  if (gap > doc.getTextWidth(' ') * 4) { doc.text(l, x, y); return }
+  // En columnas angostas una palabra larga deja renglones abiertos; se
+  // justifican igual (hasta ~7 espacios) para que el bloque se vea parejo.
+  if (gap > doc.getTextWidth(' ') * 7) { doc.text(l, x, y); return }
   let xx = x
   p.forEach((w, i) => { doc.text(w, xx, y); xx += anchos[i] + gap })
 }
