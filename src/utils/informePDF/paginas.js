@@ -255,11 +255,18 @@ export function indice(doc, ctx, entradas) {
     doc.setLineDashPattern([], 0)
     y += 9.2
   }
-  entradas.filter(e => !e.cod).forEach(e => fila(e, false))
+  entradas.filter(e => !e.cod && !e.anexo).forEach(e => fila(e, false))
   y += 4
   versalitas(doc, 'Ejes del Plan Municipal de Desarrollo 2024 – 2027', ML, y, { tam: 7.5, color: GUINDA, cs: 0.6 })
   y += 9
   entradas.filter(e => e.cod).forEach(e => fila(e, true))
+  const anexos = entradas.filter(e => e.anexo)
+  if (anexos.length) {
+    y += 4
+    versalitas(doc, 'Anexo', ML, y, { tam: 7.5, color: GUINDA, cs: 0.6 })
+    y += 9
+    anexos.forEach(e => fila(e, false))
+  }
 }
 
 // ── Presentación ─────────────────────────────────────────────────────────────
@@ -379,14 +386,14 @@ export function seccionPendiente(doc, ctx, titulo, texto) {
 
 // ── Resumen ejecutivo ────────────────────────────────────────────────────────
 export function resumenEjecutivo(doc, ctx, { ejes, catalogo, totales, pmdTotal, pmdConAvance, nAcciones }) {
-  let y = nuevaPagina(doc, ctx, 'Resumen ejecutivo')
+  let y = nuevaPagina(doc, ctx, 'Anexo estadístico')
   const page = doc.getNumberOfPages()
-  y = apertura(doc, y + 4, PERIODO_LARGO, 'Resumen ejecutivo')
+  y = apertura(doc, y + 4, 'Anexo estadístico', 'Indicadores de desempeño')
   y = franjaCifras(doc, y, [
     [num(totales.total), 'Indicadores MIR evaluados'],
     [pct(totales.pctGlobal), 'Avance global promedio'],
     [`${pmdConAvance}/${pmdTotal}`, 'Programas del PMD con avance'],
-    [num(nAcciones), 'Acciones relevantes publicadas'],
+    [num(nAcciones), 'Logros publicados en el Informe'],
   ])
 
   fuente(doc, F.SERIF, 'normal', 16, TINTA)
@@ -539,15 +546,15 @@ export async function portadaEje(doc, ctx, d, foto, satelites = []) {
 // ── Resultados del eje ───────────────────────────────────────────────────────
 export function resultadosEje(doc, ctx, d, indicadores, pmdList, nAcciones) {
   const col = hexARgb(d.color)
-  const seccion = `${d.kick} · Resultados`
+  const seccion = `Anexo · ${d.kick}`
   let y = nuevaPagina(doc, ctx, seccion, col)
-  y = apertura(doc, y + 4, `${d.kick} · Resultados del eje`, d.nombre, col, 26)
+  y = apertura(doc, y + 4, `Anexo estadístico · ${d.kick}`, d.nombre, col, 26)
   const conDato = d.sem.reduce((s, v) => s + v, 0)
   y = franjaCifras(doc, y, [
     [num(d.total), 'Indicadores MIR'],
     [pct(d.pct), 'Avance promedio'],
     [conDato ? `${Math.round((d.sem[0] + d.sem[1]) / conDato * 100)}%` : '—', 'Indicadores en verde'],
-    [num(nAcciones), 'Acciones publicadas'],
+    [num(nAcciones), nAcciones === 1 ? 'Logro publicado' : 'Logros publicados'],
   ], col)
 
   // Semáforo (dona) a la izquierda, avance por área a la derecha.
@@ -657,22 +664,49 @@ export function resultadosEje(doc, ctx, d, indicadores, pmdList, nAcciones) {
   }
 }
 
-// ── Acciones relevantes del eje ──────────────────────────────────────────────
-// Agrupadas por programa PMD (las no vinculadas a la MIR al final). Una acción
-// con fotos se publica como bloque destacado; sin fotos, como renglón.
-function grupos(acciones) {
-  const m = new Map()
-  acciones.forEach(a => {
-    const k = a.programa_pmd || ''
-    if (!m.has(k)) m.set(k, { nombre: a.programa_pmd, orden: a.programa_pmd ? (a.programa_pmd_numero ?? 0) : 9999, filas: [] })
-    m.get(k).filas.push(a)
-  })
-  return [...m.values()].sort((x, y) => x.orden - y.orden)
-    .map(g => ({ ...g, filas: g.filas.sort((x, y) => (x.fecha || '').localeCompare(y.fecha || '')) }))
+// ── Logros del eje ───────────────────────────────────────────────────────────
+// El Informe destaca logros: cada acción se publica con su cifra principal,
+// lugar y pie de foto (fase_informe_05). Se agrupan por tema; las que aún no
+// lo tienen, por programa del PMD. Las claves y niveles de la MIR no se
+// imprimen aquí: van en el anexo estadístico.
+const fechaLarga = f => f ? new Date(`${f}T12:00:00`).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) : ''
+const sinPunto = t => String(t || '').trim().replace(/\.$/, '')
+
+// Reduce el cuerpo hasta que el texto quepa en `ancho`. Deja la fuente puesta.
+function ajustar(doc, txt, fam, estilo, tam, ancho, min = 9) {
+  let t = tam
+  doc.setFont(fam, estilo); doc.setFontSize(t)
+  while (t > min && doc.getTextWidth(String(txt)) > ancho) { t -= 0.5; doc.setFontSize(t) }
+  return t
 }
 
-function metaAccion(a) {
-  return [fechaCorta(a.fecha), a.area, a.indicador_clave, a.nivel_mir].filter(Boolean).join('  ·  ')
+// Cifra principal del logro; si no se capturó, los beneficiarios (nunca cero).
+function cifraDe(a) {
+  if (a.cifra_valor) return { v: String(a.cifra_valor).trim(), l: a.cifra_etiqueta || '' }
+  if (a.beneficiarios > 0) return { v: num(a.beneficiarios), l: 'personas beneficiadas' }
+  return null
+}
+const inversionDe = a => a.monto != null && Number(a.monto) > 0 ? { v: pesos(a.monto), l: 'Inversión' } : null
+const cifrasDe = a => [cifraDe(a), inversionDe(a)].filter(Boolean)
+const metaAccion = a => [fechaLarga(a.fecha), a.lugar || a.area].filter(Boolean).join('  ·  ')
+const pieDe = a => a.pie_foto || [a.area, fechaCorta(a.fecha)].filter(Boolean).join(' · ')
+
+// `primero`: tema que va antes que los demás (el del logro que abre el eje).
+function grupos(acciones, primero) {
+  const m = new Map()
+  acciones.forEach(a => {
+    const k = a.tema ? `t:${a.tema}` : a.programa_pmd ? `p:${a.programa_pmd}` : ''
+    if (!m.has(k)) {
+      m.set(k, {
+        nombre: a.tema || a.programa_pmd || 'Otros logros',
+        etiqueta: a.tema ? null : a.programa_pmd ? 'Programa del Plan Municipal de Desarrollo' : null,
+        orden: a.tema ? (a.tema === primero ? -1 : 0) : a.programa_pmd ? 1000 + (a.programa_pmd_numero ?? 0) : 9999, filas: [],
+      })
+    }
+    m.get(k).filas.push(a)
+  })
+  const lista = [...m.values()].map(g => ({ ...g, filas: g.filas.sort((x, y) => (x.fecha || '').localeCompare(y.fecha || '')) }))
+  return lista.sort((x, y) => x.orden - y.orden || (x.filas[0].fecha || '').localeCompare(y.filas[0].fecha || ''))
 }
 
 // Máximo de fotos que el Informe publica por acción: con dos se ven grandes.
@@ -681,142 +715,298 @@ export const FOTOS_INFORME = 2
 // Diagrama vectorial de la acción (columna informe_acciones.diagrama).
 const diagramaDe = a => diagramaValido(a.diagrama) ? a.diagrama : null
 
-// Celdas de la columna visual (ancho pw): diagrama arriba a todo el ancho y
-// debajo hasta dos fotos; sin diagrama, una foto apaisada o dos apiladas.
-function mosaico(pw, diagrama, fotos) {
-  const celdas = []
-  let y = 0
-  if (diagrama) {
-    const h = pw / DIAGRAMA_RATIO
-    celdas.push({ diagrama: true, x: 0, y, w: pw, h }); y += h + 2.5
-    if (fotos.length === 1) {
-      const r = Math.min(1.9, Math.max(1.4, fotos[0].bmp.width / fotos[0].bmp.height))
-      celdas.push({ foto: 0, x: 0, y, w: pw, h: pw / r }); y += pw / r + 2.5
-    } else if (fotos.length >= 2) {
-      const w = (pw - 2.5) / 2, h = w * 0.75
-      celdas.push({ foto: 0, x: 0, y, w, h }, { foto: 1, x: w + 2.5, y, w, h }); y += h + 2.5
-    }
-  } else if (fotos.length === 1) {
-    celdas.push({ foto: 0, x: 0, y, w: pw, h: pw * 0.7 }); y += pw * 0.7 + 2.5
-  } else if (fotos.length >= 2) {
-    const h = pw * 0.6
-    celdas.push({ foto: 0, x: 0, y, w: pw, h }, { foto: 1, x: 0, y: h + 2.5, w: pw, h }); y += h * 2 + 5
-  }
-  return { h: Math.max(0, y - 2.5), celdas }
+// Renglones de cifras (valor grande + etiqueta) repartidos en `ancho`.
+function dibujarCifras(doc, cifras, x, y, ancho, col, tam = 18) {
+  const cw = ancho / Math.max(2, cifras.length)
+  cifras.forEach((c, i) => {
+    const xx = x + i * cw
+    ajustar(doc, c.v, F.LIGHT, 'normal', tam, cw - 4)
+    doc.setTextColor(col[0], col[1], col[2]); doc.text(c.v, xx, y + 8)
+    lineasVersalitas(doc, c.l, cw - 4, 5.8, 0.6).slice(0, 2)
+      .forEach((t, k) => versalitas(doc, t, xx, y + 12 + k * 2.7, { tam: 5.8, cs: 0.6 }))
+  })
 }
+const ALTO_CIFRAS = 18
 
 // Medidas del bloque destacado; las usa también el salto de página del grupo.
+// Con diagrama: texto a lo ancho y debajo el diagrama grande con las fotos al
+// costado (a media columna sus rótulos no se leían impresos). Sin diagrama:
+// fotos a un lado y texto al otro.
 function medidasBloque(doc, a, fotos) {
+  const cifras = cifrasDe(a)
+  const dg = diagramaDe(a)
+  const lhT = altoLinea(11.5, 1.2), lhM = altoLinea(7.5, 1.35), lhD = altoLinea(9, 1.42)
+  if (dg) {
+    const tw = Math.min(CW, 152)
+    const tTit = lineas(doc, sinPunto(a.accion), tw, F.SANS, 'bold', 11.5)
+    const tDesc = lineas(doc, a.descripcion, tw, F.SANS, 'normal', 9)
+    const dw = fotos.length ? 112 : 132, dh = dw / DIAGRAMA_RATIO
+    const fw = CW - dw - 6, fh = fotos.length ? Math.min(fw * 0.68, (dh - 2.5 * (fotos.length - 1)) / fotos.length) : 0
+    const tPie = lineas(doc, pieDe(a), CW, F.SERIF, 'italic', 8.5).slice(0, 2)
+    const altoTexto = tTit.length * lhT + 0.5 + lhM + 2.5 + tDesc.length * lhD + (cifras.length ? ALTO_CIFRAS + 2 : 0) + 3
+    return { ancho: true, tw, tTit, tDesc, lhT, lhM, lhD, cifras, dw, dh, fw, fh, tPie, altoTexto, alto: altoTexto + dh + 2 + tPie.length * 3.6 }
+  }
   const pw = CW * 0.5 - 3, tw = CW - pw - 7
-  const m = mosaico(pw, diagramaDe(a), fotos)
-  const tTit = lineas(doc, a.accion, tw, F.SANS, 'bold', 11.5)
-  const tMeta = lineas(doc, metaAccion(a), tw, F.SANS, 'normal', 7)
+  const fh = fotos.length >= 2 ? pw * 0.52 : pw * 0.66
+  const mh = fotos.length * fh + (fotos.length - 1) * 2.5
+  const tTit = lineas(doc, sinPunto(a.accion), tw, F.SANS, 'bold', 11.5)
   const tDesc = lineas(doc, a.descripcion, tw, F.SANS, 'normal', 9)
-  const lhT = altoLinea(11.5, 1.2), lhM = altoLinea(7, 1.35), lhD = altoLinea(9, 1.42)
-  const cifras = [a.beneficiarios != null && [num(a.beneficiarios), 'Beneficiarios'], a.monto != null && Number(a.monto) > 0 && [pesos(a.monto), 'Inversión']].filter(Boolean)
-  const altoTexto = tTit.length * lhT + 2 + tMeta.length * lhM + 3 + tDesc.length * lhD + (cifras.length ? 15 : 0)
-  return { pw, tw, m, tTit, tMeta, tDesc, lhT, lhM, lhD, cifras, alto: Math.max(m.h + 7, altoTexto) }
+  const tPie = lineas(doc, pieDe(a), pw, F.SERIF, 'italic', 8.5).slice(0, 3)
+  const altoTexto = tTit.length * lhT + 0.5 + lhM + 2.5 + tDesc.length * lhD + (cifras.length ? ALTO_CIFRAS + 2 : 0)
+  return { ancho: false, pw, tw, fh, mh, tTit, tDesc, tPie, lhT, lhM, lhD, cifras, alto: Math.max(mh + 2 + tPie.length * 3.6, altoTexto) }
+}
+
+function textoBloque(doc, a, m, x, y, col) {
+  let yt = y + m.lhT * 0.8
+  fuente(doc, F.SANS, 'bold', 11.5, TINTA)
+  m.tTit.forEach(l => { doc.text(l, x, yt); yt += m.lhT })
+  yt += 0.5
+  fuente(doc, F.SANS, 'normal', 7.5, col)
+  doc.text(doc.splitTextToSize(metaAccion(a), m.tw)[0] || '', x, yt); yt += m.lhM
+  yt += 2.5
+  fuente(doc, F.SANS, 'normal', 9, [58, 46, 48])
+  m.tDesc.forEach((l, i) => { renglon(doc, l, x, yt, m.tw, i < m.tDesc.length - 1); yt += m.lhD })
+  if (m.cifras.length) {
+    yt += 1
+    trazo(doc, LINEA); doc.setLineWidth(0.2); doc.line(x, yt, x + m.tw, yt)
+    dibujarCifras(doc, m.cifras, x, yt, m.tw, col)
+  }
+}
+
+function pieFoto(doc, lineasPie, x, y) {
+  fuente(doc, F.SERIF, 'italic', 8.5, SUB)
+  lineasPie.forEach((l, i) => doc.text(l, x, y + i * 3.6))
 }
 
 async function bloqueDestacado(doc, ctx, a, fotos, y, lado, col, seccion) {
-  const { pw, tw, m, tTit, tMeta, tDesc, lhT, lhM, lhD, cifras, alto } = medidasBloque(doc, a, fotos)
-  if (y + alto > PIE) y = nuevaPagina(doc, ctx, seccion, col)
+  const m = medidasBloque(doc, a, fotos)
+  if (y + m.alto > PIE) y = nuevaPagina(doc, ctx, seccion, col)
 
-  const px = lado === 'izq' ? ML : ML + tw + 7
-  const tx = lado === 'izq' ? ML + pw + 7 : ML
-  for (const c of m.celdas) {
-    if (c.diagrama) await dibujarDiagrama(doc, diagramaDe(a), px + c.x, y + c.y, c.w, c.h)
-    else doc.addImage(recortarFoto(fotos[c.foto].bmp, c.w / c.h), 'JPEG', px + c.x, y + c.y, c.w, c.h, undefined, 'FAST')
-  }
-  fuente(doc, F.SERIF, 'italic', 8, SUB)
-  doc.text(doc.splitTextToSize(`${a.area} · ${fechaCorta(a.fecha)}`, pw)[0], px, y + m.h + 4.2)
-
-  let yt = y + lhT * 0.8
-  fuente(doc, F.SANS, 'bold', 11.5, TINTA)
-  tTit.forEach((l, i) => { renglon(doc, l, tx, yt, tw, i < tTit.length - 1); yt += lhT })
-  yt += 0.5
-  fuente(doc, F.SANS, 'normal', 7, col)
-  tMeta.forEach(l => { doc.text(l, tx, yt); yt += lhM })
-  yt += 2.5
-  fuente(doc, F.SANS, 'normal', 9, [58, 46, 48])
-  tDesc.forEach((l, i) => { renglon(doc, l, tx, yt, tw, i < tDesc.length - 1); yt += lhD })
-  if (cifras.length) {
-    yt += 2
-    trazo(doc, LINEA); doc.setLineWidth(0.2); doc.line(tx, yt, tx + tw, yt)
-    cifras.forEach(([v, l], i) => {
-      const xx = tx + i * (tw / 2)
-      fuente(doc, F.LIGHT, 'normal', 18, col); doc.text(v, xx, yt + 8)
-      versalitas(doc, l, xx, yt + 12, { tam: 5.8, cs: 0.7 })
+  if (m.ancho) {
+    textoBloque(doc, a, m, ML, y, col)
+    const yd = y + m.altoTexto
+    const dx = fotos.length ? ML : ML + (CW - m.dw) / 2
+    await dibujarDiagrama(doc, diagramaDe(a), dx, yd, m.dw, m.dh)
+    fotos.forEach((f, i) => {
+      doc.addImage(recortarFoto(f.bmp, m.fw / m.fh), 'JPEG', ML + m.dw + 6, yd + i * (m.fh + 2.5), m.fw, m.fh, undefined, 'FAST')
     })
+    pieFoto(doc, m.tPie, dx, yd + m.dh + 4.2)
+    return y + m.alto + 9
   }
-  return y + alto + 9
+
+  const px = lado === 'izq' ? ML : ML + m.tw + 7
+  const tx = lado === 'izq' ? ML + m.pw + 7 : ML
+  fotos.forEach((f, i) => {
+    doc.addImage(recortarFoto(f.bmp, m.pw / m.fh), 'JPEG', px, y + i * (m.fh + 2.5), m.pw, m.fh, undefined, 'FAST')
+  })
+  pieFoto(doc, m.tPie, px, y + m.mh + 4.2)
+  textoBloque(doc, a, m, tx, y, col)
+  return y + m.alto + 9
 }
 
 function renglonAccion(doc, ctx, a, y, col, seccion) {
-  const cx = ML + 27, cw = CW - 27
-  const tTit = lineas(doc, a.accion, cw, F.SANS, 'bold', 9.5)
+  const cx = ML + 30, cw = CW - 30
+  const tTit = lineas(doc, sinPunto(a.accion), cw, F.SANS, 'bold', 9.5)
   const tDesc = lineas(doc, a.descripcion, cw, F.SANS, 'normal', 8.5)
-  const extras = [a.area, a.indicador_clave || (a.justificacion ? `Sin vínculo MIR: ${a.justificacion}` : null),
-    a.beneficiarios != null ? `${num(a.beneficiarios)} beneficiarios` : null,
-    a.monto != null && Number(a.monto) > 0 ? pesos(a.monto) : null].filter(Boolean).join('  ·  ')
-  const tMeta = lineas(doc, extras, cw, F.SANS, 'normal', 7)
-  const lhT = altoLinea(9.5, 1.25), lhD = altoLinea(8.5, 1.4), lhM = altoLinea(7, 1.35)
+  const inv = inversionDe(a), ci = cifraDe(a)
+  const extras = [a.lugar || a.area, ci && `${ci.v} ${ci.l}`.trim(), inv && `Inversión: ${inv.v}`].filter(Boolean).join('  ·  ')
+  const tMeta = lineas(doc, extras, cw, F.SANS, 'normal', 7.5)
+  const lhT = altoLinea(9.5, 1.25), lhD = altoLinea(8.5, 1.4), lhM = altoLinea(7.5, 1.35)
   const alto = tTit.length * lhT + 1 + tDesc.length * lhD + 1.5 + tMeta.length * lhM + 4
   if (y + alto > PIE) y = nuevaPagina(doc, ctx, seccion, col)
   fuente(doc, F.SANS, 'bold', 7.5, SUB)
   doc.text(fechaCorta(a.fecha), ML, y + lhT * 0.8)
   let yy = y + lhT * 0.8
-  fuente(doc, F.SANS, 'bold', 9.5, TINTA); tTit.forEach((l, i) => { renglon(doc, l, cx, yy, cw, i < tTit.length - 1); yy += lhT })
+  fuente(doc, F.SANS, 'bold', 9.5, TINTA); tTit.forEach(l => { doc.text(l, cx, yy); yy += lhT })
   yy += 0.6
   fuente(doc, F.SANS, 'normal', 8.5, [70, 58, 60]); tDesc.forEach((l, i) => { renglon(doc, l, cx, yy, cw, i < tDesc.length - 1); yy += lhD })
   yy += 1
-  fuente(doc, F.SANS, 'normal', 7, col); tMeta.forEach(l => { doc.text(l, cx, yy); yy += lhM })
+  fuente(doc, F.SANS, 'normal', 7.5, col); tMeta.forEach(l => { doc.text(l, cx, yy); yy += lhM })
   trazo(doc, LINEA); doc.setLineWidth(0.2); doc.setLineDashPattern([0.4, 0.9], 0)
   doc.line(ML, y + alto - 1.5, W - ML, y + alto - 1.5); doc.setLineDashPattern([], 0)
   return y + alto + 2
 }
 
-export async function accionesEje(doc, ctx, d, acciones, fotosPorAccion) {
+// Apertura del capítulo: el logro que Planeación marcó para abrir el eje, con
+// su foto o diagrama, y al costado las cifras de resultado del eje.
+async function aperturaLogros(doc, ctx, d, a, fotos, acciones) {
+  const col = hexARgb(d.color), seccion = `${d.kick} · Logros`
+  let y = nuevaPagina(doc, ctx, seccion, col)
+  y = apertura(doc, y + 4, `${d.kick} · ${d.nombre}`, sinPunto(a.accion), col, 25)
+  const mw = 118, sx = ML + mw + 8, sw = W - ML - sx
+  fuente(doc, F.SANS, 'normal', 8, col)
+  doc.text(metaAccion(a), ML, y - 3.5)
+  const yTop = y
+
+  const dg = diagramaDe(a)
+  if (dg) {
+    const h = mw / DIAGRAMA_RATIO
+    await dibujarDiagrama(doc, dg, ML, y, mw, h); y += h
+  } else if (fotos[0]) {
+    const h = mw * 0.56
+    doc.addImage(recortarFoto(fotos[0].bmp, mw / h), 'JPEG', ML, y, mw, h, undefined, 'FAST'); y += h
+  }
+  if (dg || fotos[0]) {
+    const tPie = lineas(doc, pieDe(a), mw, F.SERIF, 'italic', 8.5).slice(0, 2)
+    pieFoto(doc, tPie, ML, y + 4.2); y += 4 + tPie.length * 3.6 + 4
+  }
+  const lh = altoLinea(10.5, 1.45)
+  String(a.descripcion || '').split(/\n+/).filter(p => p.trim()).forEach(p => {
+    const ls = lineas(doc, p.trim(), mw, F.SANS, 'normal', 10.5)
+    ls.forEach((l, i) => {
+      if (y > PIE - 4) y = nuevaPagina(doc, ctx, seccion, col)
+      fuente(doc, F.SANS, 'normal', 10.5, [58, 46, 48])
+      renglon(doc, l, ML, y, mw, i < ls.length - 1); y += lh
+    })
+    y += 3
+  })
+
+  // Columna lateral: cifras de los logros del eje (primero la de este logro).
+  const otras = acciones.filter(x => x !== a && x.cifra_valor)
+    .sort((p, q) => (q.destacado_informe ? 1 : 0) - (p.destacado_informe ? 1 : 0))
+  const cifras = [a, ...otras].map(cifraDe).filter(Boolean).slice(0, 5)
+  let ys = yTop
+  if (cifras.length) {
+    versalitas(doc, 'Resultados del eje', sx, ys + 2.5, { tam: 7, color: col, cs: 0.55 })
+    ys += 6
+    cifras.forEach((c, i) => {
+      if (i) { trazo(doc, LINEA); doc.setLineWidth(0.2); doc.line(sx, ys, sx + sw, ys) }
+      ajustar(doc, c.v, F.LIGHT, 'normal', 22, sw)
+      doc.setTextColor(col[0], col[1], col[2]); doc.text(c.v, sx, ys + 10)
+      const et = lineasVersalitas(doc, c.l, sw, 6.2, 0.5).slice(0, 3)
+      et.forEach((t, k) => versalitas(doc, t, sx, ys + 14.5 + k * 3, { tam: 6.2, cs: 0.5 }))
+      ys += 15 + et.length * 3 + 3
+    })
+  }
+  if (!dg && fotos[1] && ys + sw * 0.75 < PIE) {
+    doc.addImage(recortarFoto(fotos[1].bmp, 4 / 3), 'JPEG', sx, ys + 2, sw, sw * 0.75, undefined, 'FAST'); ys += sw * 0.75 + 4
+  }
+  if (cifras.length) { trazo(doc, LINEA); doc.setLineWidth(0.25); doc.line(sx - 4, yTop, sx - 4, Math.max(ys, yTop + 40)) }
+  return Math.max(y, ys) + 6
+}
+
+// Capítulo de logros de un eje. Devuelve la página donde empieza.
+export async function logrosEje(doc, ctx, d, acciones, fotosPorAccion) {
   const col = hexARgb(d.color)
-  const seccion = `${d.kick} · Acciones relevantes`
+  const seccion = `${d.kick} · Logros`
   const fotosDe = a => (fotosPorAccion.get(a.id) || []).slice(0, FOTOS_INFORME)
   const destacada = a => fotosDe(a).length > 0 || !!diagramaDe(a)
-  let y = nuevaPagina(doc, ctx, seccion, col)
-  y = apertura(doc, y + 4, `${d.kick} · ${d.nombre}`, 'Acciones relevantes', col, 26)
-  const benef = acciones.reduce((s, a) => s + (a.beneficiarios || 0), 0)
-  const monto = acciones.reduce((s, a) => s + (Number(a.monto) || 0), 0)
-  const areas = new Set(acciones.map(a => a.area_id)).size
-  y = franjaCifras(doc, y, [
-    [num(acciones.length), acciones.length === 1 ? 'Acción publicada' : 'Acciones publicadas'],
-    [num(benef), 'Beneficiarios'],
-    monto > 0 ? [pesos(monto), 'Inversión reportada'] : [num(areas), areas === 1 ? 'Área participante' : 'Áreas participantes'],
-    [num(acciones.filter(a => fotosPorAccion.get(a.id)?.length).length), 'Con evidencia fotográfica'],
-  ], col)
+  const principal = acciones.find(a => a.destacado_eje)
+  const resto = acciones.filter(a => a !== principal)
+  let y
+
+  if (principal) {
+    y = await aperturaLogros(doc, ctx, d, principal, fotosDe(principal), acciones)
+    if (resto.length && y + 60 > PIE) y = nuevaPagina(doc, ctx, seccion, col)
+  } else {
+    y = nuevaPagina(doc, ctx, seccion, col)
+    y = apertura(doc, y + 4, `${d.kick} · ${d.nombre}`, 'Logros', col, 26)
+    const monto = acciones.reduce((s, a) => s + (Number(a.monto) || 0), 0)
+    const areas = new Set(acciones.map(a => a.area_id ?? a.area)).size
+    const conFoto = acciones.filter(a => fotosPorAccion.get(a.id)?.length).length
+    y = franjaCifras(doc, y, [
+      [num(acciones.length), acciones.length === 1 ? 'Logro del periodo' : 'Logros del periodo'],
+      [num(areas), areas === 1 ? 'Área participante' : 'Áreas participantes'],
+      monto > 0 && [pesos(monto), 'Inversión reportada'],
+      conFoto > 0 && [num(conFoto), 'Con evidencia fotográfica'],
+    ].filter(Boolean), col)
+  }
 
   let lado = 'izq'
-  for (const g of grupos(acciones)) {
-    // El título del programa no se queda solo al pie: debe caber con la
-    // primera acción del grupo completa.
+  for (const g of grupos(resto, principal?.tema)) {
+    // El título del grupo no se queda solo al pie: debe caber con su primer logro.
     const a0 = g.filas[0]
     const minimo = destacada(a0) ? medidasBloque(doc, a0, fotosDe(a0)).alto + 18 : 34
     if (y + minimo > PIE) y = nuevaPagina(doc, ctx, seccion, col)
-    versalitas(doc, g.nombre ? 'Programa PMD' : 'Sin vínculo a la MIR', ML, y, { tam: 6.8, color: col, cs: 0.55 })
-    const tt = lineas(doc, g.nombre || 'Otras acciones relevantes', CW, F.SERIF, 'normal', 15)
+    if (g.etiqueta) { versalitas(doc, g.etiqueta, ML, y, { tam: 6.8, color: col, cs: 0.55 }); y += 6.5 } else y += 4.5
+    const tt = lineas(doc, g.nombre, CW, F.SERIF, 'normal', 15)
     fuente(doc, F.SERIF, 'normal', 15, TINTA)
-    tt.forEach((l, i) => doc.text(l, ML, y + 6.5 + i * altoLinea(15, 1.1)))
-    y += 6.5 + (tt.length - 1) * altoLinea(15, 1.1) + 2.5
+    tt.forEach((l, i) => doc.text(l, ML, y + i * altoLinea(15, 1.1)))
+    y += (tt.length - 1) * altoLinea(15, 1.1) + 2.5
     trazo(doc, col); doc.setLineWidth(0.35); doc.line(ML, y, W - ML, y)
     y += 7
     for (const a of g.filas) {
       if (destacada(a)) {
         y = await bloqueDestacado(doc, ctx, a, fotosDe(a), y, lado, col, seccion)
-        lado = lado === 'izq' ? 'der' : 'izq'
+        if (!diagramaDe(a)) lado = lado === 'izq' ? 'der' : 'izq'
       } else {
         y = renglonAccion(doc, ctx, a, y, col, seccion)
       }
     }
     y += 4
   }
+}
+
+// ── Los logros del año ───────────────────────────────────────────────────────
+// Página inicial con los logros que Planeación marcó ("Va en los logros del
+// año"): uno principal a todo el ancho y hasta nueve en mosaico. El principal
+// es el primero que además abre su eje; si ninguno, el primero por eje y fecha.
+export const MAX_LOGROS_INFORME = 10
+const NUM_LETRA = ['', 'un', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez']
+
+export function logrosDelAnio(acciones, ordenEje = {}) {
+  const ord = a => ordenEje[a.eje_codigo] ?? 99
+  const sel = acciones.filter(a => a.destacado_informe)
+    .sort((x, y) => ord(x) - ord(y) || (x.fecha || '').localeCompare(y.fecha || ''))
+  const principal = sel.find(a => a.destacado_eje && cifraDe(a)) || sel.find(a => cifraDe(a)) || sel[0]
+  return principal ? [principal, ...sel.filter(a => a !== principal)].slice(0, MAX_LOGROS_INFORME) : []
+}
+
+export function diezLogros(doc, ctx, logros, ejesDatos) {
+  const titulo = logros.length >= 2 ? `El segundo año en ${NUM_LETRA[logros.length]} logros` : 'El logro del año'
+  let y = nuevaPagina(doc, ctx, titulo)
+  const page = doc.getNumberOfPages()
+  y = apertura(doc, y + 4, PERIODO_LARGO, titulo) - 3
+  const [h, ...resto] = logros
+
+  const hh = 34, c = cifraDe(h)
+  relleno(doc, GUINDA); doc.rect(ML, y, CW, hh, 'F')
+  relleno(doc, DORADO); doc.rect(ML, y, 1.6, hh, 'F')
+  let tx = ML + 9
+  if (c) {
+    ajustar(doc, c.v, F.SERIF, 'normal', 34, 64, 16)
+    doc.setTextColor(255, 255, 255); doc.text(c.v, ML + 9, y + 18)
+    lineasVersalitas(doc, c.l, 64, 6.5, 0.5).slice(0, 2)
+      .forEach((t, k) => versalitas(doc, t, ML + 9, y + 24 + k * 3, { tam: 6.5, color: DORADO_CLARO, cs: 0.5 }))
+    tx = ML + 82
+  }
+  const tw = W - ML - 8 - tx, lhH = altoLinea(11, 1.4)
+  const tl = lineas(doc, sinPunto(h.accion), tw, F.SANS, 'normal', 11).slice(0, 4)
+  fuente(doc, F.SANS, 'normal', 11, BLANCO)
+  tl.forEach((l, i) => doc.text(l, tx, y + hh / 2 - (tl.length - 1) * lhH / 2 + 1.3 + i * lhH))
+  y += hh + 5
+
+  const gap = 4, cw = (CW - gap * 2) / 3, th = 46, pad = 4.5
+  resto.forEach((a, i) => {
+    const x = ML + (i % 3) * (cw + gap), yy = y + Math.floor(i / 3) * (th + gap)
+    const e = ejesDatos[a.eje_codigo], col = hexARgb(e?.color || '#7B1F2C')
+    relleno(doc, ALT); doc.rect(x, yy, cw, th, 'F')
+    relleno(doc, col); doc.rect(x, yy, cw, 0.9, 'F')
+    const ci = cifraDe(a)
+    let ty = yy + 13.5
+    if (ci) {
+      ajustar(doc, ci.v, F.LIGHT, 'normal', 26, cw - pad * 2, 12)
+      doc.setTextColor(col[0], col[1], col[2]); doc.text(ci.v, x + pad, ty)
+      ty += 5.5
+      const et = lineas(doc, ci.l, cw - pad * 2, F.SANS, 'bold', 9.5).slice(0, 2)
+      fuente(doc, F.SANS, 'bold', 9.5, TINTA)
+      et.forEach(l => { doc.text(l, x + pad, ty); ty += altoLinea(9.5, 1.2) })
+      ty += 1
+      const ds = lineas(doc, sinPunto(a.accion), cw - pad * 2, F.SANS, 'normal', 8.3)
+      const max = 4 - et.length
+      fuente(doc, F.SANS, 'normal', 8.3, SUB)
+      ds.slice(0, max).forEach((l, k) => { doc.text(k === max - 1 && ds.length > max ? l.replace(/[\s,;:.]*$/, '…') : l, x + pad, ty); ty += altoLinea(8.3, 1.3) })
+    } else {
+      const ds = lineas(doc, sinPunto(a.accion), cw - pad * 2, F.SANS, 'bold', 10.5)
+      fuente(doc, F.SANS, 'bold', 10.5, TINTA)
+      ds.slice(0, 5).forEach((l, k) => doc.text(k === 4 && ds.length > 5 ? l.replace(/[\s,;:.]*$/, '…') : l, x + pad, yy + 9.5 + k * altoLinea(10.5, 1.25)))
+    }
+    if (e) {
+      const ne = lineasVersalitas(doc, e.nombre, cw - pad * 2 - 2, 5.8, 0.5)
+      versalitas(doc, ne.length > 1 ? `${ne[0]}…` : ne[0] || '', x + pad, yy + th - 4, { tam: 5.8, color: col, cs: 0.5 })
+    }
+  })
+  return page
 }
 
 // ── Pie de página (todas menos las portadas) ─────────────────────────────────
