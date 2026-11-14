@@ -12,30 +12,35 @@ import {
 const COLOR_INFORME = { E5: '#00695C', MS: '#6D4C41' }
 const conColor = filas => filas.map(e => COLOR_INFORME[e.codigo] ? { ...e, color_hex: COLOR_INFORME[e.codigo] } : e)
 
-function generarFolioInforme() {
-  const d = new Date()
-  const ts = Date.now().toString(36).toUpperCase()
-  return `IG2-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${ts}`
+// Texto del corte de los indicadores: último día del mes de corte.
+function textoCorte(corte) {
+  const f = corte ? new Date(corte.anio, corte.mes, 0) : new Date()
+  return { anio: f.getFullYear(), largo: f.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) }
 }
 
 // ══════════════════════════════════════════════════════════════════════════
 // GENERAR INFORME DE GOBIERNO
 // ══════════════════════════════════════════════════════════════════════════
-// ejes:              filas de v_resumen_ejes (las 9), ordenadas por `orden`
-// indicadoresPorEje: { [eje_codigo]: fila[] } de v_indicadores_acum
-// claves:            { [indicador_id]: clave } (tabla indicadores, cruzado en cliente)
-// pmdProgramas:      filas de v_comparativo_pmd
+// ejes, indicadoresPorEje: indicadores acumulados al corte del Informe
+//                    (indicadoresAlCorte en informeIndicadores.js)
+// pmdProgramas:      filas de v_comparativo_pmd, al mismo corte (programasAlCorte)
+// corte:             { anio, mes } del acumulado de los indicadores
 // acciones:          filas de v_informe_acciones con incluir_en_informe
 // catalogo:          filas de `ejes` (descripción de cada eje para su portada)
 // fotosPorAccion:    Map accion_id → [{ orden, bmp }] (fase_informe_02)
 export async function generarInformeGobierno({
-  ejes: ejesBase, indicadoresPorEje, claves, pmdProgramas, acciones = [], catalogo: catalogoBase = [], fotosPorAccion = new Map(),
+  ejes: ejesBase, indicadoresPorEje, pmdProgramas, acciones = [], catalogo: catalogoBase = [], fotosPorAccion = new Map(), corte,
 }) {
   const ejes = conColor(ejesBase), catalogo = conColor(catalogoBase)
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter', compress: true })
   const imgs = await prepararRecursos(doc)
   const ctx = { imgs, portadas: new Set() }
-  const folio = generarFolioInforme()
+  const corteTexto = textoCorte(corte)
+  doc.setProperties({
+    title: 'Segundo Informe de Gobierno · Apizaco', subject: `Logros del periodo e indicadores con corte al ${corteTexto.largo}`,
+    author: 'H. Ayuntamiento de Apizaco, Tlaxcala', creator: 'SIMA · Sistema de Información Municipal de Avance',
+  })
+  doc.setLanguage('es-MX')
 
   await portadaPrincipal(doc, ctx)
   doc.addPage('letter', 'portrait') // página 2 — el índice se escribe al final
@@ -67,8 +72,7 @@ export async function generarInformeGobierno({
     if (!codigo) return
     ;(pmdPorEje[codigo] ||= []).push(p)
   })
-  const indsDe = eje => (indicadoresPorEje[eje.codigo] || [])
-    .map(ind => ({ ...ind, clave: claves[ind.indicador_id] || '—' }))
+  const indsDe = eje => [...(indicadoresPorEje[eje.codigo] || [])]
     .sort((a, b) => (a.clave || '').localeCompare(b.clave || '', 'es'))
   const accsDe = eje => acciones.filter(a => a.eje_codigo === eje.codigo)
 
@@ -78,34 +82,36 @@ export async function generarInformeGobierno({
     const areas = [...new Set(indsDe(eje).map(i => i.area).filter(Boolean))]
     // La portada del eje va sin foto de fondo: las imágenes de las acciones
     // son evidencias (tablas, organigramas, capturas) y no sirven de fondo.
-    const pPag = await portadaEje(doc, ctx, d, null, satelitesEje(pmdPorEje[eje.codigo], areas))
     const accs = accsDe(eje)
+    // Pie de la portada: logros del eje y su inversión (o las áreas que participan).
+    const monto = accs.reduce((t, a) => t + (Number(a.monto) || 0), 0)
+    const nAreas = new Set(accs.map(a => a.area_id ?? a.area)).size
+    const cifras = accs.length ? [
+      [accs.length.toLocaleString('es-MX'), accs.length === 1 ? 'Logro del periodo' : 'Logros del periodo'],
+      monto > 0
+        ? [monto.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }), 'Inversión reportada']
+        : [String(nAreas), nAreas === 1 ? 'Área participante' : 'Áreas participantes'],
+    ] : []
+    const pPag = await portadaEje(doc, ctx, d, null, satelitesEje(pmdPorEje[eje.codigo], areas), cifras)
     if (accs.length) await logrosEje(doc, ctx, d, accs, fotosPorAccion)
     entradas.push({ label: d.nombre, cod: d.cod, color: d.color, page: pPag })
   }
 
   // Anexo estadístico: resumen de los indicadores y el detalle de cada eje.
-  // Totales derivados de los 9 ejes de v_resumen_ejes (v_dashboard_global usa
-  // otro alcance de indicadores y no coincide con la suma de los 9 ejes).
-  const suma = k => ejes.reduce((s, e) => s + (e[k] || 0), 0)
-  const total = suma('total_indicadores')
-  const totales = {
-    total, optimo: suma('optimo'), adecuado: suma('adecuado'), riesgo: suma('riesgo'), critico: suma('critico'),
-    pctGlobal: total > 0 ? ejes.reduce((s, e) => s + (e.pct_promedio || 0) * (e.total_indicadores || 0), 0) / total : 0,
-  }
   entradas.push({
     label: 'Indicadores de desempeño por eje', anexo: true,
     page: resumenEjecutivo(doc, ctx, {
-      ejes, catalogo, totales,
+      ejes, catalogo, corteTexto,
       pmdTotal: pmdProgramas.length,
       pmdConAvance: pmdProgramas.filter(p => (p.indicadores_con_avance || 0) > 0).length,
-      nAcciones: acciones.length,
     }),
   })
-  for (const eje of ejes) resultadosEje(doc, ctx, datos[eje.codigo], indsDe(eje), pmdPorEje[eje.codigo], accsDe(eje).length)
+  for (const eje of ejes) resultadosEje(doc, ctx, datos[eje.codigo], indsDe(eje), pmdPorEje[eje.codigo])
 
   indice(doc, ctx, entradas)
-  pies(doc, ctx, folio)
+  pies(doc, ctx, `Indicadores con corte al ${corteTexto.largo}`)
+  // Marcadores del PDF: las mismas entradas del contenido.
+  entradas.forEach(e => doc.outline.add(null, e.cod ? `${datos[e.cod].kick} · ${e.label}` : e.label, { pageNumber: e.page }))
 
   const f = new Date()
   const fStr = `${f.getFullYear()}${String(f.getMonth() + 1).padStart(2, '0')}${String(f.getDate()).padStart(2, '0')}`

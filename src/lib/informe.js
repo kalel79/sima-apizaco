@@ -237,3 +237,10 @@ export function mensajeErrorAccion(e) {
   if (m.includes('"monto"') || m.includes('informe_acciones_monto_chk')) return 'Captura el monto ejercido conciliado con Tesorería (0 si la acción no implicó gasto).'
   return m
 }
+
+// { indicador_id: programa_pmd_id } para acumular los programas del PMD al
+// mismo corte que los indicadores del anexo.
+export async function getProgramaPorIndicador() {
+  const data = await paginarTodo(() => supabase.from('indicadores').select('id, programa_pmd_id').order('id'))
+  return Object.fromEntries((data || []).filter(i => i.programa_pmd_id).map(i => [i.id, i.programa_pmd_id]))
+}

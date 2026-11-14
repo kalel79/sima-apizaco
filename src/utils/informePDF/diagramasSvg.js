@@ -36,13 +36,21 @@ function arco(cx, cy, r, p) {
 }
 function anillo(cx, cy, r, valor, etiqueta) {
   const p = Math.max(0, Math.min(100, Number(valor)))
+  // El valor y su rótulo deben caber dentro del anillo: el rótulo largo se
+  // parte en dos renglones por el espacio más cercano al centro.
+  const txt = pct(valor), e = String(etiqueta || '').toUpperCase()
+  const corte = e.length > 12 ? e.split(' ').reduce((best, _, i, a) => {
+    const izq = a.slice(0, i).join(' ').length
+    return i && Math.abs(izq - e.length / 2) < Math.abs(best - e.length / 2) ? izq : best
+  }, 0) : 0
+  const rot = corte ? `${e.slice(0, corte)}\n${e.slice(corte + 1)}` : e
   const prog = p >= 100
     ? `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${C.g}" stroke-width="26"/>`
     : `<path d="${arco(cx, cy, r, p)}" fill="none" stroke="${C.g}" stroke-width="26" stroke-linecap="round"/>`
   return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${C.anillo}" stroke-width="26"/>${prog}
     <circle cx="${cx}" cy="${cy}" r="${r - 30}" fill="none" stroke="${C.d}" stroke-width="1.5" stroke-dasharray="2 7"/>
-    ${tx(cx, cy + 12, pct(valor), { s: 44, w: 'bold', c: C.g, a: 'middle' })}
-    ${tx(cx, cy + 42, String(etiqueta).toUpperCase(), { s: 14, w: 'bold', c: C.s, a: 'middle' })}`
+    ${tx(cx, cy + 10, txt, { s: txt.length > 5 ? 36 : 44, w: 'bold', c: C.g, a: 'middle' })}
+    ${tx(cx, cy + 34, rot, { s: 12, w: 'bold', c: C.s, a: 'middle', lh: 1.25 })}`
 }
 const flecha = (x, y, w = 30) =>
   `<path d="M ${x} ${y} L ${x + w - 6} ${y} M ${x + w - 16} ${y - 10} L ${x + w - 4} ${y} L ${x + w - 16} ${y + 10}" fill="none" stroke="${C.d}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`
@@ -246,8 +254,8 @@ function reconocimiento(d) {
   const [b1, b2] = d.insignia
   return marco(d, `${anillo(165, 290, 98, d.valor, d.valor_etiqueta)}
     ${caja(310, 146, 516, 116, { fill: 'url(#gGuinda)', stroke: null, r: 16 })}
-    ${tx(338, 222, b1, { s: 58, w: 'bold', c: C.b })}
-    ${tx(802, 222, b2, { s: 21, w: 'bold', c: C.dl, a: 'end' })}
+    ${tx(338, 212, b1, { s: 54, w: 'bold', c: C.b })}
+    ${tx(340, 244, b2, { s: 20, w: 'bold', c: C.dl })}
     ${caja(310, 278, 516, 112, { stroke: C.g, sw: 3, r: 16 })}
     ${tx(338, 330, d.organismo, { s: 40, w: 'bold', c: C.g })}
     ${tx(338, 364, d.organismo_sub, { s: 17, c: C.s })}
