@@ -834,8 +834,9 @@ async function aperturaLogros(doc, ctx, d, a, fotos, acciones) {
   let y = nuevaPagina(doc, ctx, seccion, col)
   y = apertura(doc, y + 4, `${d.kick} · ${d.nombre}`, sinPunto(a.accion), col, 25)
   const mw = 118, sx = ML + mw + 8, sw = W - ML - sx
+  const invA = inversionDe(a)
   fuente(doc, F.SANS, 'normal', 8, col)
-  doc.text(metaAccion(a), ML, y - 3.5)
+  doc.text([metaAccion(a), invA && `Inversión: ${invA.v}`].filter(Boolean).join('  ·  '), ML, y - 3.5)
   const yTop = y
 
   const dg = diagramaDe(a)
@@ -864,7 +865,9 @@ async function aperturaLogros(doc, ctx, d, a, fotos, acciones) {
   // Columna lateral: cifras de los logros del eje (primero la de este logro).
   const otras = acciones.filter(x => x !== a && x.cifra_valor)
     .sort((p, q) => (q.destacado_informe ? 1 : 0) - (p.destacado_informe ? 1 : 0))
-  const cifras = [a, ...otras].map(cifraDe).filter(Boolean).slice(0, 5)
+  const cifras = [a, ...otras].map(cifraDe).filter(Boolean).slice(0, 4)
+  const montoEje = acciones.reduce((t, x) => t + (Number(x.monto) || 0), 0)
+  if (montoEje > 0) cifras.push({ v: pesos(montoEje), l: 'Inversión reportada en el eje' })
   let ys = yTop
   if (cifras.length) {
     versalitas(doc, 'Resultados del eje', sx, ys + 2.5, { tam: 7, color: col, cs: 0.55 })
@@ -973,7 +976,10 @@ export function diezLogros(doc, ctx, logros, ejesDatos) {
   const tw = W - ML - 8 - tx, lhH = altoLinea(11, 1.4)
   const tl = lineas(doc, sinPunto(h.accion), tw, F.SANS, 'normal', 11).slice(0, 4)
   fuente(doc, F.SANS, 'normal', 11, BLANCO)
-  tl.forEach((l, i) => doc.text(l, tx, y + hh / 2 - (tl.length - 1) * lhH / 2 + 1.3 + i * lhH))
+  const invH = inversionDe(h), altoT = tl.length * lhH + (invH ? 4.5 : 0)
+  const y0 = y + (hh - altoT) / 2 + lhH * 0.72
+  tl.forEach((l, i) => doc.text(l, tx, y0 + i * lhH))
+  if (invH) versalitas(doc, `Inversión: ${invH.v}`, tx, y0 + tl.length * lhH + 0.6, { tam: 6.5, color: DORADO_CLARO, cs: 0.5 })
   y += hh + 5
 
   const gap = 4, cw = (CW - gap * 2) / 3, th = 46, pad = 4.5
@@ -1001,9 +1007,16 @@ export function diezLogros(doc, ctx, logros, ejesDatos) {
       fuente(doc, F.SANS, 'bold', 10.5, TINTA)
       ds.slice(0, 5).forEach((l, k) => doc.text(k === 4 && ds.length > 5 ? l.replace(/[\s,;:.]*$/, '…') : l, x + pad, yy + 9.5 + k * altoLinea(10.5, 1.25)))
     }
+    const inv = inversionDe(a)
+    let wInv = 0
+    if (inv) {
+      fuente(doc, F.SANS, 'bold', 7, SUB)
+      wInv = doc.getTextWidth(inv.v) + 3
+      doc.text(inv.v, x + cw - pad, yy + th - 4, { align: 'right' })
+    }
     if (e) {
-      const ne = lineasVersalitas(doc, e.nombre, cw - pad * 2 - 2, 5.8, 0.5)
-      versalitas(doc, ne.length > 1 ? `${ne[0]}…` : ne[0] || '', x + pad, yy + th - 4, { tam: 5.8, color: col, cs: 0.5 })
+      const ne = lineasVersalitas(doc, e.nombre, cw - pad * 2 - 2 - wInv, 5.8, 0.5)
+      versalitas(doc, ne.length > 1 ? e.kick : ne[0] || '', x + pad, yy + th - 4, { tam: 5.8, color: col, cs: 0.5 })
     }
   })
   return page
