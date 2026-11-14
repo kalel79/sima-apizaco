@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { generarPDF, generarExcel, generarExcelEjecutivo, generarPDFPiloto, generarExcelPiloto, generarExcelMetas } from '../../utils/reportes'
 import { getInformeActual, getAccionesInforme, getEjesCatalogo, descargarFotosAcciones } from '../../lib/informe.js'
+import { esErrorDeChunk } from '../../lib/recargaVersion.js'
 import { generarArbolProblemaObjetivosMIR } from '../../utils/reporteArbolMIR'
 import { generarMatrizPMDAreas } from '../../utils/reporteMatrizPMD'
 import {
@@ -146,11 +147,15 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
       ])
       const acciones = informe ? await getAccionesInforme(informe.id, { soloIncluidas: true }) : []
       const fotosPorAccion = await descargarFotosAcciones(acciones.map(a => a.id))
-      const { generarInformeGobierno } = await import('../../utils/informeGobierno')
-      await generarInformeGobierno({ ejes, indicadoresPorEje, claves, pmdProgramas, acciones, catalogo, fotosPorAccion })
+      const mod = await import('../../utils/informeGobierno')
+      // Sin módulo = chunk de un deploy anterior; recargaVersion ya está recargando.
+      if (!mod) { setGenStatus('error:SIMA se actualizó. Recargando… vuelve a tocar el botón.'); return }
+      await mod.generarInformeGobierno({ ejes, indicadoresPorEje, claves, pmdProgramas, acciones, catalogo, fotosPorAccion })
       setGenStatus('ok')
     } catch (e) {
-      setGenStatus('error:' + e.message)
+      setGenStatus('error:' + (esErrorDeChunk(e)
+        ? 'Hay una versión nueva de SIMA. Cierra y vuelve a abrir la app (o recarga la página) e inténtalo de nuevo.'
+        : e.message))
     }
   }
 

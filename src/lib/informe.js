@@ -56,9 +56,25 @@ export async function getAreasInforme() {
   return data || []
 }
 
-function filaDesdeForm(f) {
+// Datos de logro (fase_informe_05): cifra principal, lugar, pie de foto y
+// tema. Los captura el enlace o Planeación; los destacados, solo Planeación
+// (el trigger ignora los de otro rol).
+export const CAMPOS_LOGRO = ['cifra_valor', 'cifra_etiqueta', 'lugar', 'pie_foto', 'tema']
+
+// Qué le falta a una acción para publicarse como logro completo. El pie de
+// foto solo cuenta si la acción tiene fotos.
+export function faltantesLogro(a, nFotos = 0) {
+  return [
+    !(a.cifra_valor && a.cifra_etiqueta) && 'cifra principal',
+    !a.lugar && 'dónde',
+    !a.tema && 'tema',
+    nFotos > 0 && !a.pie_foto && 'pie de foto',
+  ].filter(Boolean)
+}
+
+function filaDesdeForm(f, { conLogro, conDestacados }) {
   const vinculada = !!f.indicador_id
-  return {
+  const fila = {
     coordinacion:  f.coordinacion?.trim() || null,
     indicador_id:  vinculada ? Number(f.indicador_id) : null,
     justificacion: vinculada ? null : (f.justificacion?.trim() || null),
@@ -70,10 +86,22 @@ function filaDesdeForm(f) {
     tiene_foto:    !!f.tiene_foto,
     tiene_video:   !!f.tiene_video,
   }
+  if (conLogro) CAMPOS_LOGRO.forEach(k => { fila[k] = f[k]?.trim() || null })
+  if (conDestacados) {
+    fila.destacado_eje = !!f.destacado_eje
+    fila.destacado_informe = !!f.destacado_informe
+  }
+  return fila
 }
 
-export async function guardarAccion({ id, informeId, areaId, form }) {
-  const fila = filaDesdeForm(form)
+// Antes de aplicar fase_informe_05 las columnas de logro no existen: solo se
+// envían si se capturó alguna o si la acción ya las trae de la vista, para que
+// la captura de siempre siga funcionando.
+export async function guardarAccion({ id, informeId, areaId, form, accion, esPlaneacion }) {
+  const hayColumnas = !!accion && 'cifra_valor' in accion
+  const conLogro = hayColumnas || CAMPOS_LOGRO.some(k => form[k]?.trim())
+  const conDestacados = esPlaneacion && (hayColumnas || form.destacado_eje || form.destacado_informe)
+  const fila = filaDesdeForm(form, { conLogro, conDestacados })
   const q = id
     ? supabase.from('informe_acciones').update(fila).eq('id', id)
     : supabase.from('informe_acciones').insert({ ...fila, informe_id: informeId, area_id: areaId })
@@ -202,6 +230,7 @@ export async function setRevisionAccion(id, { revisada, incluir_en_informe }) {
 // Mensajes del trigger/CHECK en lenguaje de pantalla.
 export function mensajeErrorAccion(e) {
   const m = e?.message || String(e)
+  if (['PGRST204', '42703'].includes(e?.code)) return 'Los datos para el Informe aún no se pueden guardar: falta aplicar la migración fase_informe_05 en la base de datos.'
   if (m.includes('fuera del periodo')) return 'La fecha debe estar dentro del periodo del informe.'
   if (m.includes('no pertenece al área')) return 'El indicador elegido no es de esta área.'
   if (m.includes('informe_acciones_vinculo_chk')) return 'Si la acción no está vinculada a un indicador MIR, escribe la justificación.'

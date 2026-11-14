@@ -7,6 +7,7 @@ import { guardarAccion, mensajeErrorAccion } from '../../lib/informe.js'
 const VACIO = {
   coordinacion: '', vinculada: true, indicador_id: '', justificacion: '', accion: '',
   fecha: '', monto: '', beneficiarios: '', descripcion: '', tiene_foto: false, tiene_video: false,
+  cifra_valor: '', cifra_etiqueta: '', lugar: '', pie_foto: '', tema: '', destacado_eje: false, destacado_informe: false,
 }
 
 const sel = {
@@ -21,13 +22,16 @@ export function formDesdeAccion(a) {
     indicador_id: a.indicador_id ? String(a.indicador_id) : '', justificacion: a.justificacion || '',
     accion: a.accion, fecha: a.fecha, monto: a.monto ?? '', beneficiarios: a.beneficiarios ?? '',
     descripcion: a.descripcion, tiene_foto: a.tiene_foto, tiene_video: a.tiene_video,
+    cifra_valor: a.cifra_valor || '', cifra_etiqueta: a.cifra_etiqueta || '', lugar: a.lugar || '',
+    pie_foto: a.pie_foto || '', tema: a.tema || '',
+    destacado_eje: !!a.destacado_eje, destacado_informe: !!a.destacado_informe,
   }
 }
 
 // Formulario de una acción: replica la hoja "Captura de Acciones" de la
 // plantilla Excel. Nivel MIR y Programa PMD se muestran solos al elegir el
 // indicador, como las columnas automáticas del Excel.
-export default function FormAccionInforme({ informe, areaId, indicadores, accion, onGuardada, onCancelar }) {
+export default function FormAccionInforme({ informe, areaId, indicadores, accion, esPlaneacion, temas = [], onGuardada, onCancelar }) {
   const [f, setF] = useState(() => formDesdeAccion(accion))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -55,7 +59,7 @@ export default function FormAccionInforme({ informe, areaId, indicadores, accion
     setSaving(true); setError(null)
     try {
       await guardarAccion({
-        id: accion?.id, informeId: informe.id, areaId,
+        id: accion?.id, informeId: informe.id, areaId, accion, esPlaneacion,
         form: { ...f, indicador_id: vinculada ? f.indicador_id : '' },
       })
       onGuardada()
@@ -144,6 +148,39 @@ export default function FormAccionInforme({ informe, areaId, indicadores, accion
         <span style={{ fontSize: FS.xxs, color: C.txtMuted, alignSelf: 'center' }}>
           Después de guardar, sube hasta 2 fotografías desde la tarjeta de la acción: son las que se publican en el Informe.
         </span>
+      </div>
+
+      {/* Datos de logro: los llena el enlace o Planeación; ninguno es obligatorio. */}
+      <div style={{ marginTop: '1rem', paddingTop: '0.85rem', borderTop: `1px solid ${C.border}` }}>
+        <div style={{ fontSize: FS.sm, fontWeight: 700, color: C.dorado }}>Datos para el Informe (opcionales)</div>
+        <div style={{ fontSize: FS.xxs, color: C.txtMuted, marginTop: 2 }}>
+          Con ellos la acción se publica como logro. Puede llenarlos el área o completarlos Planeación al revisar.
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: '0.75rem', marginTop: '0.6rem' }}>
+          <Input label="Cifra principal" value={f.cifra_valor} maxLength={20} placeholder="Ej. 3,000"
+            onChange={e => set('cifra_valor', e.target.value)} />
+          <Input label="¿Qué cuenta la cifra?" value={f.cifra_etiqueta} maxLength={60} placeholder="Ej. árboles plantados"
+            onChange={e => set('cifra_etiqueta', e.target.value)} />
+          <Input label="Dónde" value={f.lugar} maxLength={120} placeholder="Colonia, comunidad o todo el municipio"
+            onChange={e => set('lugar', e.target.value)} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: '0.75rem', marginTop: '0.75rem' }}>
+          <Input label="Tema del capítulo" value={f.tema} maxLength={80} list="temas-informe"
+            placeholder="Ej. Servicios más cerca de la gente" onChange={e => set('tema', e.target.value)} />
+          <Input label="Pie de foto" value={f.pie_foto} maxLength={200}
+            placeholder="Qué se ve en la foto y quién la tomó" onChange={e => set('pie_foto', e.target.value)} />
+        </div>
+        <datalist id="temas-informe">{temas.map(t => <option key={t} value={t} />)}</datalist>
+        {esPlaneacion && (
+          <div style={{ display: 'flex', gap: '1.25rem', marginTop: '0.75rem', fontSize: FS.sm, color: C.txtSub, flexWrap: 'wrap' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+              <input type="checkbox" checked={f.destacado_eje} onChange={e => set('destacado_eje', e.target.checked)} /> Abre el capítulo de su eje
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+              <input type="checkbox" checked={f.destacado_informe} onChange={e => set('destacado_informe', e.target.checked)} /> Va en los logros del año
+            </label>
+          </div>
+        )}
       </div>
 
       {error && <div style={{ color: C.criticoB, fontSize: FS.sm, marginTop: '0.75rem' }}>{error}</div>}
