@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Pencil, Trash2, CheckCircle2, Circle, EyeOff, Eye } from 'lucide-react'
 import { C, FS } from '../../theme.js'
-import { eliminarAccion, setRevisionAccion, getFotosAcciones, urlsFotos } from '../../lib/informe.js'
+import { eliminarAccion, setRevisionAccion, getFotosAcciones, urlsFotos, faltantesLogro } from '../../lib/informe.js'
 import FotosAccion from './FotosAccion.jsx'
 import DiagramaAccion from './DiagramaAccion.jsx'
 
@@ -77,6 +77,8 @@ export default function ListaAccionesInforme({ acciones, puedeEditar, puedeRevis
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {a.revisada ? <Etiqueta color={C.adecuadoB}>Revisada</Etiqueta> : <Etiqueta color={C.txtMuted}>Sin revisar</Etiqueta>}
               {!a.incluir_en_informe && <Etiqueta color={C.criticoB}>Fuera del informe</Etiqueta>}
+              {a.destacado_informe && <Etiqueta color={C.dorado}>Logro del año</Etiqueta>}
+              {a.destacado_eje && <Etiqueta color={C.dorado}>Abre el eje</Etiqueta>}
             </div>
           </div>
 
@@ -93,6 +95,23 @@ export default function ListaAccionesInforme({ acciones, puedeEditar, puedeRevis
             {a.beneficiarios != null && <span>Beneficiarios: <b style={{ color: C.txt }}>{a.beneficiarios.toLocaleString('es-MX')}</b></span>}
             <span>Foto: {a.tiene_foto ? 'Sí' : 'No'} · Video: {a.tiene_video ? 'Sí' : 'No'}</span>
           </div>
+
+          {(() => {
+            const falta = faltantesLogro(a, (fotos[a.id] || []).length)
+            const datos = [
+              a.cifra_valor && `${a.cifra_valor} ${a.cifra_etiqueta || ''}`.trim(),
+              a.lugar, a.tema && `Tema: ${a.tema}`,
+            ].filter(Boolean)
+            return (
+              <div style={{ fontSize: FS.xs, color: C.txtSub, marginTop: 6 }}>
+                {datos.length > 0 && <div>Para el Informe: <b style={{ color: C.txt }}>{datos.join(' · ')}</b></div>}
+                {a.pie_foto && <div>Pie de foto: <i>{a.pie_foto}</i></div>}
+                {falta.length > 0 && a.incluir_en_informe && (
+                  <div style={{ color: C.riesgoB, marginTop: 2 }}>Falta para el Informe: {falta.join(', ')}.</div>
+                )}
+              </div>
+            )
+          })()}
 
           <DiagramaAccion accion={a} />
 
