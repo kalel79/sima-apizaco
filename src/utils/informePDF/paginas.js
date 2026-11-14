@@ -24,8 +24,6 @@ export const SEM = [
   { k: 'RIESGO', l: 'Riesgo', c: [235, 175, 0] },
   { k: 'CRÍTICO', l: 'Crítico', c: [192, 0, 0] },
 ]
-const SEM_SIN = [190, 180, 180]
-const semColor = k => SEM.find(s => s.k === k)?.c || SEM_SIN
 
 export const PERIODO_CORTO = 'Sep 2025 – Ago 2026'
 export const PERIODO_LARGO = '1 de septiembre de 2025 – 31 de agosto de 2026'
@@ -160,36 +158,6 @@ function franjaCifras(doc, y, cifras, color = GUINDA) {
   return y + 31
 }
 
-function dona(doc, cx, cy, r, grosor, valores, colores) {
-  const total = valores.reduce((s, v) => s + v, 0)
-  if (!total) {
-    trazo(doc, LINEA); doc.setLineWidth(grosor); doc.circle(cx, cy, r - grosor / 2, 'S')
-    return
-  }
-  let a0 = -Math.PI / 2
-  valores.forEach((v, i) => {
-    if (!v) return
-    const a1 = a0 + (v / total) * Math.PI * 2
-    const pasos = Math.max(6, Math.ceil((a1 - a0) / 0.05))
-    const pts = []
-    for (let k = 0; k <= pasos; k++) { const a = a0 + (a1 - a0) * k / pasos; pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]) }
-    for (let k = pasos; k >= 0; k--) { const a = a0 + (a1 - a0) * k / pasos; pts.push([cx + (r - grosor) * Math.cos(a), cy + (r - grosor) * Math.sin(a)]) }
-    relleno(doc, colores[i])
-    doc.moveTo(pts[0][0], pts[0][1])
-    pts.slice(1).forEach(p => doc.lineTo(p[0], p[1]))
-    doc.close(); doc.fill()
-    a0 = a1
-  })
-  // separaciones blancas entre segmentos
-  let a = -Math.PI / 2
-  trazo(doc, BLANCO); doc.setLineWidth(0.6)
-  valores.forEach(v => {
-    if (!v) return
-    doc.line(cx + (r - grosor - 0.3) * Math.cos(a), cy + (r - grosor - 0.3) * Math.sin(a), cx + (r + 0.3) * Math.cos(a), cy + (r + 0.3) * Math.sin(a))
-    a += (v / total) * Math.PI * 2
-  })
-}
-
 // Datos de presentación de un eje a partir de v_resumen_ejes + catálogo.
 export function datosEje(eje, catalogo) {
   const cod = eje.codigo
@@ -197,7 +165,9 @@ export function datosEje(eje, catalogo) {
   const kick = cod.startsWith('E') ? `Eje ${n}` : cod.startsWith('T') ? 'Eje transversal' : `Eje ${cod}`
   const nombre = String(eje.eje || '').replace(/^Transversal [AB]\s*[–-]\s*/, '')
   const sem = [eje.optimo || 0, eje.adecuado || 0, eje.riesgo || 0, eje.critico || 0]
+  const total = eje.total_indicadores || 0, sinMeta = eje.sin_meta || 0
   return {
+    sinMeta, sinDato: eje.sin_dato ?? Math.max(0, total - sem.reduce((t, v) => t + v, 0) - sinMeta),
     cod, n, kick, nombre, color: eje.color_hex || catalogo?.color_hex || '#7B1F2C',
     descripcion: catalogo?.descripcion || '', total: eje.total_indicadores || 0, pct: eje.pct_promedio, sem,
   }
@@ -250,6 +220,7 @@ export function indice(doc, ctx, entradas) {
     fuente(doc, F.SANS, 'bold', 10, GUINDA)
     const pn = String(e.page)
     doc.text(pn, W - ML, y, { align: 'right' })
+    doc.link(ML, y - 5, CW, 7, { pageNumber: e.page })
     trazo(doc, [200, 190, 188]); doc.setLineWidth(0.25); doc.setLineDashPattern([0.3, 1.2], 0)
     doc.line(x + tw + 3, y - 0.6, W - ML - doc.getTextWidth(pn) - 3, y - 0.6)
     doc.setLineDashPattern([], 0)
@@ -384,63 +355,6 @@ export function seccionPendiente(doc, ctx, titulo, texto) {
   return page
 }
 
-// ── Resumen ejecutivo ────────────────────────────────────────────────────────
-export function resumenEjecutivo(doc, ctx, { ejes, catalogo, totales, pmdTotal, pmdConAvance, nAcciones }) {
-  let y = nuevaPagina(doc, ctx, 'Anexo estadístico')
-  const page = doc.getNumberOfPages()
-  y = apertura(doc, y + 4, 'Anexo estadístico', 'Indicadores de desempeño')
-  y = franjaCifras(doc, y, [
-    [num(totales.total), 'Indicadores MIR evaluados'],
-    [pct(totales.pctGlobal), 'Avance global promedio'],
-    [`${pmdConAvance}/${pmdTotal}`, 'Programas del PMD con avance'],
-    [num(nAcciones), 'Logros publicados en el Informe'],
-  ])
-
-  fuente(doc, F.SERIF, 'normal', 16, TINTA)
-  doc.text('Avance promedio por eje', ML, y + 2)
-  fuente(doc, F.SANS, 'normal', 8, SUB)
-  doc.text('Promedio del cumplimiento de los indicadores MIR de cada eje. La línea marca el 100% de la meta.', ML, y + 7)
-  y += 15
-  const x0 = ML + 82, x1 = W - ML - 16, max = 1.4
-  const xv = v => x0 + Math.min(v, max) / max * (x1 - x0)
-  const filaH = 10.5, top = y
-  ejes.forEach((e, i) => {
-    const d = datosEje(e, catalogo.find(c => c.codigo === e.codigo))
-    const yy = top + i * filaH
-    const col = hexARgb(d.color)
-    versalitas(doc, d.cod, ML, yy + 4.6, { tam: 7.5, color: col, cs: 0.3 })
-    fuente(doc, F.SANS, 'normal', 8.5, TINTA)
-    doc.text(doc.splitTextToSize(d.nombre, 68)[0] + (doc.splitTextToSize(d.nombre, 68).length > 1 ? '…' : ''), ML + 11, yy + 4.6)
-    relleno(doc, col); doc.rect(x0, yy + 1.2, Math.max(0.4, xv(+d.pct || 0) - x0), 5, 'F')
-    fuente(doc, F.SANS, 'bold', 8, TINTA)
-    doc.text(pct(d.pct), Math.max(xv(+d.pct || 0), xv(1)) + 2, yy + 4.8)
-  })
-  const yb = top + ejes.length * filaH
-  ;[0, 0.5, 1, 1.25].forEach(v => {
-    fuente(doc, F.SANS, 'normal', 6.5, SUB)
-    doc.text(`${v * 100}%`, xv(v), yb + 3.5, { align: 'center' })
-  })
-  trazo(doc, TINTA); doc.setLineWidth(0.3); doc.setLineDashPattern([1, 0.8], 0)
-  doc.line(xv(1), top - 2, xv(1), yb); doc.setLineDashPattern([], 0)
-  y = yb + 16
-
-  fuente(doc, F.SERIF, 'normal', 16, TINTA)
-  doc.text('Semáforo de los indicadores', ML, y)
-  y += 6
-  const vals = [totales.optimo, totales.adecuado, totales.riesgo, totales.critico]
-  const conDato = vals.reduce((s, v) => s + v, 0) || 1
-  let x = ML
-  vals.forEach((v, i) => { const w = CW * v / conDato; relleno(doc, SEM[i].c); doc.rect(x, y, w, 6, 'F'); x += w })
-  y += 12
-  SEM.forEach((s, i) => {
-    const xx = ML + i * (CW / 4)
-    relleno(doc, s.c); doc.rect(xx, y - 2.8, 3, 3, 'F')
-    fuente(doc, F.SANS, 'normal', 8.5, TINTA); doc.text(s.l, xx + 5, y)
-    fuente(doc, F.SANS, 'bold', 8.5, TINTA); doc.text(`${vals[i]} · ${((vals[i] / conDato) * 100).toFixed(0)}%`, xx + 5, y + 4.5)
-  })
-  return page
-}
-
 // ── Portada de eje ───────────────────────────────────────────────────────────
 // Arriba, el diagrama conceptual del eje (pictograma central y sus programas
 // del PMD); abajo, numeral, nombre, descripción y cifras.
@@ -543,123 +457,242 @@ export async function portadaEje(doc, ctx, d, foto, satelites = []) {
   return page
 }
 
-// ── Resultados del eje ───────────────────────────────────────────────────────
-export function resultadosEje(doc, ctx, d, indicadores, pmdList, nAcciones) {
+// ── Anexo estadístico ────────────────────────────────────────────────────────
+// Indicadores del ejercicio acumulados al corte del Informe. El semáforo se
+// lee por color y por forma; los indicadores sin captura ("sin dato") y los
+// que no tienen meta programada ("sin meta") se muestran, no se omiten.
+const SIN_META = 'SIN META'
+const GRIS_META = [176, 164, 162], GRIS_DATO = [232, 225, 223]
+const ESTADOS = [
+  ...SEM.map(s => ({ k: s.k, l: s.l, c: s.c })),
+  { k: SIN_META, l: 'Sin meta', c: GRIS_META },
+  { k: null, l: 'Sin dato', c: GRIS_DATO },
+]
+const numDec = v => v == null ? '—' : Number(v).toLocaleString('es-MX', { maximumFractionDigits: 2 })
+
+// Marca del semáforo centrada en (x, y): círculo, cuadro, triángulo, rombo;
+// cuadro hueco para "sin meta" y círculo hueco para "sin dato".
+function marcaSem(doc, k, x, y, t = 2.6) {
+  const h = t / 2
+  if (k === 'ÓPTIMO') { relleno(doc, SEM[0].c); doc.circle(x, y, h, 'F') }
+  else if (k === 'ADECUADO') { relleno(doc, SEM[1].c); doc.rect(x - h, y - h, t, t, 'F') }
+  else if (k === 'RIESGO') { relleno(doc, SEM[2].c); doc.triangle(x, y - h, x + h * 1.1, y + h, x - h * 1.1, y + h, 'F') }
+  else if (k === 'CRÍTICO') {
+    relleno(doc, SEM[3].c)
+    doc.triangle(x, y - h * 1.15, x + h * 1.15, y, x - h * 1.15, y, 'F'); doc.triangle(x, y + h * 1.15, x + h * 1.15, y, x - h * 1.15, y, 'F')
+  } else {
+    trazo(doc, [140, 128, 128]); doc.setLineWidth(0.35)
+    if (k === SIN_META) doc.rect(x - h * 0.85, y - h * 0.85, t * 0.85, t * 0.85, 'S')
+    else doc.circle(x, y, h * 0.85, 'S')
+  }
+}
+
+// Conteos en el orden de ESTADOS.
+const conteosDe = d => [...d.sem, d.sinMeta, d.sinDato]
+
+// Barra apilada del semáforo; con `numeros`, la cifra dentro de cada tramo.
+function barraSem(doc, x, y, w, h, conteos, numeros = false) {
+  const total = conteos.reduce((s, v) => s + v, 0)
+  if (!total) { relleno(doc, GRIS_DATO); doc.rect(x, y, w, h, 'F'); return }
+  let xx = x
+  conteos.forEach((v, i) => {
+    if (!v) return
+    const ww = w * v / total
+    relleno(doc, ESTADOS[i].c); doc.rect(xx, y, ww, h, 'F')
+    if (xx > x) { relleno(doc, BLANCO); doc.rect(xx - 0.2, y, 0.4, h, 'F') }
+    if (numeros && ww > 5) {
+      fuente(doc, F.SANS, 'bold', 8.5, i < 4 ? BLANCO : TINTA)
+      doc.text(String(v), xx + ww / 2, y + h / 2 + 1.1, { align: 'center' })
+    }
+    xx += ww
+  })
+}
+
+function leyendaSem(doc, x, y, ancho, conteos) {
+  const visibles = ESTADOS.map((e, i) => ({ ...e, v: conteos[i] })).filter((e, i) => i < 4 || e.v > 0)
+  const cw = ancho / visibles.length
+  visibles.forEach((e, i) => {
+    const xx = x + i * cw
+    marcaSem(doc, e.k, xx + 1.4, y - 1, 2.8)
+    fuente(doc, F.SANS, 'normal', 8.5, TINTA); doc.text(e.l, xx + 4.6, y)
+    const wl = doc.getTextWidth(e.l)
+    fuente(doc, F.SANS, 'bold', 8.5, TINTA); doc.text(String(e.v), xx + 4.6 + wl + 1.6, y)
+  })
+}
+
+const verdeDe = d => {
+  const con = d.sem.reduce((s, v) => s + v, 0)
+  return { con, verde: d.sem[0] + d.sem[1], txt: con ? `${Math.round((d.sem[0] + d.sem[1]) / con * 100)}%` : '—' }
+}
+const NOTA_ANEXO = '«En verde» es la suma de óptimo y adecuado entre los indicadores con resultado. «Sin meta» son indicadores que no tienen meta programada al corte, aunque reporten resultado: no se califican ni entran en los promedios. «Sin dato» son los que el área no ha reportado. El avance promedio es el resultado acumulado entre la meta acumulada.'
+
+export function resumenEjecutivo(doc, ctx, { ejes, catalogo, pmdTotal, pmdConAvance, corteTexto }) {
+  let y = nuevaPagina(doc, ctx, 'Anexo estadístico')
+  const page = doc.getNumberOfPages()
+  y = apertura(doc, y + 4, 'Anexo estadístico', 'Indicadores de desempeño')
+  fuente(doc, F.SANS, 'normal', 9.5, SUB)
+  doc.text(`Indicadores del ejercicio ${corteTexto.anio}, con corte al ${corteTexto.largo}. Fuente: SIMA.`, ML, y - 3)
+  y += 4
+
+  const ds = ejes.map(e => datosEje(e, catalogo.find(c => c.codigo === e.codigo)))
+  const tot = ds.reduce((t, d) => t.map((v, i) => v + conteosDe(d)[i]), [0, 0, 0, 0, 0, 0])
+  const total = tot.reduce((s, v) => s + v, 0), con = tot[0] + tot[1] + tot[2] + tot[3], verde = tot[0] + tot[1]
+  y = franjaCifras(doc, y, [
+    [num(total), 'Indicadores de desempeño'],
+    [`${con} de ${total}`, 'Con resultado al corte'],
+    [con ? `${Math.round(verde / con * 100)}%` : '—', `En verde (${verde} de ${con})`],
+    [`${pmdConAvance} de ${pmdTotal}`, 'Programas del Plan con avance'],
+  ])
+
+  fuente(doc, F.SERIF, 'normal', 15, TINTA)
+  doc.text(`¿Cómo van los ${total} indicadores?`, ML, y)
+  barraSem(doc, ML, y + 4, CW, 7, tot, true)
+  leyendaSem(doc, ML, y + 17, CW, tot)
+  y += 29
+
+  fuente(doc, F.SERIF, 'normal', 15, TINTA)
+  doc.text('Resultados por eje', ML, y)
+  y += 6.5
+  const xb = ML + 84, wb = 40, x1 = ML + 147, x2 = ML + 162, x3 = W - ML
+  versalitas(doc, 'Eje', ML, y, { tam: 6.5, cs: 0.5 })
+  versalitas(doc, 'Semáforo', xb, y, { tam: 6.5, cs: 0.5 })
+  versalitas(doc, 'Con resultado', x1, y, { tam: 6.5, cs: 0.5, align: 'right' })
+  versalitas(doc, 'En verde', x2, y, { tam: 6.5, cs: 0.5, align: 'right' })
+  versalitas(doc, 'Avance', x3, y, { tam: 6.5, cs: 0.5, align: 'right' })
+  trazo(doc, TINTA); doc.setLineWidth(0.4); doc.line(ML, y + 2, W - ML, y + 2)
+  y += 2
+  const filaH = 10.6
+  ds.forEach(d => {
+    const col = hexARgb(d.color), v = verdeDe(d)
+    relleno(doc, col); doc.rect(ML, y + 3, 9, 4.6, 'F')
+    versalitas(doc, d.cod, ML + 4.5, y + 6.2, { tam: 6, color: BLANCO, cs: 0.2, align: 'center' })
+    const nl = lineas(doc, d.nombre, 70, F.SANS, 'normal', 8.5).slice(0, 2)
+    fuente(doc, F.SANS, 'normal', 8.5, TINTA)
+    nl.forEach((l, i) => doc.text(l, ML + 12, y + (nl.length > 1 ? 4.6 : 6.4) + i * 3.6))
+    barraSem(doc, xb, y + 3.4, wb, 3.8, conteosDe(d))
+    fuente(doc, F.SANS, 'normal', 8.5, TINTA)
+    doc.text(`${v.con} de ${d.total}`, x1, y + 6.4, { align: 'right' })
+    fuente(doc, F.SANS, 'bold', 8.5, TINTA)
+    doc.text(v.txt, x2, y + 6.4, { align: 'right' })
+    doc.text(pct(d.pct), x3, y + 6.4, { align: 'right' })
+    y += filaH
+    trazo(doc, LINEA); doc.setLineWidth(0.15); doc.line(ML, y, W - ML, y)
+  })
+  y += 5
+  fuente(doc, F.SANS, 'normal', 7.5, SUB)
+  doc.text(doc.splitTextToSize(NOTA_ANEXO, CW), ML, y)
+  return page
+}
+
+// Tablas del semáforo: la marca va por forma y color, el rótulo en tinta.
+const celdaSem = {
+  didParseCell: (data, col) => {
+    if (data.section === 'body' && data.column.index === col) { data.cell.styles.fontSize = 7; data.cell.styles.textColor = TINTA }
+  },
+  didDrawCell: (doc, data, col, claves) => {
+    if (data.section === 'body' && data.column.index === col) marcaSem(doc, claves[data.row.index], data.cell.x + 3, data.cell.y + data.cell.height / 2, 2.4)
+  },
+}
+const rotuloSem = k => ESTADOS.find(e => e.k === (k ?? null))?.l || 'Sin dato'
+
+export function resultadosEje(doc, ctx, d, indicadores, pmdList) {
   const col = hexARgb(d.color)
   const seccion = `Anexo · ${d.kick}`
   let y = nuevaPagina(doc, ctx, seccion, col)
-  y = apertura(doc, y + 4, `Anexo estadístico · ${d.kick}`, d.nombre, col, 26)
-  const conDato = d.sem.reduce((s, v) => s + v, 0)
+  y = apertura(doc, y + 4, `Anexo estadístico · ${d.kick}`, d.nombre, col, 24)
+  const v = verdeDe(d)
   y = franjaCifras(doc, y, [
-    [num(d.total), 'Indicadores MIR'],
+    [num(d.total), 'Indicadores'],
+    [`${v.con} de ${d.total}`, 'Con resultado al corte'],
+    [v.txt, `En verde (${v.verde} de ${v.con})`],
     [pct(d.pct), 'Avance promedio'],
-    [conDato ? `${Math.round((d.sem[0] + d.sem[1]) / conDato * 100)}%` : '—', 'Indicadores en verde'],
-    [num(nAcciones), nAcciones === 1 ? 'Logro publicado' : 'Logros publicados'],
   ], col)
 
-  // Semáforo (dona) a la izquierda, avance por área a la derecha.
-  const yTop = y
-  versalitas(doc, 'Semáforo', ML, yTop, { tam: 7, color: col, cs: 0.55 })
-  const cx = ML + 22, cy = yTop + 26
-  dona(doc, cx, cy, 20, 7.5, d.sem, SEM.map(s => s.c))
-  fuente(doc, F.LIGHT, 'normal', 17, TINTA)
-  doc.text(conDato ? `${Math.round((d.sem[0] + d.sem[1]) / conDato * 100)}%` : '—', cx, cy + 1.5, { align: 'center' })
-  versalitas(doc, 'en verde', cx, cy + 5.6, { tam: 5.5, cs: 0.6, align: 'center' })
-  SEM.forEach((s, i) => {
-    const yy = yTop + 54 + i * 5.4
-    relleno(doc, s.c); doc.rect(ML, yy - 2.6, 2.8, 2.8, 'F')
-    fuente(doc, F.SANS, 'normal', 8, TINTA); doc.text(s.l, ML + 5, yy)
-    fuente(doc, F.SANS, 'bold', 8, TINTA); doc.text(String(d.sem[i]), ML + 48, yy, { align: 'right' })
-  })
-  const sinDato = d.total - conDato
-  if (sinDato > 0) { fuente(doc, F.SANS, 'normal', 7, SUB); doc.text(`${sinDato} sin dato al corte`, ML, yTop + 54 + 4 * 5.4) }
+  versalitas(doc, 'Semáforo', ML, y, { tam: 7, color: col, cs: 0.55 })
+  barraSem(doc, ML, y + 3, CW, 6.5, conteosDe(d), true)
+  leyendaSem(doc, ML, y + 15, CW, conteosDe(d))
+  y += 26
 
-  const ax = ML + 64, aw = W - ML - ax
-  versalitas(doc, 'Avance por área', ax, yTop, { tam: 7, color: col, cs: 0.55 })
+  // Avance por área: todas las áreas del eje, en escala de 0 a 150 %. El
+  // promedio solo cuenta indicadores con meta; la barra que rebasa la escala
+  // lleva una marca de corte.
   const porArea = new Map()
   indicadores.forEach(i => {
-    if (i.pct_cumplimiento == null) return
-    const r = porArea.get(i.area) || { s: 0, n: 0 }
-    r.s += +i.pct_cumplimiento; r.n++
+    const r = porArea.get(i.area) || { res: 0, meta: 0, n: 0 }
+    r.n++
+    if (i.pct_cumplimiento != null) { r.res += i.resultado; r.meta += i.meta_evaluable }
     porArea.set(i.area, r)
   })
-  const areas = [...porArea.entries()].map(([a, r]) => ({ a, v: r.s / r.n })).sort((p, q) => q.v - p.v).slice(0, 9)
-  const bx0 = ax + 50, bx1 = W - ML - 14, bmax = 1.5
-  const bv = v => bx0 + Math.min(v, bmax) / bmax * (bx1 - bx0)
-  areas.forEach((r, i) => {
-    const yy = yTop + 7 + i * 8
-    fuente(doc, F.SANS, 'normal', 7.8, TINTA)
-    const t = doc.splitTextToSize(r.a || '—', 47)
-    doc.text(t[0] + (t.length > 1 ? '…' : ''), ax, yy + 3.4)
-    relleno(doc, [240, 234, 233]); doc.rect(bx0, yy + 0.8, bx1 - bx0, 3.6, 'F')
-    relleno(doc, col); doc.rect(bx0, yy + 0.8, Math.max(0.4, bv(r.v) - bx0), 3.6, 'F')
-    fuente(doc, F.SANS, 'bold', 7.5, TINTA)
-    doc.text(pct(r.v), bx1 + 1.5, yy + 3.6)
-  })
+  const areas = [...porArea.entries()].map(([a, r]) => ({ a, v: r.meta > 0 ? r.res / r.meta : null }))
+    .sort((p, q) => (q.v ?? -1) - (p.v ?? -1))
   if (areas.length) {
+    versalitas(doc, 'Avance promedio por área', ML, y, { tam: 7, color: col, cs: 0.55 })
+    const bx0 = ML + 62, bx1 = W - ML - 20, bmax = 1.5
+    const bv = val => bx0 + Math.min(val, bmax) / bmax * (bx1 - bx0)
+    fuente(doc, F.SANS, 'normal', 6.5, SUB); doc.text('100%', bv(1), y, { align: 'center' })
+    y += 3
+    const y0 = y
+    areas.forEach(r => {
+      fuente(doc, F.SANS, 'normal', 8, TINTA)
+      const t = doc.splitTextToSize(r.a || '—', 58)
+      doc.text(t[0] + (t.length > 1 ? '…' : ''), ML, y + 3.6)
+      relleno(doc, [240, 234, 233]); doc.rect(bx0, y + 1, bx1 - bx0, 3.6, 'F')
+      if (r.v != null) {
+        relleno(doc, col); doc.rect(bx0, y + 1, Math.max(0.4, bv(r.v) - bx0), 3.6, 'F')
+        if (r.v > bmax) { relleno(doc, BLANCO); [3.2, 1.8].forEach(k => doc.rect(bx1 - k, y + 0.6, 0.6, 4.4, 'F')) }
+      }
+      fuente(doc, F.SANS, 'bold', 8, r.v == null ? SUB : TINTA)
+      doc.text(r.v == null ? 'sin meta o dato' : pct(r.v), bx1 + 1.8, y + 3.8)
+      y += 6.6
+    })
     trazo(doc, TINTA); doc.setLineWidth(0.25); doc.setLineDashPattern([0.8, 0.7], 0)
-    doc.line(bv(1), yTop + 5, bv(1), yTop + 7 + areas.length * 8)
-    doc.setLineDashPattern([], 0)
-    fuente(doc, F.SANS, 'normal', 6, SUB); doc.text('100%', bv(1), yTop + 3.6, { align: 'center' })
+    doc.line(bv(1), y0 - 1, bv(1), y); doc.setLineDashPattern([], 0)
+    y += 7
   }
-  y = Math.max(yTop + 96, yTop + 16 + areas.length * 8)
 
-  fuente(doc, F.SERIF, 'normal', 16, TINTA)
-  doc.text('Indicadores MIR del eje', W / 2, y, { align: 'center' })
-  y += 4
-  const filas = indicadores.map(i => [i.clave || '—', i.indicador || '—', i.area || '—', pct(i.pct_cumplimiento), i.semaforo || 'SIN DATO'])
+  if (y + 40 > PIE) y = nuevaPagina(doc, ctx, seccion, col)
+  fuente(doc, F.SERIF, 'normal', 15, TINTA)
+  doc.text('Indicadores, metas y resultados', ML, y)
+  const estilos = { font: F.SANS, fontSize: 7.3, cellPadding: { top: 1.7, bottom: 1.7, left: 1.8, right: 1.8 }, textColor: TINTA, lineColor: LINEA, lineWidth: { bottom: 0.15 }, valign: 'middle', overflow: 'linebreak' }
+  const semInd = indicadores.map(i => i.semaforo ?? null)
   tabla(doc, ctx, seccion, col, {
-    startY: y,
-    head: [['Clave', 'Indicador', 'Área', 'Avance', 'Semáforo']],
-    body: filas,
-    styles: { font: F.SANS, fontSize: 7.4, cellPadding: { top: 1.8, bottom: 1.8, left: 2, right: 2 }, textColor: TINTA, lineColor: LINEA, lineWidth: { bottom: 0.15 }, valign: 'middle', overflow: 'linebreak' },
+    startY: y + 3.5,
+    head: [['Clave', 'Indicador', 'Área', 'Meta', 'Resultado', 'Avance', 'Semáforo']],
+    body: indicadores.map(i => [i.clave || '—', i.indicador || '—', i.area || '—', numDec(i.meta_evaluable), numDec(i.resultado), pct(i.pct_cumplimiento), rotuloSem(i.semaforo)]),
+    styles: estilos,
     columnStyles: {
-      0: { cellWidth: 25, textColor: SUB, fontSize: 6.6 }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 32, textColor: SUB },
-      3: { cellWidth: 16, halign: 'right', fontStyle: 'bold' }, 4: { cellWidth: 23, cellPadding: { left: 6, right: 2, top: 1.8, bottom: 1.8 } },
+      0: { cellWidth: 23, textColor: SUB, fontSize: 6.5 }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 27, textColor: SUB },
+      3: { cellWidth: 14, halign: 'right' }, 4: { cellWidth: 16, halign: 'right' }, 5: { cellWidth: 15, halign: 'right', fontStyle: 'bold' },
+      6: { cellWidth: 21, cellPadding: { left: 6, right: 1.5, top: 1.7, bottom: 1.7 } },
     },
     didParseCell: data => {
-      if (data.section === 'body' && data.column.index === 4) {
-        data.cell.styles.textColor = semColor(data.cell.raw)
-        data.cell.styles.fontStyle = 'bold'
-        data.cell.styles.fontSize = 6.6
-      }
+      celdaSem.didParseCell(data, 6)
+      if (data.section === 'body' && indicadores[data.row.index]?.pct_cumplimiento == null && data.column.index !== 6) data.cell.styles.textColor = SUB
     },
-    didDrawCell: data => {
-      if (data.section === 'body' && data.column.index === 4) {
-        relleno(doc, semColor(data.cell.raw))
-        doc.circle(data.cell.x + 3, data.cell.y + data.cell.height / 2, 1.1, 'F')
-      }
-    },
+    didDrawCell: data => celdaSem.didDrawCell(doc, data, 6, semInd),
   })
 
   if (pmdList?.length) {
-    let yy = doc.lastAutoTable.finalY + 12
+    let yy = doc.lastAutoTable.finalY + 11
     if (yy + 30 > PIE) yy = nuevaPagina(doc, ctx, seccion, col) + 4
-    fuente(doc, F.SERIF, 'normal', 16, TINTA)
-    doc.text('Programas del Plan Municipal de Desarrollo', W / 2, yy, { align: 'center' })
+    fuente(doc, F.SERIF, 'normal', 15, TINTA)
+    doc.text('Programas del Plan Municipal de Desarrollo', ML, yy)
+    const semPmd = pmdList.map(p => {
+      const val = p.pct_promedio
+      return val == null ? null : val >= 110 ? 'ÓPTIMO' : val >= 90 ? 'ADECUADO' : val >= 70 ? 'RIESGO' : 'CRÍTICO'
+    })
     tabla(doc, ctx, seccion, col, {
-      startY: yy + 4,
-      head: [['#', 'Programa PMD', 'Indicadores', 'Avance', 'Semáforo']],
-      body: pmdList.map((p, i) => {
-        const v = p.pct_promedio
-        const s = v == null ? 'SIN DATO' : v >= 110 ? 'ÓPTIMO' : v >= 90 ? 'ADECUADO' : v >= 70 ? 'RIESGO' : 'CRÍTICO'
-        return [i + 1, p.programa_nombre || '—', p.total_indicadores || 0, pctPMD(v), s]
-      }),
-      styles: { font: F.SANS, fontSize: 7.8, cellPadding: { top: 2, bottom: 2, left: 2, right: 2 }, textColor: TINTA, lineColor: LINEA, lineWidth: { bottom: 0.15 }, valign: 'middle' },
+      startY: yy + 3.5,
+      head: [['#', 'Programa', 'Indicadores', 'Con resultado', 'Avance', 'Semáforo']],
+      body: pmdList.map((p, i) => [i + 1, p.programa_nombre || '—', p.total_indicadores || 0, p.indicadores_con_avance || 0, pctPMD(p.pct_promedio), rotuloSem(semPmd[i])]),
+      styles: { ...estilos, fontSize: 7.8 },
       columnStyles: {
         0: { cellWidth: 8, halign: 'center', textColor: SUB }, 1: { cellWidth: 'auto' },
-        2: { cellWidth: 20, halign: 'center' }, 3: { cellWidth: 18, halign: 'right', fontStyle: 'bold' }, 4: { cellWidth: 23, cellPadding: { left: 6, right: 2, top: 2, bottom: 2 } },
+        2: { cellWidth: 19, halign: 'center' }, 3: { cellWidth: 22, halign: 'center' }, 4: { cellWidth: 17, halign: 'right', fontStyle: 'bold' },
+        5: { cellWidth: 21, cellPadding: { left: 6, right: 1.5, top: 1.7, bottom: 1.7 } },
       },
-      didParseCell: data => {
-        if (data.section === 'body' && data.column.index === 4) {
-          data.cell.styles.textColor = semColor(data.cell.raw); data.cell.styles.fontStyle = 'bold'; data.cell.styles.fontSize = 6.6
-        }
-      },
-      didDrawCell: data => {
-        if (data.section === 'body' && data.column.index === 4) {
-          relleno(doc, semColor(data.cell.raw)); doc.circle(data.cell.x + 3, data.cell.y + data.cell.height / 2, 1.1, 'F')
-        }
-      },
+      didParseCell: data => celdaSem.didParseCell(data, 5),
+      didDrawCell: data => celdaSem.didDrawCell(doc, data, 5, semPmd),
     })
   }
 }
@@ -746,7 +779,7 @@ function medidasBloque(doc, a, fotos) {
     const altoTexto = tTit.length * lhT + 0.5 + lhM + 2.5 + tDesc.length * lhD + (cifras.length ? ALTO_CIFRAS + 2 : 0) + 3
     return { ancho: true, tw, tTit, tDesc, lhT, lhM, lhD, cifras, dw, dh, fw, fh, tPie, altoTexto, alto: altoTexto + dh + 2 + tPie.length * 3.6 }
   }
-  const pw = CW * 0.5 - 3, tw = CW - pw - 7
+  const pw = CW * 0.44, tw = CW - pw - 7
   const fh = fotos.length >= 2 ? pw * 0.52 : pw * 0.66
   const mh = fotos.length * fh + (fotos.length - 1) * 2.5
   const tTit = lineas(doc, sinPunto(a.accion), tw, F.SANS, 'bold', 11.5)
@@ -1023,7 +1056,7 @@ export function diezLogros(doc, ctx, logros, ejesDatos) {
 }
 
 // ── Pie de página (todas menos las portadas) ─────────────────────────────────
-export function pies(doc, ctx, folio) {
+export function pies(doc, ctx, textoCentro) {
   const total = doc.getNumberOfPages()
   for (let p = 1; p <= total; p++) {
     if (ctx.portadas.has(p)) continue
@@ -1031,7 +1064,7 @@ export function pies(doc, ctx, folio) {
     trazo(doc, LINEA); doc.setLineWidth(0.2); doc.line(ML, H - 13, W - ML, H - 13)
     versalitas(doc, 'H. Ayuntamiento de Apizaco · 2024 – 2027', ML, H - 8.5, { tam: 5.8, cs: 0.6, estilo: 'normal' })
     fuente(doc, F.SANS, 'normal', 5.8, [160, 150, 150])
-    doc.text(`Folio ${folio}`, W / 2, H - 8.5, { align: 'center' })
+    doc.text(textoCentro, W / 2, H - 8.5, { align: 'center' })
     fuente(doc, F.SANS, 'bold', 8.5, GUINDA)
     doc.text(String(p), W - ML, H - 8.3, { align: 'right' })
   }

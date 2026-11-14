@@ -4,8 +4,9 @@ import {
   TreePine, Presentation, Search, FileText, FileSpreadsheet, FileBarChart2,
 } from 'lucide-react'
 import { generarPDF, generarExcel, generarExcelEjecutivo, generarPDFPiloto, generarExcelPiloto, generarExcelMetas } from '../../utils/reportes'
-import { getInformeActual, getAccionesInforme, getEjesCatalogo, descargarFotosAcciones } from '../../lib/informe.js'
+import { getInformeActual, getAccionesInforme, getEjesCatalogo, descargarFotosAcciones, getProgramaPorIndicador } from '../../lib/informe.js'
 import { esErrorDeChunk } from '../../lib/recargaVersion.js'
+import { indicadoresAlCorte, programasAlCorte, corteInforme } from '../../utils/informeIndicadores.js'
 import { generarArbolProblemaObjetivosMIR } from '../../utils/reporteArbolMIR'
 import { generarMatrizPMDAreas } from '../../utils/reporteMatrizPMD'
 import {
@@ -138,19 +139,26 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
   async function handleInformeGobierno() {
     setGenStatus('cargando')
     try {
-      if (!global) await cargar()
-      const [pmdProgramas, claves, informe, catalogo] = await Promise.all([
+      const [pmdVivo, claves, informe, catalogo, progDe] = await Promise.all([
         getComparativoPMD(),
         getClavesIndicadores(),
         getInformeActual(),
         getEjesCatalogo(),
+        getProgramaPorIndicador(),
       ])
+      // Los indicadores del anexo se acumulan al cierre del periodo del Informe
+      // (no al mes activo de SIMA) y desde el catálogo completo del ejercicio,
+      // para que también aparezcan los que no tienen captura.
+      const corte = corteInforme(informe, anioActual, mesActual)
+      const { ejes: ejesCorte, indicadoresPorEje: indsCorte } =
+        indicadoresAlCorte(await getMetasResultados(corte.anio), catalogo, claves, corte.mes)
+      const pmdProgramas = programasAlCorte(pmdVivo, indsCorte, progDe)
       const acciones = informe ? await getAccionesInforme(informe.id, { soloIncluidas: true }) : []
       const fotosPorAccion = await descargarFotosAcciones(acciones.map(a => a.id))
       const mod = await import('../../utils/informeGobierno')
       // Sin módulo = chunk de un deploy anterior; recargaVersion ya está recargando.
       if (!mod) { setGenStatus('error:SIMA se actualizó. Recargando… vuelve a tocar el botón.'); return }
-      await mod.generarInformeGobierno({ ejes, indicadoresPorEje, claves, pmdProgramas, acciones, catalogo, fotosPorAccion })
+      await mod.generarInformeGobierno({ ejes: ejesCorte, indicadoresPorEje: indsCorte, pmdProgramas, acciones, catalogo, fotosPorAccion, corte })
       setGenStatus('ok')
     } catch (e) {
       setGenStatus('error:' + (esErrorDeChunk(e)
