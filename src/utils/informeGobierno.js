@@ -82,8 +82,17 @@ export async function generarInformeGobierno({
     const areas = [...new Set(indsDe(eje).map(i => i.area).filter(Boolean))]
     // La portada del eje va sin foto de fondo: las imágenes de las acciones
     // son evidencias (tablas, organigramas, capturas) y no sirven de fondo.
-    const pPag = await portadaEje(doc, ctx, d, null, satelitesEje(pmdPorEje[eje.codigo], areas))
     const accs = accsDe(eje)
+    // Pie de la portada: logros del eje y su inversión (o las áreas que participan).
+    const monto = accs.reduce((t, a) => t + (Number(a.monto) || 0), 0)
+    const nAreas = new Set(accs.map(a => a.area_id ?? a.area)).size
+    const cifras = accs.length ? [
+      [accs.length.toLocaleString('es-MX'), accs.length === 1 ? 'Logro del periodo' : 'Logros del periodo'],
+      monto > 0
+        ? [monto.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }), 'Inversión reportada']
+        : [String(nAreas), nAreas === 1 ? 'Área participante' : 'Áreas participantes'],
+    ] : []
+    const pPag = await portadaEje(doc, ctx, d, null, satelitesEje(pmdPorEje[eje.codigo], areas), cifras)
     if (accs.length) await logrosEje(doc, ctx, d, accs, fotosPorAccion)
     entradas.push({ label: d.nombre, cod: d.cod, color: d.color, page: pPag })
   }

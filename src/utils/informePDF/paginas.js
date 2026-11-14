@@ -358,7 +358,9 @@ export function seccionPendiente(doc, ctx, titulo, texto) {
 // ── Portada de eje ───────────────────────────────────────────────────────────
 // Arriba, el diagrama conceptual del eje (pictograma central y sus programas
 // del PMD); abajo, numeral, nombre, descripción y cifras.
-export async function portadaEje(doc, ctx, d, foto, satelites = []) {
+// `cifras`: hasta dos pares [valor, rótulo] del pie de la portada (logros e
+// inversión del eje); sin cifras, el pie queda solo con su filete.
+export async function portadaEje(doc, ctx, d, foto, satelites = [], cifras = []) {
   doc.addPage('letter', 'portrait')
   const page = doc.getNumberOfPages()
   ctx.portadas.add(page)
@@ -434,15 +436,12 @@ export async function portadaEje(doc, ctx, d, foto, satelites = []) {
     versalitas(doc, PERIODO_CORTO, X, pie, { tam: 6.3, color: BLANCO, cs: 0.55, estilo: 'normal' })
     versalitas(doc, d.cod, W - X, pie, { tam: 6.3, color: BLANCO, cs: 0.55, align: 'right', estilo: 'normal' })
   })
-  opacidad(doc, 0.22, () => { relleno(doc, BLANCO); doc.rect(X, yb, W - X * 2, 1.7, 'F') })
-  let xs = X
-  d.sem.forEach((v, i) => { if (!v || !d.total) return; const w = (W - X * 2) * v / d.total; relleno(doc, SEM[i].c); doc.rect(xs, yb, w, 1.7, 'F'); xs += w })
-  fuente(doc, F.LIGHT, 'normal', 30, BLANCO)
-  doc.text(String(d.total), X, yn)
-  doc.text(pct(d.pct), W / 2, yn)
-  opacidad(doc, 0.78, () => {
-    versalitas(doc, 'Indicadores MIR', X, yn + 4.6, { tam: 6.2, color: BLANCO, cs: 0.55 })
-    versalitas(doc, 'Avance promedio', W / 2, yn + 4.6, { tam: 6.2, color: BLANCO, cs: 0.55 })
+  opacidad(doc, 0.5, () => { relleno(doc, DORADO_CLARO); doc.rect(X, yb + 0.6, W - X * 2, 0.5, 'F') })
+  cifras.slice(0, 2).forEach(([v, l], i) => {
+    const xx = i ? W / 2 : X
+    fuente(doc, F.LIGHT, 'normal', 30, BLANCO)
+    doc.text(String(v), xx, yn)
+    opacidad(doc, 0.78, () => versalitas(doc, l, xx, yn + 4.6, { tam: 6.2, color: BLANCO, cs: 0.55 }))
   })
   opacidad(doc, 0.35, () => { trazo(doc, BLANCO); doc.setLineWidth(0.2); doc.line(X, ysep, W - X, ysep) })
 
