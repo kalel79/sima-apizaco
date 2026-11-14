@@ -19,6 +19,7 @@ export async function generarExcelAccionesInforme(acciones, informe) {
     'Folio', 'Eje', 'Área', 'Coordinación', '¿Vinculada a MIR?', 'Indicador MIR', 'Nivel MIR',
     'Programa PMD', 'Justificación (si NO vinculada)', 'Acción', 'Fecha', 'Monto ($)',
     'Beneficiarios', 'Descripción', 'Foto', 'Video', 'Revisada', 'Incluir en informe',
+    'Cifra principal', 'Dónde', 'Tema', 'Pie de foto', 'Abre el eje', 'Logro del año',
   ]
 
   ws.mergeCells(1, 1, 1, HDR.length)
@@ -47,11 +48,13 @@ export async function generarExcelAccionesInforme(acciones, informe) {
       a.fecha ? new Date(`${a.fecha}T12:00:00`) : '', a.monto != null ? Number(a.monto) : null,
       a.beneficiarios, a.descripcion, siNo(a.tiene_foto), siNo(a.tiene_video),
       siNo(a.revisada), siNo(a.incluir_en_informe),
+      [a.cifra_valor, a.cifra_etiqueta].filter(Boolean).join(' '), a.lugar || '', a.tema || '', a.pie_foto || '',
+      siNo(a.destacado_eje), siNo(a.destacado_informe),
     ])
     row.eachCell({ includeEmpty: true }, (c, col) => {
       c.border    = borders
-      c.alignment = { vertical: 'top', wrapText: [6, 8, 9, 10, 14].includes(col),
-                      horizontal: [1, 5, 11, 15, 16, 17, 18].includes(col) ? 'center' : undefined }
+      c.alignment = { vertical: 'top', wrapText: [6, 8, 9, 10, 14, 19, 20, 21, 22].includes(col),
+                      horizontal: [1, 5, 11, 15, 16, 17, 18, 23, 24].includes(col) ? 'center' : undefined }
       if (i % 2 === 1) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.grisClaro } }
       if (col === 18 && !a.incluir_en_informe) c.font = { bold: true, color: { argb: XL.critico } }
     })
@@ -60,7 +63,7 @@ export async function generarExcelAccionesInforme(acciones, informe) {
     row.getCell(13).numFmt = '#,##0'
   })
 
-  const anchos = [7, 22, 20, 18, 10, 34, 12, 30, 28, 34, 11, 14, 12, 50, 7, 7, 9, 10]
+  const anchos = [7, 22, 20, 18, 10, 34, 12, 30, 28, 34, 11, 14, 12, 50, 7, 7, 9, 10, 24, 24, 26, 40, 9, 9]
   ws.columns.forEach((col, i) => { col.width = anchos[i] || 14 })
   ws.views = [{ state: 'frozen', ySplit: 2 }]
   ws.autoFilter = { from: { row: 2, column: 1 }, to: { row: 2, column: HDR.length } }

@@ -6,7 +6,7 @@ import FormAccionInforme from '../components/informe/FormAccionInforme.jsx'
 import ListaAccionesInforme from '../components/informe/ListaAccionesInforme.jsx'
 import {
   getInformeActual, getAccionesInforme, getIndicadoresInforme, getAreasInforme,
-  setCapturaAbierta, anioMIRInforme,
+  setCapturaAbierta, anioMIRInforme, faltantesLogro,
 } from '../lib/informe.js'
 import { generarExcelAccionesInforme } from '../utils/informeAccionesExcel.js'
 
@@ -68,12 +68,13 @@ export default function InformeGobierno({ areaIdPropia, isEnlace, isAdmin, isPla
   const resumenAreas = useMemo(() => {
     const porArea = new Map()
     acciones.forEach(a => {
-      const r = porArea.get(a.area_id) || { total: 0, incluidas: 0, revisadas: 0 }
+      const r = porArea.get(a.area_id) || { total: 0, incluidas: 0, revisadas: 0, incompletas: 0 }
       r.total++; if (a.incluir_en_informe) r.incluidas++; if (a.revisada) r.revisadas++
+      if (a.incluir_en_informe && faltantesLogro(a).length) r.incompletas++
       porArea.set(a.area_id, r)
     })
     return areas
-      .map(ar => ({ ...ar, ...(porArea.get(ar.id) || { total: 0, incluidas: 0, revisadas: 0 }) }))
+      .map(ar => ({ ...ar, ...(porArea.get(ar.id) || { total: 0, incluidas: 0, revisadas: 0, incompletas: 0 }) }))
       .sort((x, y) => (x.ejes?.orden ?? 99) - (y.ejes?.orden ?? 99) || x.nombre.localeCompare(y.nombre, 'es'))
   }, [acciones, areas])
 
@@ -85,6 +86,10 @@ export default function InformeGobierno({ areaIdPropia, isEnlace, isAdmin, isPla
   const puedeEditar = esPlaneacion || (isEnlace && informe.captura_abierta)
   const accionesArea = acciones.filter(a => a.area_id === areaSel)
   const nombreArea = areas.find(a => a.id === areaSel)?.nombre || accionesArea[0]?.area || ''
+
+  // Temas ya usados en el eje del área: se sugieren para no duplicar con otra redacción.
+  const ejeArea = accionesArea[0]?.eje_codigo || areas.find(a => a.id === areaSel)?.ejes?.codigo
+  const temasEje = [...new Set(acciones.filter(a => a.tema && (!ejeArea || a.eje_codigo === ejeArea)).map(a => a.tema))].sort((x, y) => x.localeCompare(y, 'es'))
 
   async function toggleCaptura() {
     setOcupado(true); setAviso(null)
@@ -104,6 +109,7 @@ export default function InformeGobierno({ areaIdPropia, isEnlace, isAdmin, isPla
     <FormAccionInforme key={editando === 'nueva' ? 'nueva' : editando.id}
       informe={informe} areaId={areaSel} indicadores={indicadores}
       accion={editando === 'nueva' ? null : editando}
+      esPlaneacion={esPlaneacion} temas={temasEje}
       onGuardada={trasGuardar} onCancelar={() => setEditando(null)} />
   )
 
@@ -189,6 +195,7 @@ function TableroAreas({ resumen, totalAcciones, onElegir }) {
               <th style={{ ...th, textAlign: 'center' }}>Acciones</th>
               <th style={{ ...th, textAlign: 'center' }}>En informe</th>
               <th style={{ ...th, textAlign: 'center' }}>Revisadas</th>
+              <th style={{ ...th, textAlign: 'center' }}>Sin datos de logro</th>
             </tr>
           </thead>
           <tbody>
@@ -201,6 +208,7 @@ function TableroAreas({ resumen, totalAcciones, onElegir }) {
                 <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: r.total ? C.txt : C.riesgoB }}>{r.total}</td>
                 <td style={{ ...td, textAlign: 'center' }}>{r.incluidas}</td>
                 <td style={{ ...td, textAlign: 'center', color: r.total && r.revisadas === r.total ? C.adecuadoB : C.txt }}>{r.revisadas}</td>
+                <td style={{ ...td, textAlign: 'center', color: r.incompletas ? C.riesgoB : C.txtMuted }}>{r.incompletas}</td>
               </tr>
             ))}
           </tbody>
