@@ -769,17 +769,20 @@ function medidasBloque(doc, a, fotos) {
   const dg = diagramaDe(a)
   const lhT = altoLinea(11.5, 1.2), lhM = altoLinea(7.5, 1.35), lhD = altoLinea(9, 1.42)
   if (dg) {
-    const tw = Math.min(CW, 152)
-    const tTit = lineas(doc, sinPunto(a.accion), tw, F.SANS, 'bold', 11.5)
-    const tDesc = lineas(doc, a.descripcion, tw, F.SANS, 'normal', 9)
-    const dw = fotos.length ? 112 : 132, dh = dw / DIAGRAMA_RATIO
-    const fw = CW - dw - 6, fh = fotos.length ? Math.min(fw * 0.68, (dh - 2.5 * (fotos.length - 1)) / fotos.length) : 0
-    const tPie = lineas(doc, pieDe(a), CW, F.SERIF, 'italic', 8.5).slice(0, 2)
-    const altoTexto = tTit.length * lhT + 0.5 + lhM + 2.5 + tDesc.length * lhD + (cifras.length ? ALTO_CIFRAS + 2 : 0) + 3
-    return { ancho: true, tw, tTit, tDesc, lhT, lhM, lhD, cifras, dw, dh, fw, fh, tPie, altoTexto, alto: altoTexto + dh + 2 + tPie.length * 3.6 }
+    // Título a lo ancho; debajo, el diagrama a la izquierda y el texto, las
+    // cifras y las fotos (en miniatura) en una columna a su derecha. Así caben
+    // dos logros con diagrama por página.
+    const dw = 104, dh = dw / DIAGRAMA_RATIO, cw = CW - dw - 6
+    const lhC = altoLinea(8.8, 1.4), fhF = fotos.length ? 22.5 : 0
+    const tTit = lineas(doc, sinPunto(a.accion), CW, F.SANS, 'bold', 11.5)
+    const tDesc = lineas(doc, a.descripcion, cw, F.SANS, 'normal', 8.8)
+    const tPie = lineas(doc, pieDe(a), dw, F.SERIF, 'italic', 8.5).slice(0, 1)
+    const altoTit = tTit.length * lhT + 1.5
+    const altoCol = lhM + 2 + tDesc.length * lhC + (cifras.length ? ALTO_CIFRAS + 2 : 0) + (fhF ? fhF + 2.5 : 0)
+    return { ancho: true, tTit, tDesc, tPie, lhT, lhM, lhC, cifras, dw, dh, cw, fhF, altoTit, alto: altoTit + Math.max(dh + 5, altoCol) }
   }
   const pw = CW * 0.44, tw = CW - pw - 7
-  const fh = fotos.length >= 2 ? pw * 0.52 : pw * 0.66
+  const fh = fotos.length >= 2 ? pw * 0.47 : pw * 0.66
   const mh = fotos.length * fh + (fotos.length - 1) * 2.5
   const tTit = lineas(doc, sinPunto(a.accion), tw, F.SANS, 'bold', 11.5)
   const tDesc = lineas(doc, a.descripcion, tw, F.SANS, 'normal', 9)
@@ -815,14 +818,30 @@ async function bloqueDestacado(doc, ctx, a, fotos, y, lado, col, seccion) {
   if (y + m.alto > PIE) y = nuevaPagina(doc, ctx, seccion, col)
 
   if (m.ancho) {
-    textoBloque(doc, a, m, ML, y, col)
-    const yd = y + m.altoTexto
-    const dx = fotos.length ? ML : ML + (CW - m.dw) / 2
-    await dibujarDiagrama(doc, diagramaDe(a), dx, yd, m.dw, m.dh)
-    fotos.forEach((f, i) => {
-      doc.addImage(recortarFoto(f.bmp, m.fw / m.fh), 'JPEG', ML + m.dw + 6, yd + i * (m.fh + 2.5), m.fw, m.fh, undefined, 'FAST')
-    })
-    pieFoto(doc, m.tPie, dx, yd + m.dh + 4.2)
+    let yt = y + m.lhT * 0.8
+    fuente(doc, F.SANS, 'bold', 11.5, TINTA)
+    m.tTit.forEach(l => { doc.text(l, ML, yt); yt += m.lhT })
+    const yc = y + m.altoTit
+    await dibujarDiagrama(doc, diagramaDe(a), ML, yc, m.dw, m.dh)
+    pieFoto(doc, m.tPie, ML, yc + m.dh + 4)
+    const cx = ML + m.dw + 6
+    yt = yc + m.lhM * 0.8
+    fuente(doc, F.SANS, 'normal', 7.5, col)
+    doc.text(doc.splitTextToSize(metaAccion(a), m.cw)[0] || '', cx, yt)
+    yt += m.lhM * 0.2 + 2 + m.lhC * 0.8
+    fuente(doc, F.SANS, 'normal', 8.8, [58, 46, 48])
+    m.tDesc.forEach((l, i) => { renglon(doc, l, cx, yt, m.cw, i < m.tDesc.length - 1); yt += m.lhC })
+    yt -= m.lhC * 0.8
+    if (m.cifras.length) {
+      yt += 1
+      trazo(doc, LINEA); doc.setLineWidth(0.2); doc.line(cx, yt, cx + m.cw, yt)
+      dibujarCifras(doc, m.cifras, cx, yt, m.cw, col, 16)
+      yt += ALTO_CIFRAS + 1
+    }
+    if (m.fhF) {
+      const fw = fotos.length >= 2 ? (m.cw - 2.5) / 2 : m.cw * 0.55
+      fotos.forEach((f, i) => doc.addImage(recortarFoto(f.bmp, fw / m.fhF), 'JPEG', cx + i * (fw + 2.5), yt + 2.5, fw, m.fhF, undefined, 'FAST'))
+    }
     return y + m.alto + 9
   }
 
