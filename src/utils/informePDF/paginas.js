@@ -9,7 +9,7 @@ import { CENTRO } from './pictogramasSvg.js'
 import { dibujarDiagrama, diagramaValido, DIAGRAMA_RATIO } from './diagramas.js'
 import {
   CABILDO, GABINETE, PRESENTACION_PARRAFOS, PRESENTACION_EJES, MENSAJE_PRESIDENTE, NOTA_METODOLOGICA, GLOSARIO,
-  PRESENTACION_ADICIONALES_TEXTO, PRESENTACION_ADICIONALES,
+  PRESENTACION_ADICIONALES_TEXTO, PRESENTACION_ADICIONALES, MENSAJE_LEMA,
 } from '../informeGobiernoContenido.js'
 
 export const W = 215.9, H = 279.4, ML = 18, CW = W - ML * 2
@@ -292,8 +292,10 @@ export function mensajePresidente(doc, ctx) {
   y += 8 + primero.length * lhQ + 8
   const cuerpo = MENSAJE_PRESIDENTE.slice(1, -1)
   y = parrafos(doc, ctx, cuerpo, y, { seccion: 'Mensaje del Presidente Municipal' })
-  if (y > PIE - 24) y = nuevaPagina(doc, ctx, 'Mensaje del Presidente Municipal')
-  y += 4
+  if (y > PIE - 38) y = nuevaPagina(doc, ctx, 'Mensaje del Presidente Municipal')
+  fuente(doc, F.SERIF, 'italic', 17, GUINDA)
+  doc.text(MENSAJE_LEMA, ML, y + 5)
+  y += 14
   trazo(doc, DORADO); doc.setLineWidth(0.3); doc.line(W - ML - 70, y, W - ML, y)
   fuente(doc, F.SERIF, 'normal', 14, TINTA)
   doc.text('Javier Rivera Bonilla', W - ML, y + 7, { align: 'right' })

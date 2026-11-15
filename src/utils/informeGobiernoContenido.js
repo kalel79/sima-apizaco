@@ -85,12 +85,19 @@ export const PRESENTACION_EJES = [
 export const PRESENTACION_ADICIONALES_TEXTO = 'A ellos se suman dos ejes adicionales de la administración municipal:'
 export const PRESENTACION_ADICIONALES = ['Municipio Solidario', 'Administración y Procuración de Justicia']
 
+// [0] cita de apertura · [1..n-2] cuerpo · [n-1] lugar y fecha de la firma.
 export const MENSAJE_PRESIDENTE = [
-  'Me dirijo a ustedes con profundo respeto y sentido de responsabilidad para presentar el Segundo Informe de Gobierno, correspondiente al periodo septiembre 2025 – agosto 2026, ejercicio con el que rendimos cuentas públicas de los resultados, avances y compromisos de esta administración.',
-  'Este informe representa más que un simple documento contable: es el reflejo de un gobierno que decidió romper con las viejas prácticas; que puso al ciudadano en el centro de las decisiones; que apostó por la transparencia, la honestidad y la eficiencia en el uso de los recursos públicos.',
-  'Durante este segundo año de gobierno, hemos consolidado los programas iniciados en nuestra primera etapa y avanzado con firmeza en el cumplimiento de los compromisos del Plan Municipal de Desarrollo 2024-2027. Seguimos construyendo un Apizaco más seguro, más justo, más próspero y más equitativo para todas y todos.',
+  'Gobernar es cumplir, y cumplir es rendir cuentas con resultados que la gente pueda ver en su calle, en su colonia y en su comunidad.',
+  'A las y los apizaquenses:',
+  'Con respeto y sentido de responsabilidad presento el Segundo Informe de Gobierno, que da cuenta del estado que guarda la administración pública municipal del 1 de septiembre de 2025 al 31 de agosto de 2026.',
+  'Somos un gobierno humanista, que pone al ciudadano en el centro de cada acción y de cada decisión. Por eso este documento reúne los logros de las áreas del Ayuntamiento en cada uno de los ejes de gobierno: cada logro tiene fecha, lugar, inversión y evidencia, porque informar no es enumerar buenas intenciones, sino mostrar lo que se hizo, a quién sirvió y cuánto costó.',
+  'En este segundo año consolidamos los programas que iniciamos y pusimos orden en la forma de medir nuestro trabajo: hoy las áreas municipales reportan cada mes sus resultados y la evidencia que los respalda. Esa disciplina nos permite reconocer lo que avanzó y también lo que falta.',
+  'Sé que quedan pendientes. Los asumimos como la agenda del tercer año, con el mismo compromiso: un Apizaco más seguro, con mejores servicios y con oportunidades para todas y todos.',
+  'Agradezco al Honorable Cabildo, a las presidencias de comunidad, a las y los servidores públicos y, sobre todo, a la ciudadanía que participa, exige y acompaña. Este informe es de ustedes.',
   'Apizaco, Tlaxcala, 2026.',
 ]
+// Lema de la administración: cierra el mensaje, antes de la firma.
+export const MENSAJE_LEMA = '¡Por un mejor futuro!'
 
 
 // Nota metodológica y glosario del anexo estadístico. `{corte}` se sustituye
