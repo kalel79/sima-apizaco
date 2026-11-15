@@ -4,7 +4,7 @@ import { prepararRecursos } from './informePDF/recursos.js'
 import { satelitesEje } from './informePDF/pictogramasSvg.js'
 import {
   portadaPrincipal, indice, presentacion, mensajePresidente, cabildo, gabinete,
-  seccionPendiente, resumenEjecutivo, portadaEje, resultadosEje, logrosEje, diezLogros, logrosDelAnio, pies, datosEje,
+  resumenEjecutivo, notaMetodologica, colofon, contraportada, portadaEje, resultadosEje, logrosEje, diezLogros, logrosDelAnio, pies, datosEje,
 } from './informePDF/paginas.js'
 
 // Colores de eje propios del Informe: el azul del Eje 5 y el naranja de
@@ -56,15 +56,9 @@ export async function generarInformeGobierno({
   const logros = logrosDelAnio(acciones, ordenEje)
   if (logros.length) entradas.push({ label: 'Los logros del año', page: diezLogros(doc, ctx, logros, datos) })
   entradas.push({ label: 'Integrantes del H. Cabildo', page: cabildo(doc, ctx) })
-  entradas.push({
-    label: 'Acciones del H. Cabildo',
-    page: seccionPendiente(doc, ctx, 'Acciones del H. Cabildo', 'Sesiones, acuerdos y dictámenes aprobados por el H. Cabildo durante el periodo que se informa.'),
-  })
+  // "Acciones del H. Cabildo" y "Datos financieros" aún no tienen contenido en
+  // SIMA: se omiten en lugar de publicarse como recuadros vacíos.
   entradas.push({ label: 'Gabinete Municipal', page: gabinete(doc, ctx) })
-  entradas.push({
-    label: 'Datos financieros',
-    page: seccionPendiente(doc, ctx, 'Datos financieros', 'Ingresos, egresos y ejercicio del presupuesto municipal del periodo, con información de la Tesorería Municipal.'),
-  })
 
   const pmdPorEje = {}
   pmdProgramas.forEach(p => {
@@ -107,6 +101,9 @@ export async function generarInformeGobierno({
     }),
   })
   for (const eje of ejes) resultadosEje(doc, ctx, datos[eje.codigo], indsDe(eje), pmdPorEje[eje.codigo])
+  entradas.push({ label: 'Nota metodológica y glosario', anexo: true, page: notaMetodologica(doc, ctx, corteTexto.largo) })
+  colofon(doc, ctx, { corteLargo: corteTexto.largo, nLogros: acciones.length })
+  await contraportada(doc, ctx)
 
   indice(doc, ctx, entradas)
   pies(doc, ctx, `Indicadores con corte al ${corteTexto.largo}`)

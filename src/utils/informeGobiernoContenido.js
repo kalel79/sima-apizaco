@@ -14,13 +14,13 @@ export const PMD_EJE_MAP = {
 export const CABILDO = [
   ['Presidente Municipal', 'Javier Rivera Bonilla'],
   ['Síndico Municipal', 'María de la Paz Flores Hernández'],
-  ['1er Regidor', 'David Morales Hernández'],
-  ['2da Regidora', 'Leticia Atempa Díaz'],
-  ['3er Regidor', 'José Arnulfo Alva Sánchez'],
-  ['4ta Regidora', 'Adriana Eugenia Ramírez Franco'],
-  ['5ta Regidora', 'Rocío Periañez Montiel'],
-  ['6ta Regidora', 'Limitzen Rubí Martínez Serrano'],
-  ['7mo Regidor', 'Kevin Fernando Lozano Bocardo'],
+  ['Primer Regidor', 'David Morales Hernández'],
+  ['Segunda Regidora', 'Leticia Atempa Díaz'],
+  ['Tercer Regidor', 'José Arnulfo Alva Sánchez'],
+  ['Cuarta Regidora', 'Adriana Eugenia Ramírez Franco'],
+  ['Quinta Regidora', 'Rocío Periañez Montiel'],
+  ['Sexta Regidora', 'Limitzen Rubí Martínez Serrano'],
+  ['Séptimo Regidor', 'Kevin Fernando Lozano Bocardo'],
   ['Presidencia de Comunidad Guadalupe Texcalac', 'Valentín Larios Báez'],
   ['Presidencia de Comunidad José María Morelos', 'Leonel Sosa Concha'],
   ['Presidencia de Comunidad Cerrito de Guadalupe', 'Estefany Alejandra Pérez Meza'],
@@ -69,7 +69,7 @@ export const GABINETE = [
 ]
 
 export const PRESENTACION_PARRAFOS = [
-  'El Segundo Informe de Gobierno del Municipio de Apizaco tiene por objetivo presentar de manera clara, estructurada y fundamentada el estado que guarda la administración pública municipal durante el periodo comprendido entre el 01 de septiembre de 2025 y el 31 de agosto de 2026, en cumplimiento con lo dispuesto por la Ley Municipal del Estado de Tlaxcala, así como con las obligaciones de transparencia, rendición de cuentas y evaluación de resultados que rigen el ejercicio público.',
+  'El Segundo Informe de Gobierno del Municipio de Apizaco tiene por objetivo presentar de manera clara, estructurada y fundamentada el estado que guarda la administración pública municipal durante el periodo comprendido entre el 1 de septiembre de 2025 y el 31 de agosto de 2026, en cumplimiento con lo dispuesto por la Ley Municipal del Estado de Tlaxcala, así como con las obligaciones de transparencia, rendición de cuentas y evaluación de resultados que rigen el ejercicio público.',
   'Este informe tiene como finalidad dar a conocer al Honorable Cabildo y a la ciudadanía los avances, logros, retos y acciones emprendidas por la administración municipal en cada uno de los Ejes Estratégicos del Plan Municipal de Desarrollo 2024-2027, que guían la política pública local:',
 ]
 export const PRESENTACION_EJES = [
@@ -89,3 +89,24 @@ export const MENSAJE_PRESIDENTE = [
   'Apizaco, Tlaxcala, 2026.',
 ]
 
+
+// Nota metodológica y glosario del anexo estadístico. `{corte}` se sustituye
+// por la fecha de corte de los indicadores.
+export const NOTA_METODOLOGICA = [
+  'Cada área municipal tiene indicadores con una meta programada mes a mes. El avance de un indicador es su resultado acumulado dividido entre su meta acumulada, expresado en porcentaje.',
+  'El semáforo clasifica ese avance en cuatro niveles: óptimo (110 % o más), adecuado (de 90 a 109 %), riesgo (de 70 a 89 %) y crítico (menos de 70 %).',
+  'Un indicador aparece «sin meta» cuando no tiene meta programada al corte, aunque reporte resultado: no se califica ni entra en los promedios. Aparece «sin dato» cuando el área no ha reportado resultado.',
+  'El avance promedio de un eje o de un área es la suma de los resultados entre la suma de las metas de sus indicadores con meta.',
+  'Los logros corresponden al periodo del Informe. Los beneficiarios y la inversión se informan por logro; los beneficiarios no se suman entre logros, porque una misma persona puede recibir varios.',
+  'Las cifras de los indicadores corresponden al corte del {corte} y provienen del Sistema de Información Municipal de Avance (SIMA).',
+]
+export const GLOSARIO = [
+  ['Indicador', 'Medida que permite saber si un programa cumple lo que se propuso.'],
+  ['Meta', 'Cantidad que el área se comprometió a alcanzar en el periodo.'],
+  ['Matriz de Indicadores para Resultados (MIR)', 'Tabla que reúne los objetivos de un programa y los indicadores con que se evalúa.'],
+  ['Plan Municipal de Desarrollo (PMD)', 'Documento que fija los ejes, programas y compromisos del gobierno municipal para 2024 – 2027.'],
+  ['Eje', 'Cada uno de los grandes temas en que se organiza el trabajo del gobierno municipal.'],
+  ['Logro', 'Acción concreta que un área reporta como resultado destacado del periodo, con su evidencia.'],
+  ['Corte', 'Fecha en que se cierran las cifras para elaborar el Informe.'],
+  ['SIMA', 'Sistema de Información Municipal de Avance: plataforma del Ayuntamiento donde las áreas capturan sus resultados y evidencias.'],
+]
