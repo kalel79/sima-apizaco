@@ -13,14 +13,14 @@ export const PMD_EJE_MAP = {
 
 export const CABILDO = [
   ['Presidente Municipal', 'Javier Rivera Bonilla'],
-  ['Síndico Municipal', 'María de la Paz Flores Hernández'],
-  ['1er Regidor', 'David Morales Hernández'],
-  ['2da Regidora', 'Leticia Atempa Díaz'],
-  ['3er Regidor', 'José Arnulfo Alva Sánchez'],
-  ['4ta Regidora', 'Adriana Eugenia Ramírez Franco'],
-  ['5ta Regidora', 'Rocío Periañez Montiel'],
-  ['6ta Regidora', 'Limitzen Rubí Martínez Serrano'],
-  ['7mo Regidor', 'Kevin Fernando Lozano Bocardo'],
+  ['Síndica Municipal', 'María de la Paz Flores Hernández'],
+  ['Primer Regidor', 'David Morales Hernández'],
+  ['Segunda Regidora', 'Leticia Atempa Díaz'],
+  ['Tercer Regidor', 'José Arnulfo Alva Sánchez'],
+  ['Cuarta Regidora', 'Adriana Eugenia Ramírez Franco'],
+  ['Quinta Regidora', 'Rocío Periañez Montiel'],
+  ['Sexta Regidora', 'Limitzen Rubí Martínez Serrano'],
+  ['Séptimo Regidor', 'Kevin Fernando Lozano Bocardo'],
   ['Presidencia de Comunidad Guadalupe Texcalac', 'Valentín Larios Báez'],
   ['Presidencia de Comunidad José María Morelos', 'Leonel Sosa Concha'],
   ['Presidencia de Comunidad Cerrito de Guadalupe', 'Estefany Alejandra Pérez Meza'],
@@ -38,15 +38,15 @@ export const GABINETE = [
   ['Dirección de Planeación y Evaluación', 'Abraham Padilla Vásquez'],
   ['Dirección Administrativa', 'Estela López Montiel'],
   ['Dirección de Parquímetros', 'Baldomero Galaviz Leal'],
-  ['Transparencia', 'Cirilo Rosalio Espejel Velazco'],
-  ['Coordinación de TICS y Sistemas', 'Jorge Rosette Jordán'],
+  ['Unidad de Transparencia', 'Cirilo Rosalio Espejel Velazco'],
+  ['Coordinación de Tecnologías de la Información', 'Jorge Rosette Jordán'],
   ['Dirección Jurídica', 'Omar Muñoz Torres'],
-  ['Tesorero', 'David Hernández Montiel'],
+  ['Tesorería Municipal', 'David Hernández Montiel'],
   ['Órgano Interno de Control', 'María Maricela Escobar Sánchez'],
   ['Dirección de Desarrollo Económico', 'David Velázquez Rugerio'],
   ['Instituto Municipal de la Mujer', 'Anabel Alducin Lima'],
   ['Dirección del DIF', 'Reyna Geraldine Fernández Suárez'],
-  ['Dirección de Seguridad Pública', 'Cap. Corb Imp José Ramón Jacques Mena'],
+  ['Dirección de Seguridad Pública', 'Capitán de Corbeta José Ramón Jacques Mena'],
   ['Dirección de Obras Públicas', 'Jesús Martínez Vázquez'],
   ['Dirección de Servicios Municipales', 'Gregorio Hugo López Alducin'],
   ['Dirección de Imagen Urbana', 'Manuel Pedro González Báez'],
@@ -54,7 +54,6 @@ export const GABINETE = [
   ['Dirección de Turismo y Cultura', 'Sergio Jair Méndez Ramírez'],
   ['Dirección de Juzgado Municipal', 'Hilario Padilla Longino'],
   ['Dirección de Ecología y Desarrollo Ambiental', 'Edgar Torres López'],
-  ['Dirección de Salud', 'Jesús Servando Cervantes Huerta'],
   ['CAPAMA', 'Juan Ignacio Muñoz Guevara'],
   ['Coordinación de Comunicación Social', 'David Espinosa del Ángel'],
   ['Coordinación de Protección Civil', 'Israel Méndez Tlapalamatl'],
@@ -69,7 +68,7 @@ export const GABINETE = [
 ]
 
 export const PRESENTACION_PARRAFOS = [
-  'El Segundo Informe de Gobierno del Municipio de Apizaco tiene por objetivo presentar de manera clara, estructurada y fundamentada el estado que guarda la administración pública municipal durante el periodo comprendido entre el 01 de septiembre de 2025 y el 31 de agosto de 2026, en cumplimiento con lo dispuesto por la Ley Municipal del Estado de Tlaxcala, así como con las obligaciones de transparencia, rendición de cuentas y evaluación de resultados que rigen el ejercicio público.',
+  'El Segundo Informe de Gobierno del Municipio de Apizaco tiene por objetivo presentar de manera clara, estructurada y fundamentada el estado que guarda la administración pública municipal durante el periodo comprendido entre el 1 de septiembre de 2025 y el 31 de agosto de 2026, en cumplimiento con lo dispuesto por la Ley Municipal del Estado de Tlaxcala, así como con las obligaciones de transparencia, rendición de cuentas y evaluación de resultados que rigen el ejercicio público.',
   'Este informe tiene como finalidad dar a conocer al Honorable Cabildo y a la ciudadanía los avances, logros, retos y acciones emprendidas por la administración municipal en cada uno de los Ejes Estratégicos del Plan Municipal de Desarrollo 2024-2027, que guían la política pública local:',
 ]
 export const PRESENTACION_EJES = [
@@ -82,10 +81,42 @@ export const PRESENTACION_EJES = [
   'Transversal B. Igualdad Sustantiva',
 ]
 
+// Ejes adicionales de la administración (no forman parte del PMD).
+export const PRESENTACION_ADICIONALES_TEXTO = 'A ellos se suman dos ejes adicionales de la administración municipal:'
+export const PRESENTACION_ADICIONALES = ['Municipio Solidario', 'Administración y Procuración de Justicia']
+
+// [0] cita de apertura · [1..n-2] cuerpo · [n-1] lugar y fecha de la firma.
 export const MENSAJE_PRESIDENTE = [
-  'Me dirijo a ustedes con profundo respeto y sentido de responsabilidad para presentar el Segundo Informe Ciudadano de Gobierno, correspondiente al periodo septiembre 2025 – agosto 2026, ejercicio con el que rendimos cuentas públicas de los resultados, avances y compromisos de esta administración.',
-  'Este informe representa más que un simple documento contable: es el reflejo de un gobierno que decidió romper con las viejas prácticas; que puso al ciudadano en el centro de las decisiones; que apostó por la transparencia, la honestidad y la eficiencia en el uso de los recursos públicos.',
-  'Durante este segundo año de gobierno, hemos consolidado los programas iniciados en nuestra primera etapa y avanzado con firmeza en el cumplimiento de los compromisos del Plan Municipal de Desarrollo 2024-2027. Seguimos construyendo un Apizaco más seguro, más justo, más próspero y más equitativo para todas y todos.',
+  'Gobernar es cumplir, y cumplir es rendir cuentas con resultados que la gente pueda ver en su calle, en su colonia y en su comunidad.',
+  'A las y los apizaquenses:',
+  'Con respeto y sentido de responsabilidad presento el Segundo Informe de Gobierno, que da cuenta del estado que guarda la administración pública municipal del 1 de septiembre de 2025 al 31 de agosto de 2026.',
+  'Somos un gobierno humanista, que pone al ciudadano en el centro de cada acción y de cada decisión. Por eso este documento reúne los logros de las áreas del Ayuntamiento en cada uno de los ejes de gobierno: cada logro tiene fecha, lugar, inversión y evidencia, porque informar no es enumerar buenas intenciones, sino mostrar lo que se hizo, a quién sirvió y cuánto costó.',
+  'En este segundo año consolidamos los programas que iniciamos y pusimos orden en la forma de medir nuestro trabajo: hoy las áreas municipales reportan cada mes sus resultados y la evidencia que los respalda. Esa disciplina nos permite reconocer lo que avanzó y también lo que falta.',
+  'Sé que quedan pendientes. Los asumimos como la agenda del tercer año, con el mismo compromiso: un Apizaco más seguro, con mejores servicios y con oportunidades para todas y todos.',
+  'Agradezco al Honorable Cabildo, a las presidencias de comunidad, a las y los servidores públicos y, sobre todo, a la ciudadanía que participa, exige y acompaña. Este informe es de ustedes.',
   'Apizaco, Tlaxcala, 2026.',
 ]
+// Lema de la administración: cierra el mensaje, antes de la firma.
+export const MENSAJE_LEMA = '¡Por un mejor futuro!'
 
+
+// Nota metodológica y glosario del anexo estadístico. `{corte}` se sustituye
+// por la fecha de corte de los indicadores.
+export const NOTA_METODOLOGICA = [
+  'Cada área municipal tiene indicadores con una meta programada mes a mes. El avance de un indicador es su resultado acumulado dividido entre su meta acumulada, expresado en porcentaje.',
+  'El semáforo clasifica ese avance en cuatro niveles: óptimo (110 % o más), adecuado (de 90 a 109 %), riesgo (de 70 a 89 %) y crítico (menos de 70 %).',
+  'Un indicador aparece «sin meta» cuando no tiene meta programada al corte, aunque reporte resultado: no se califica ni entra en los promedios. Aparece «sin dato» cuando el área no ha reportado resultado.',
+  'El avance promedio de un eje o de un área es la suma de los resultados entre la suma de las metas de sus indicadores con meta.',
+  'Los logros corresponden al periodo del Informe. Los beneficiarios y la inversión se informan por logro; los beneficiarios no se suman entre logros, porque una misma persona puede recibir varios.',
+  'Las cifras de los indicadores corresponden al corte del {corte} y provienen del Sistema de Información Municipal de Avance (SIMA).',
+]
+export const GLOSARIO = [
+  ['Indicador', 'Medida que permite saber si un programa cumple lo que se propuso.'],
+  ['Meta', 'Cantidad que el área se comprometió a alcanzar en el periodo.'],
+  ['Matriz de Indicadores para Resultados (MIR)', 'Tabla que reúne los objetivos de un programa y los indicadores con que se evalúa.'],
+  ['Plan Municipal de Desarrollo (PMD)', 'Documento que fija los ejes, programas y compromisos del gobierno municipal para 2024 – 2027.'],
+  ['Eje', 'Cada uno de los grandes temas en que se organiza el trabajo del gobierno municipal.'],
+  ['Logro', 'Acción concreta que un área reporta como resultado destacado del periodo, con su evidencia.'],
+  ['Corte', 'Fecha en que se cierran las cifras para elaborar el Informe.'],
+  ['SIMA', 'Sistema de Información Municipal de Avance: plataforma del Ayuntamiento donde las áreas capturan sus resultados y evidencias.'],
+]

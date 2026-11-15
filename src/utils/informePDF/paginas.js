@@ -8,7 +8,8 @@ import { artePortadaPrincipal, artePortadaEje, recortarFoto, hexARgb, matiz } fr
 import { CENTRO } from './pictogramasSvg.js'
 import { dibujarDiagrama, diagramaValido, DIAGRAMA_RATIO } from './diagramas.js'
 import {
-  CABILDO, GABINETE, PRESENTACION_PARRAFOS, PRESENTACION_EJES, MENSAJE_PRESIDENTE,
+  CABILDO, GABINETE, PRESENTACION_PARRAFOS, PRESENTACION_EJES, MENSAJE_PRESIDENTE, NOTA_METODOLOGICA, GLOSARIO,
+  PRESENTACION_ADICIONALES_TEXTO, PRESENTACION_ADICIONALES, MENSAJE_LEMA,
 } from '../informeGobiernoContenido.js'
 
 export const W = 215.9, H = 279.4, ML = 18, CW = W - ML * 2
@@ -161,14 +162,17 @@ function franjaCifras(doc, y, cifras, color = GUINDA) {
 // Datos de presentación de un eje a partir de v_resumen_ejes + catálogo.
 export function datosEje(eje, catalogo) {
   const cod = eje.codigo
-  const n = cod.startsWith('E') ? cod.slice(1) : cod.startsWith('T') ? cod.slice(1) : cod
-  const kick = cod.startsWith('E') ? `Eje ${n}` : cod.startsWith('T') ? 'Eje transversal' : `Eje ${cod}`
+  // E1-E5 y transversales A/B son del PMD; los demás (MS, AJ) son ejes
+  // adicionales de la administración: sin numeral y rotulados por su nombre.
+  const pmd = /^(E\d+|T[A-Z])$/.test(cod)
+  const n = pmd ? cod.slice(1) : ''
+  const kick = cod.startsWith('E') && pmd ? `Eje ${n}` : pmd ? `Eje transversal ${n}` : 'Eje adicional'
   const nombre = String(eje.eje || '').replace(/^Transversal [AB]\s*[–-]\s*/, '')
   const sem = [eje.optimo || 0, eje.adecuado || 0, eje.riesgo || 0, eje.critico || 0]
   const total = eje.total_indicadores || 0, sinMeta = eje.sin_meta || 0
   return {
     sinMeta, sinDato: eje.sin_dato ?? Math.max(0, total - sem.reduce((t, v) => t + v, 0) - sinMeta),
-    cod, n, kick, nombre, color: eje.color_hex || catalogo?.color_hex || '#7B1F2C',
+    cod, n, kick, corto: pmd ? kick : nombre, nombre, color: eje.color_hex || catalogo?.color_hex || '#7B1F2C',
     descripcion: catalogo?.descripcion || '', total: eje.total_indicadores || 0, pct: eje.pct_promedio, sem,
   }
 }
@@ -228,7 +232,7 @@ export function indice(doc, ctx, entradas) {
   }
   entradas.filter(e => !e.cod && !e.anexo).forEach(e => fila(e, false))
   y += 4
-  versalitas(doc, 'Ejes del Plan Municipal de Desarrollo 2024 – 2027', ML, y, { tam: 7.5, color: GUINDA, cs: 0.6 })
+  versalitas(doc, 'Ejes del Plan Municipal de Desarrollo y ejes adicionales', ML, y, { tam: 7.5, color: GUINDA, cs: 0.6 })
   y += 9
   entradas.filter(e => e.cod).forEach(e => fila(e, true))
   const anexos = entradas.filter(e => e.anexo)
@@ -256,6 +260,19 @@ export function presentacion(doc, ctx, ejes) {
     versalitas(doc, (l.match(/^(\d+|Transversal [AB])/)?.[0] || '').replace(/^(\d+)$/, 'Eje $1').replace('Transversal', 'Eje transversal'), W - ML, y, { tam: 6.5, color: col, cs: 0.8, align: 'right' })
     y += 8.5
   })
+  y += 3
+  fuente(doc, F.SANS, 'normal', 10.5, [58, 46, 48])
+  doc.text(PRESENTACION_ADICIONALES_TEXTO, ML, y)
+  y += 9
+  PRESENTACION_ADICIONALES.forEach((l, i) => {
+    const e = ejes[PRESENTACION_EJES.length + i]
+    const col = e ? hexARgb(e.color_hex || '#7B1F2C') : GUINDA
+    relleno(doc, col); doc.rect(ML, y - 3.4, 1.4, 4.6, 'F')
+    fuente(doc, F.SERIF, 'normal', 13, TINTA)
+    doc.text(l, ML + 5, y)
+    versalitas(doc, 'Eje adicional', W - ML, y, { tam: 6.5, color: col, cs: 0.8, align: 'right' })
+    y += 8.5
+  })
   return page
 }
 
@@ -265,37 +282,26 @@ export function mensajePresidente(doc, ctx) {
   const page = doc.getNumberOfPages()
   y = apertura(doc, y + 4, 'Mensaje del', 'Presidente Municipal')
 
-  // Espacio para la fotografía oficial (la integra Comunicación Social).
-  const fx = ML, fy = y, fw = 84, fh = 108
-  relleno(doc, ALT); doc.rect(fx, fy, fw, fh, 'F')
-  opacidad(doc, 0.07, () => {
-    const eh = 62, ew = eh * RATIO.escudo
-    doc.addImage(ctx.imgs.escudoGuinda.data, 'PNG', fx + (fw - ew) / 2, fy + (fh - eh) / 2, ew, eh, 'escudoGuinda', 'SLOW')
-  })
-  relleno(doc, DORADO); doc.rect(fx, fy + fh, fw, 0.9, 'F')
-  versalitas(doc, 'Fotografía oficial', fx + fw / 2, fy + fh / 2 + 40, { tam: 6.5, color: SUB, cs: 1, align: 'center' })
-
-  const tx = fx + fw + 10, tw = W - ML - tx
+  // Cita de apertura a lo ancho; la firma va una sola vez, al final.
+  const tw = 150, lhQ = altoLinea(14.5, 1.3)
   fuente(doc, F.SERIF, 'normal', 40, DORADO)
-  doc.text('“', tx - 1, y + 14)
+  doc.text('“', ML - 1, y + 10)
   const primero = lineas(doc, MENSAJE_PRESIDENTE[0], tw, F.SERIF, 'italic', 14.5)
   fuente(doc, F.SERIF, 'italic', 14.5, GUINDA)
-  primero.forEach((l, i) => renglon(doc, l, tx, y + 20 + i * altoLinea(14.5, 1.3), tw, i < primero.length - 1))
-  let yt = y + 20 + primero.length * altoLinea(14.5, 1.3) + 6
-  fuente(doc, F.SERIF, 'normal', 17, TINTA)
-  doc.text('Javier Rivera Bonilla', tx, Math.max(yt, fy + fh - 9))
-  versalitas(doc, 'Presidente Municipal de Apizaco', tx, Math.max(yt, fy + fh - 9) + 5.5, { tam: 6.8, color: SUB, cs: 0.55 })
-
-  y = fy + fh + 14
+  primero.forEach((l, i) => renglon(doc, l, ML + 12, y + 8 + i * lhQ, tw, i < primero.length - 1))
+  y += 8 + primero.length * lhQ + 8
   const cuerpo = MENSAJE_PRESIDENTE.slice(1, -1)
   y = parrafos(doc, ctx, cuerpo, y, { seccion: 'Mensaje del Presidente Municipal' })
-  if (y > PIE - 24) y = nuevaPagina(doc, ctx, 'Mensaje del Presidente Municipal')
-  y += 4
+  if (y > PIE - 38) y = nuevaPagina(doc, ctx, 'Mensaje del Presidente Municipal')
+  fuente(doc, F.SERIF, 'italic', 17, GUINDA)
+  doc.text(MENSAJE_LEMA, ML, y + 5)
+  y += 14
   trazo(doc, DORADO); doc.setLineWidth(0.3); doc.line(W - ML - 70, y, W - ML, y)
   fuente(doc, F.SERIF, 'normal', 14, TINTA)
   doc.text('Javier Rivera Bonilla', W - ML, y + 7, { align: 'right' })
+  versalitas(doc, 'Presidente Municipal de Apizaco', W - ML, y + 12, { tam: 6.8, color: SUB, cs: 0.55, align: 'right' })
   fuente(doc, F.SANS, 'normal', 8.5, SUB)
-  doc.text(MENSAJE_PRESIDENTE[MENSAJE_PRESIDENTE.length - 1], W - ML, y + 12, { align: 'right' })
+  doc.text(MENSAJE_PRESIDENTE[MENSAJE_PRESIDENTE.length - 1], W - ML, y + 17, { align: 'right' })
   return page
 }
 
@@ -341,20 +347,6 @@ export function gabinete(doc, ctx) {
   return page
 }
 
-// Secciones cuyo contenido aún no se captura en SIMA.
-export function seccionPendiente(doc, ctx, titulo, texto) {
-  let y = nuevaPagina(doc, ctx, titulo)
-  const page = doc.getNumberOfPages()
-  y = apertura(doc, y + 4, 'Segundo Informe de Gobierno', titulo)
-  trazo(doc, DORADO); doc.setLineWidth(0.3); doc.setLineDashPattern([1.5, 1.2], 0)
-  doc.rect(ML, y + 6, CW, 44, 'S')
-  doc.setLineDashPattern([], 0)
-  versalitas(doc, 'Sección por integrar', W / 2, y + 24, { tam: 8, color: DORADO, cs: 0.9, align: 'center' })
-  fuente(doc, F.SANS, 'normal', 9, SUB)
-  doc.text(doc.splitTextToSize(texto, CW - 30), W / 2, y + 32, { align: 'center' })
-  return page
-}
-
 // ── Portada de eje ───────────────────────────────────────────────────────────
 // Arriba, el diagrama conceptual del eje (pictograma central y sus programas
 // del PMD); abajo, numeral, nombre, descripción y cifras.
@@ -379,7 +371,7 @@ export async function portadaEje(doc, ctx, d, foto, satelites = [], cifras = [])
   const yNomIni = yNomFin - (nom.length - 1) * lhn
   const yRegla = yNomIni - altoLinea(36, 0.78) - 5
   const tamN = d.n.length > 1 ? 100 : 136
-  const yKick = yRegla - 5 - tamN * 0.3528 * 0.68 - 6
+  const yKick = d.n ? yRegla - 5 - tamN * 0.3528 * 0.68 - 6 : yRegla - 6
 
   // 2) Diagrama en el espacio libre entre el encabezado y el numeral: los
   // satélites se reparten parejo en una órbita elíptica alrededor del centro.
@@ -450,8 +442,7 @@ export async function portadaEje(doc, ctx, d, foto, satelites = [], cifras = [])
   fuente(doc, F.SERIF, 'normal', 36, BLANCO)
   nom.forEach((l, i) => doc.text(l, X, yNomIni + i * lhn))
   relleno(doc, DORADO); doc.rect(X, yRegla, 34, 1.1, 'F')
-  fuente(doc, F.LIGHT, 'normal', tamN, BLANCO)
-  doc.text(d.n, X - 2, yRegla - 5)
+  if (d.n) { fuente(doc, F.LIGHT, 'normal', tamN, BLANCO); doc.text(d.n, X - 2, yRegla - 5) }
   versalitas(doc, d.kick, X, yKick, { tam: 9, color: DORADO_CLARO, cs: 1.3 })
   return page
 }
@@ -596,7 +587,7 @@ const rotuloSem = k => ESTADOS.find(e => e.k === (k ?? null))?.l || 'Sin dato'
 
 export function resultadosEje(doc, ctx, d, indicadores, pmdList) {
   const col = hexARgb(d.color)
-  const seccion = `Anexo · ${d.kick}`
+  const seccion = `Anexo · ${d.corto}`
   let y = nuevaPagina(doc, ctx, seccion, col)
   y = apertura(doc, y + 4, `Anexo estadístico · ${d.kick}`, d.nombre, col, 24)
   const v = verdeDe(d)
@@ -773,7 +764,8 @@ function medidasBloque(doc, a, fotos) {
     // cifras y las fotos (en miniatura) en una columna a su derecha. Así caben
     // dos logros con diagrama por página.
     const dw = 104, dh = dw / DIAGRAMA_RATIO, cw = CW - dw - 6
-    const lhC = altoLinea(8.8, 1.4), fhF = fotos.length ? 22.5 : 0
+    // Una sola foto va al ancho de la columna de texto; dos, en miniatura.
+    const lhC = altoLinea(8.8, 1.4), fhF = fotos.length === 1 ? cw * 0.45 : fotos.length ? 22.5 : 0
     const tTit = lineas(doc, sinPunto(a.accion), CW, F.SANS, 'bold', 11.5)
     const tDesc = lineas(doc, a.descripcion, cw, F.SANS, 'normal', 8.8)
     const tPie = lineas(doc, pieDe(a), dw, F.SERIF, 'italic', 8.5).slice(0, 1)
@@ -781,7 +773,8 @@ function medidasBloque(doc, a, fotos) {
     const altoCol = lhM + 2 + tDesc.length * lhC + (cifras.length ? ALTO_CIFRAS + 2 : 0) + (fhF ? fhF + 2.5 : 0)
     return { ancho: true, tTit, tDesc, tPie, lhT, lhM, lhC, cifras, dw, dh, cw, fhF, altoTit, alto: altoTit + Math.max(dh + 5, altoCol) }
   }
-  const pw = CW * 0.44, tw = CW - pw - 7
+  // Con una sola foto, la foto y el párrafo tienen el mismo ancho.
+  const pw = fotos.length === 1 ? (CW - 7) / 2 : CW * 0.44, tw = CW - pw - 7
   const fh = fotos.length >= 2 ? pw * 0.47 : pw * 0.66
   const mh = fotos.length * fh + (fotos.length - 1) * 2.5
   const tTit = lineas(doc, sinPunto(a.accion), tw, F.SANS, 'bold', 11.5)
@@ -839,7 +832,7 @@ async function bloqueDestacado(doc, ctx, a, fotos, y, lado, col, seccion) {
       yt += ALTO_CIFRAS + 1
     }
     if (m.fhF) {
-      const fw = fotos.length >= 2 ? (m.cw - 2.5) / 2 : m.cw * 0.55
+      const fw = fotos.length >= 2 ? (m.cw - 2.5) / 2 : m.cw
       fotos.forEach((f, i) => doc.addImage(recortarFoto(f.bmp, fw / m.fhF), 'JPEG', cx + i * (fw + 2.5), yt + 2.5, fw, m.fhF, undefined, 'FAST'))
     }
     return y + m.alto + 9
@@ -881,7 +874,7 @@ function renglonAccion(doc, ctx, a, y, col, seccion) {
 // Apertura del capítulo: el logro que Planeación marcó para abrir el eje, con
 // su foto o diagrama, y al costado las cifras de resultado del eje.
 async function aperturaLogros(doc, ctx, d, a, fotos, acciones) {
-  const col = hexARgb(d.color), seccion = `${d.kick} · Logros`
+  const col = hexARgb(d.color), seccion = `${d.corto} · Logros`
   let y = nuevaPagina(doc, ctx, seccion, col)
   y = apertura(doc, y + 4, `${d.kick} · ${d.nombre}`, sinPunto(a.accion), col, 25)
   const mw = 118, sx = ML + mw + 8, sw = W - ML - sx
@@ -942,7 +935,7 @@ async function aperturaLogros(doc, ctx, d, a, fotos, acciones) {
 // Capítulo de logros de un eje. Devuelve la página donde empieza.
 export async function logrosEje(doc, ctx, d, acciones, fotosPorAccion) {
   const col = hexARgb(d.color)
-  const seccion = `${d.kick} · Logros`
+  const seccion = `${d.corto} · Logros`
   const fotosDe = a => (fotosPorAccion.get(a.id) || []).slice(0, FOTOS_INFORME)
   const destacada = a => fotosDe(a).length > 0 || !!diagramaDe(a)
   const principal = acciones.find(a => a.destacado_eje)
@@ -1071,6 +1064,73 @@ export function diezLogros(doc, ctx, logros, ejesDatos) {
     }
   })
   return page
+}
+
+// ── Nota metodológica y glosario (anexo) ─────────────────────────────────────
+export function notaMetodologica(doc, ctx, corteLargo) {
+  let y = nuevaPagina(doc, ctx, 'Anexo estadístico')
+  const page = doc.getNumberOfPages()
+  y = apertura(doc, y + 4, 'Anexo estadístico', 'Cómo se midieron los resultados')
+  const cw = (CW - 10) / 2, x2 = ML + cw + 10, lh = altoLinea(9.5, 1.45)
+  fuente(doc, F.SERIF, 'normal', 15, TINTA)
+  doc.text('Nota metodológica', ML, y); doc.text('Glosario', x2, y)
+  let y1 = y + 7
+  NOTA_METODOLOGICA.forEach(p => {
+    const ls = lineas(doc, p.replace('{corte}', corteLargo), cw, F.SANS, 'normal', 9.5)
+    fuente(doc, F.SANS, 'normal', 9.5, [58, 46, 48])
+    ls.forEach((l, i) => { renglon(doc, l, ML, y1, cw, i < ls.length - 1); y1 += lh })
+    y1 += 3
+  })
+  let y2 = y + 7
+  GLOSARIO.forEach(([t, d]) => {
+    const tt = lineas(doc, t, cw, F.SANS, 'bold', 9.5)
+    fuente(doc, F.SANS, 'bold', 9.5, TINTA)
+    tt.forEach(l => { doc.text(l, x2, y2); y2 += lh })
+    const ls = lineas(doc, d, cw, F.SANS, 'normal', 9.5)
+    fuente(doc, F.SANS, 'normal', 9.5, [70, 58, 60])
+    ls.forEach(l => { doc.text(l, x2, y2); y2 += lh })
+    y2 += 3
+  })
+  return page
+}
+
+// ── Colofón y contraportada ──────────────────────────────────────────────────
+export function colofon(doc, ctx, { corteLargo, nLogros }) {
+  nuevaPagina(doc, ctx, 'Colofón')
+  const cx = W / 2, eh = 26, ew = eh * RATIO.escudo
+  let y = 150
+  doc.addImage(ctx.imgs.escudoGuinda.data, 'PNG', cx - ew / 2, y, ew, eh, 'escudoGuinda', 'SLOW')
+  y += eh + 9
+  fuente(doc, F.SERIF, 'normal', 15, TINTA)
+  doc.text('Segundo Informe de Gobierno', cx, y, { align: 'center' })
+  versalitas(doc, 'H. Ayuntamiento de Apizaco, Tlaxcala · Administración 2024 – 2027', cx, y + 6, { tam: 6.8, color: GUINDA, cs: 0.55, align: 'center' })
+  relleno(doc, DORADO); doc.rect(cx - 11, y + 11, 22, 0.6, 'F')
+  y += 19
+  const hoy = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
+  const texto = [
+    nLogros > 0 && `Este documento reúne ${nLogros === 1 ? 'un logro' : `${nLogros} logros`} del periodo comprendido entre el ${PERIODO_LARGO.replace(' – ', ' y el ')}, reportados por las áreas municipales con su evidencia.`,
+    `Los indicadores de desempeño corresponden al ejercicio y tienen corte al ${corteLargo}.`,
+    'Integración: Dirección de Planeación y Evaluación, con información registrada en el Sistema de Información Municipal de Avance (SIMA).',
+    `Apizaco, Tlaxcala. Generado el ${hoy}.`,
+  ].filter(Boolean)
+  fuente(doc, F.SANS, 'normal', 9, SUB)
+  texto.forEach(t => {
+    const ls = doc.splitTextToSize(t, 120)
+    doc.text(ls, cx, y, { align: 'center' }); y += ls.length * altoLinea(9, 1.45) + 2.5
+  })
+}
+
+export async function contraportada(doc, ctx) {
+  doc.addPage('letter', 'portrait')
+  ctx.portadas.add(doc.getNumberOfPages())
+  doc.addImage(await artePortadaPrincipal(), 'JPEG', 0, 0, W, H, 'artePortada', 'FAST')
+  marco(doc, DORADO, 10, 0.3)
+  const eh = 58, ew = eh * RATIO.escudo
+  doc.addImage(ctx.imgs.escudoDorado.data, 'PNG', (W - ew) / 2, 92, ew, eh, 'escudoDorado', 'SLOW')
+  versalitas(doc, 'H. Ayuntamiento de Apizaco, Tlaxcala', W / 2, 166, { tam: 8.5, color: DORADO_CLARO, cs: 0.55, align: 'center' })
+  versalitas(doc, 'Administración 2024 – 2027', W / 2, 171.5, { tam: 7, color: [226, 196, 202], cs: 0.8, align: 'center', estilo: 'normal' })
+  const lh = 17
+  doc.addImage(ctx.imgs.logoBlanco.data, 'PNG', (W - lh * RATIO.logo) / 2, 236, lh * RATIO.logo, lh, 'logoBlanco', 'FAST')
 }
 
 // ── Pie de página (todas menos las portadas) ─────────────────────────────────
