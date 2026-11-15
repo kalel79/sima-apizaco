@@ -7,6 +7,8 @@ import { generarPDF, generarExcel, generarExcelEjecutivo, generarPDFPiloto, gene
 import { getInformeActual, getAccionesInforme, getEjesCatalogo, descargarFotosAcciones, getProgramaPorIndicador } from '../../lib/informe.js'
 import { esErrorDeChunk } from '../../lib/recargaVersion.js'
 import { indicadoresAlCorte, programasAlCorte, corteInforme } from '../../utils/informeIndicadores.js'
+import { revisarInforme } from '../../utils/informeRevision.js'
+import RevisionInforme from './RevisionInforme.jsx'
 import { generarArbolProblemaObjetivosMIR } from '../../utils/reporteArbolMIR'
 import { generarMatrizPMDAreas } from '../../utils/reporteMatrizPMD'
 import {
@@ -24,6 +26,7 @@ import { Button } from '../ui.jsx'
 // reporte desde el padre (instancia única de useDatosReporte).
 export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoading, rError, cargar, mesActual, anioActual, periodoLabel }) {
   const [genStatus, setGenStatus] = useState(null)
+  const [revInforme, setRevInforme] = useState(null) // { datos, rev } tras la revisión previa
   const [anioArbol, setAnioArbol] = useState(2026)
   const [cierres, setCierres] = useState([])
   const [periodosConDatos, setPeriodosConDatos] = useState([])
@@ -136,8 +139,13 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
     }
   }
 
+  const errorInforme = e => 'error:' + (esErrorDeChunk(e)
+    ? 'Hay una versión nueva de SIMA. Cierra y vuelve a abrir la app (o recarga la página) e inténtalo de nuevo.'
+    : e.message)
+
+  // Paso 1: reúne los datos del Informe y muestra la revisión previa.
   async function handleInformeGobierno() {
-    setGenStatus('cargando')
+    setGenStatus('cargando'); setRevInforme(null)
     try {
       const [pmdVivo, claves, informe, catalogo, progDe] = await Promise.all([
         getComparativoPMD(),
@@ -155,15 +163,26 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
       const pmdProgramas = programasAlCorte(pmdVivo, indsCorte, progDe)
       const acciones = informe ? await getAccionesInforme(informe.id, { soloIncluidas: true }) : []
       const fotosPorAccion = await descargarFotosAcciones(acciones.map(a => a.id))
+      const datos = { ejes: ejesCorte, indicadoresPorEje: indsCorte, pmdProgramas, acciones, catalogo, fotosPorAccion, corte }
+      setRevInforme({ datos, rev: revisarInforme({ acciones, fotosPorAccion, ejes: ejesCorte, indicadoresPorEje: indsCorte }) })
+      setGenStatus(null)
+    } catch (e) {
+      setGenStatus(errorInforme(e))
+    }
+  }
+
+  // Paso 2: genera el PDF con los datos ya revisados.
+  async function descargarInforme(borrador) {
+    if (!revInforme || (!borrador && revInforme.rev.bloqueos > 0)) return
+    setGenStatus('cargando')
+    try {
       const mod = await import('../../utils/informeGobierno')
       // Sin módulo = chunk de un deploy anterior; recargaVersion ya está recargando.
       if (!mod) { setGenStatus('error:SIMA se actualizó. Recargando… vuelve a tocar el botón.'); return }
-      await mod.generarInformeGobierno({ ejes: ejesCorte, indicadoresPorEje: indsCorte, pmdProgramas, acciones, catalogo, fotosPorAccion, corte })
+      await mod.generarInformeGobierno({ ...revInforme.datos, borrador })
       setGenStatus('ok')
     } catch (e) {
-      setGenStatus('error:' + (esErrorDeChunk(e)
-        ? 'Hay una versión nueva de SIMA. Cierra y vuelve a abrir la app (o recarga la página) e inténtalo de nuevo.'
-        : e.message))
+      setGenStatus(errorInforme(e))
     }
   }
 
@@ -268,11 +287,16 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
       {/* Informe de Gobierno */}
       <div style={{ marginBottom: '1rem' }}>
         <div style={{ fontSize: '0.62rem', color: C.txtMuted, marginBottom: '0.5rem', letterSpacing: 1 }}>
-          SEGUNDO INFORME DE GOBIERNO — Sep 2025 – Ago 2026, portada + 9 ejes + acciones relevantes capturadas por las áreas:
+          SEGUNDO INFORME DE GOBIERNO — Sep 2025 – Ago 2026: logros por eje y anexo de indicadores. Antes de descargar se muestra una revisión previa:
         </div>
         <Button variant="doradoOsc" icon={Landmark} loading={genStatus === 'cargando'} disabled={rLoading} onClick={handleInformeGobierno}>
           Descargar Informe de Gobierno
         </Button>
+        {revInforme && (
+          <RevisionInforme rev={revInforme.rev} ocupado={genStatus === 'cargando'}
+            onBorrador={() => descargarInforme(true)} onFinal={() => descargarInforme(false)}
+            onCerrar={() => setRevInforme(null)} />
+        )}
       </div>
 
       {/* Árbol Problema-Objetivos MIR (9 programas) */}

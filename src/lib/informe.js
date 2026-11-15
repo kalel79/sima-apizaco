@@ -6,6 +6,8 @@
 import { supabase, paginarTodo } from './supabaseClient.js'
 import { getIndicadoresAreaAnio } from './capturaValidacion.js'
 
+export { faltantesLogro } from '../utils/informeRevision.js'
+
 // Las plantillas del 2º informe se armaron con el MIR 2026 (170 indicadores):
 // el periodo sep 2025 – ago 2026 cae casi completo en ese ejercicio.
 export function anioMIRInforme(informe) {
@@ -60,17 +62,6 @@ export async function getAreasInforme() {
 // tema. Los captura el enlace o Planeación; los destacados, solo Planeación
 // (el trigger ignora los de otro rol).
 export const CAMPOS_LOGRO = ['cifra_valor', 'cifra_etiqueta', 'lugar', 'pie_foto', 'tema']
-
-// Qué le falta a una acción para publicarse como logro completo. El pie de
-// foto solo cuenta si la acción tiene fotos.
-export function faltantesLogro(a, nFotos = 0) {
-  return [
-    !(a.cifra_valor && a.cifra_etiqueta) && 'cifra principal',
-    !a.lugar && 'dónde',
-    !a.tema && 'tema',
-    nFotos > 0 && !a.pie_foto && 'pie de foto',
-  ].filter(Boolean)
-}
 
 function filaDesdeForm(f, { conLogro, conDestacados }) {
   const vinculada = !!f.indicador_id
@@ -192,6 +183,15 @@ export async function urlsFotos(paths, segundos = 600) {
   return Object.fromEntries((data || []).filter(d => d.signedUrl).map(d => [d.path, d.signedUrl]))
 }
 
+// Huella del archivo de una foto, para avisar cuando la misma imagen se subió
+// a varias acciones (revisión previa del Informe).
+async function huellaDe(blob) {
+  try {
+    const h = await crypto.subtle.digest('SHA-1', await blob.arrayBuffer())
+    return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, '0')).join('')
+  } catch (_) { return null }
+}
+
 // Para el PDF: baja las fotos de las acciones como ImageBitmap, agrupadas por
 // acción y en su orden. Una foto que no baja se omite, no tumba el Informe.
 export async function descargarFotosAcciones(accionIds) {
@@ -203,9 +203,10 @@ export async function descargarFotosAcciones(accionIds) {
     try {
       const resp = await fetch(urls[f.storage_path])
       if (!resp.ok) return
-      const bmp = await createImageBitmap(await resp.blob())
+      const blob = await resp.blob()
+      const bmp = await createImageBitmap(blob)
       if (!porAccion.has(f.accion_id)) porAccion.set(f.accion_id, [])
-      porAccion.get(f.accion_id).push({ orden: f.orden, bmp })
+      porAccion.get(f.accion_id).push({ orden: f.orden, bmp, huella: await huellaDe(blob) })
     } catch (_) { /* foto omitida */ }
   }))
   porAccion.forEach(l => l.sort((a, b) => a.orden - b.orden))

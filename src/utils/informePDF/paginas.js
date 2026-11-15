@@ -1134,9 +1134,19 @@ export async function contraportada(doc, ctx) {
 }
 
 // ── Pie de página (todas menos las portadas) ─────────────────────────────────
-export function pies(doc, ctx, textoCentro) {
+// Con `borrador`, cada página (también las portadas) lleva la marca de agua.
+export function pies(doc, ctx, textoCentro, borrador = false) {
   const total = doc.getNumberOfPages()
   for (let p = 1; p <= total; p++) {
+    if (borrador) {
+      doc.setPage(p)
+      opacidad(doc, 0.2, () => {
+        // Centrada en la página: jsPDF gira el texto desde su punto de inicio.
+        fuente(doc, F.SANS, 'bold', 96, [150, 140, 140])
+        const ang = 52 * Math.PI / 180, w = doc.getTextWidth('BORRADOR')
+        doc.text('BORRADOR', W / 2 - w / 2 * Math.cos(ang), H / 2 + w / 2 * Math.sin(ang), { angle: 52 })
+      })
+    }
     if (ctx.portadas.has(p)) continue
     doc.setPage(p)
     trazo(doc, LINEA); doc.setLineWidth(0.2); doc.line(ML, H - 13, W - ML, H - 13)
