@@ -25,11 +25,12 @@ function textoCorte(corte) {
 //                    (indicadoresAlCorte en informeIndicadores.js)
 // pmdProgramas:      filas de v_comparativo_pmd, al mismo corte (programasAlCorte)
 // corte:             { anio, mes } del acumulado de los indicadores
+// borrador:          marca de agua «Borrador» en cada página
 // acciones:          filas de v_informe_acciones con incluir_en_informe
 // catalogo:          filas de `ejes` (descripción de cada eje para su portada)
 // fotosPorAccion:    Map accion_id → [{ orden, bmp }] (fase_informe_02)
 export async function generarInformeGobierno({
-  ejes: ejesBase, indicadoresPorEje, pmdProgramas, acciones = [], catalogo: catalogoBase = [], fotosPorAccion = new Map(), corte,
+  ejes: ejesBase, indicadoresPorEje, pmdProgramas, acciones = [], catalogo: catalogoBase = [], fotosPorAccion = new Map(), corte, borrador = false,
 }) {
   const ejes = conColor(ejesBase), catalogo = conColor(catalogoBase)
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter', compress: true })
@@ -106,11 +107,11 @@ export async function generarInformeGobierno({
   await contraportada(doc, ctx)
 
   indice(doc, ctx, entradas)
-  pies(doc, ctx, `Indicadores con corte al ${corteTexto.largo}`)
+  pies(doc, ctx, `Indicadores con corte al ${corteTexto.largo}`, borrador)
   // Marcadores del PDF: las mismas entradas del contenido.
   entradas.forEach(e => doc.outline.add(null, e.cod ? `${datos[e.cod].kick} · ${e.label}` : e.label, { pageNumber: e.page }))
 
   const f = new Date()
   const fStr = `${f.getFullYear()}${String(f.getMonth() + 1).padStart(2, '0')}${String(f.getDate()).padStart(2, '0')}`
-  doc.save(`SIMA_SegundoInformeGobierno_${fStr}.pdf`)
+  doc.save(`SIMA_SegundoInformeGobierno_${fStr}${borrador ? '_BORRADOR' : ''}.pdf`)
 }
