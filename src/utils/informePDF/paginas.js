@@ -9,6 +9,7 @@ import { CENTRO } from './pictogramasSvg.js'
 import { dibujarDiagrama, diagramaValido, DIAGRAMA_RATIO } from './diagramas.js'
 import {
   CABILDO, GABINETE, PRESENTACION_PARRAFOS, PRESENTACION_EJES, MENSAJE_PRESIDENTE, NOTA_METODOLOGICA, GLOSARIO,
+  PRESENTACION_ADICIONALES_TEXTO, PRESENTACION_ADICIONALES,
 } from '../informeGobiernoContenido.js'
 
 export const W = 215.9, H = 279.4, ML = 18, CW = W - ML * 2
@@ -161,14 +162,17 @@ function franjaCifras(doc, y, cifras, color = GUINDA) {
 // Datos de presentación de un eje a partir de v_resumen_ejes + catálogo.
 export function datosEje(eje, catalogo) {
   const cod = eje.codigo
-  const n = cod.startsWith('E') ? cod.slice(1) : cod.startsWith('T') ? cod.slice(1) : cod
-  const kick = cod.startsWith('E') ? `Eje ${n}` : cod.startsWith('T') ? `Eje transversal ${n}` : `Eje ${cod}`
+  // E1-E5 y transversales A/B son del PMD; los demás (MS, AJ) son ejes
+  // adicionales de la administración: sin numeral y rotulados por su nombre.
+  const pmd = /^(E\d+|T[A-Z])$/.test(cod)
+  const n = pmd ? cod.slice(1) : ''
+  const kick = cod.startsWith('E') && pmd ? `Eje ${n}` : pmd ? `Eje transversal ${n}` : 'Eje adicional'
   const nombre = String(eje.eje || '').replace(/^Transversal [AB]\s*[–-]\s*/, '')
   const sem = [eje.optimo || 0, eje.adecuado || 0, eje.riesgo || 0, eje.critico || 0]
   const total = eje.total_indicadores || 0, sinMeta = eje.sin_meta || 0
   return {
     sinMeta, sinDato: eje.sin_dato ?? Math.max(0, total - sem.reduce((t, v) => t + v, 0) - sinMeta),
-    cod, n, kick, nombre, color: eje.color_hex || catalogo?.color_hex || '#7B1F2C',
+    cod, n, kick, corto: pmd ? kick : nombre, nombre, color: eje.color_hex || catalogo?.color_hex || '#7B1F2C',
     descripcion: catalogo?.descripcion || '', total: eje.total_indicadores || 0, pct: eje.pct_promedio, sem,
   }
 }
@@ -228,7 +232,7 @@ export function indice(doc, ctx, entradas) {
   }
   entradas.filter(e => !e.cod && !e.anexo).forEach(e => fila(e, false))
   y += 4
-  versalitas(doc, 'Ejes del Plan Municipal de Desarrollo 2024 – 2027', ML, y, { tam: 7.5, color: GUINDA, cs: 0.6 })
+  versalitas(doc, 'Ejes del Plan Municipal de Desarrollo y ejes adicionales', ML, y, { tam: 7.5, color: GUINDA, cs: 0.6 })
   y += 9
   entradas.filter(e => e.cod).forEach(e => fila(e, true))
   const anexos = entradas.filter(e => e.anexo)
@@ -254,6 +258,19 @@ export function presentacion(doc, ctx, ejes) {
     fuente(doc, F.SERIF, 'normal', 13, TINTA)
     doc.text(l.replace(/^(\d+|Transversal [AB])\.\s*/, ''), ML + 5, y)
     versalitas(doc, (l.match(/^(\d+|Transversal [AB])/)?.[0] || '').replace(/^(\d+)$/, 'Eje $1').replace('Transversal', 'Eje transversal'), W - ML, y, { tam: 6.5, color: col, cs: 0.8, align: 'right' })
+    y += 8.5
+  })
+  y += 3
+  fuente(doc, F.SANS, 'normal', 10.5, [58, 46, 48])
+  doc.text(PRESENTACION_ADICIONALES_TEXTO, ML, y)
+  y += 9
+  PRESENTACION_ADICIONALES.forEach((l, i) => {
+    const e = ejes[PRESENTACION_EJES.length + i]
+    const col = e ? hexARgb(e.color_hex || '#7B1F2C') : GUINDA
+    relleno(doc, col); doc.rect(ML, y - 3.4, 1.4, 4.6, 'F')
+    fuente(doc, F.SERIF, 'normal', 13, TINTA)
+    doc.text(l, ML + 5, y)
+    versalitas(doc, 'Eje adicional', W - ML, y, { tam: 6.5, color: col, cs: 0.8, align: 'right' })
     y += 8.5
   })
   return page
@@ -352,7 +369,7 @@ export async function portadaEje(doc, ctx, d, foto, satelites = [], cifras = [])
   const yNomIni = yNomFin - (nom.length - 1) * lhn
   const yRegla = yNomIni - altoLinea(36, 0.78) - 5
   const tamN = d.n.length > 1 ? 100 : 136
-  const yKick = yRegla - 5 - tamN * 0.3528 * 0.68 - 6
+  const yKick = d.n ? yRegla - 5 - tamN * 0.3528 * 0.68 - 6 : yRegla - 6
 
   // 2) Diagrama en el espacio libre entre el encabezado y el numeral: los
   // satélites se reparten parejo en una órbita elíptica alrededor del centro.
@@ -423,8 +440,7 @@ export async function portadaEje(doc, ctx, d, foto, satelites = [], cifras = [])
   fuente(doc, F.SERIF, 'normal', 36, BLANCO)
   nom.forEach((l, i) => doc.text(l, X, yNomIni + i * lhn))
   relleno(doc, DORADO); doc.rect(X, yRegla, 34, 1.1, 'F')
-  fuente(doc, F.LIGHT, 'normal', tamN, BLANCO)
-  doc.text(d.n, X - 2, yRegla - 5)
+  if (d.n) { fuente(doc, F.LIGHT, 'normal', tamN, BLANCO); doc.text(d.n, X - 2, yRegla - 5) }
   versalitas(doc, d.kick, X, yKick, { tam: 9, color: DORADO_CLARO, cs: 1.3 })
   return page
 }
@@ -569,7 +585,7 @@ const rotuloSem = k => ESTADOS.find(e => e.k === (k ?? null))?.l || 'Sin dato'
 
 export function resultadosEje(doc, ctx, d, indicadores, pmdList) {
   const col = hexARgb(d.color)
-  const seccion = `Anexo · ${d.kick}`
+  const seccion = `Anexo · ${d.corto}`
   let y = nuevaPagina(doc, ctx, seccion, col)
   y = apertura(doc, y + 4, `Anexo estadístico · ${d.kick}`, d.nombre, col, 24)
   const v = verdeDe(d)
@@ -746,7 +762,8 @@ function medidasBloque(doc, a, fotos) {
     // cifras y las fotos (en miniatura) en una columna a su derecha. Así caben
     // dos logros con diagrama por página.
     const dw = 104, dh = dw / DIAGRAMA_RATIO, cw = CW - dw - 6
-    const lhC = altoLinea(8.8, 1.4), fhF = fotos.length ? 22.5 : 0
+    // Una sola foto va al ancho de la columna de texto; dos, en miniatura.
+    const lhC = altoLinea(8.8, 1.4), fhF = fotos.length === 1 ? cw * 0.45 : fotos.length ? 22.5 : 0
     const tTit = lineas(doc, sinPunto(a.accion), CW, F.SANS, 'bold', 11.5)
     const tDesc = lineas(doc, a.descripcion, cw, F.SANS, 'normal', 8.8)
     const tPie = lineas(doc, pieDe(a), dw, F.SERIF, 'italic', 8.5).slice(0, 1)
@@ -754,7 +771,8 @@ function medidasBloque(doc, a, fotos) {
     const altoCol = lhM + 2 + tDesc.length * lhC + (cifras.length ? ALTO_CIFRAS + 2 : 0) + (fhF ? fhF + 2.5 : 0)
     return { ancho: true, tTit, tDesc, tPie, lhT, lhM, lhC, cifras, dw, dh, cw, fhF, altoTit, alto: altoTit + Math.max(dh + 5, altoCol) }
   }
-  const pw = CW * 0.44, tw = CW - pw - 7
+  // Con una sola foto, la foto y el párrafo tienen el mismo ancho.
+  const pw = fotos.length === 1 ? (CW - 7) / 2 : CW * 0.44, tw = CW - pw - 7
   const fh = fotos.length >= 2 ? pw * 0.47 : pw * 0.66
   const mh = fotos.length * fh + (fotos.length - 1) * 2.5
   const tTit = lineas(doc, sinPunto(a.accion), tw, F.SANS, 'bold', 11.5)
@@ -812,7 +830,7 @@ async function bloqueDestacado(doc, ctx, a, fotos, y, lado, col, seccion) {
       yt += ALTO_CIFRAS + 1
     }
     if (m.fhF) {
-      const fw = fotos.length >= 2 ? (m.cw - 2.5) / 2 : m.cw * 0.55
+      const fw = fotos.length >= 2 ? (m.cw - 2.5) / 2 : m.cw
       fotos.forEach((f, i) => doc.addImage(recortarFoto(f.bmp, fw / m.fhF), 'JPEG', cx + i * (fw + 2.5), yt + 2.5, fw, m.fhF, undefined, 'FAST'))
     }
     return y + m.alto + 9
@@ -854,7 +872,7 @@ function renglonAccion(doc, ctx, a, y, col, seccion) {
 // Apertura del capítulo: el logro que Planeación marcó para abrir el eje, con
 // su foto o diagrama, y al costado las cifras de resultado del eje.
 async function aperturaLogros(doc, ctx, d, a, fotos, acciones) {
-  const col = hexARgb(d.color), seccion = `${d.kick} · Logros`
+  const col = hexARgb(d.color), seccion = `${d.corto} · Logros`
   let y = nuevaPagina(doc, ctx, seccion, col)
   y = apertura(doc, y + 4, `${d.kick} · ${d.nombre}`, sinPunto(a.accion), col, 25)
   const mw = 118, sx = ML + mw + 8, sw = W - ML - sx
@@ -915,7 +933,7 @@ async function aperturaLogros(doc, ctx, d, a, fotos, acciones) {
 // Capítulo de logros de un eje. Devuelve la página donde empieza.
 export async function logrosEje(doc, ctx, d, acciones, fotosPorAccion) {
   const col = hexARgb(d.color)
-  const seccion = `${d.kick} · Logros`
+  const seccion = `${d.corto} · Logros`
   const fotosDe = a => (fotosPorAccion.get(a.id) || []).slice(0, FOTOS_INFORME)
   const destacada = a => fotosDe(a).length > 0 || !!diagramaDe(a)
   const principal = acciones.find(a => a.destacado_eje)

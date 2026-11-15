@@ -13,7 +13,7 @@ export const PMD_EJE_MAP = {
 
 export const CABILDO = [
   ['Presidente Municipal', 'Javier Rivera Bonilla'],
-  ['Síndico Municipal', 'María de la Paz Flores Hernández'],
+  ['Síndica Municipal', 'María de la Paz Flores Hernández'],
   ['Primer Regidor', 'David Morales Hernández'],
   ['Segunda Regidora', 'Leticia Atempa Díaz'],
   ['Tercer Regidor', 'José Arnulfo Alva Sánchez'],
@@ -38,15 +38,15 @@ export const GABINETE = [
   ['Dirección de Planeación y Evaluación', 'Abraham Padilla Vásquez'],
   ['Dirección Administrativa', 'Estela López Montiel'],
   ['Dirección de Parquímetros', 'Baldomero Galaviz Leal'],
-  ['Transparencia', 'Cirilo Rosalio Espejel Velazco'],
-  ['Coordinación de TICS y Sistemas', 'Jorge Rosette Jordán'],
+  ['Unidad de Transparencia', 'Cirilo Rosalio Espejel Velazco'],
+  ['Coordinación de Tecnologías de la Información', 'Jorge Rosette Jordán'],
   ['Dirección Jurídica', 'Omar Muñoz Torres'],
-  ['Tesorero', 'David Hernández Montiel'],
+  ['Tesorería Municipal', 'David Hernández Montiel'],
   ['Órgano Interno de Control', 'María Maricela Escobar Sánchez'],
   ['Dirección de Desarrollo Económico', 'David Velázquez Rugerio'],
   ['Instituto Municipal de la Mujer', 'Anabel Alducin Lima'],
   ['Dirección del DIF', 'Reyna Geraldine Fernández Suárez'],
-  ['Dirección de Seguridad Pública', 'Cap. Corb Imp José Ramón Jacques Mena'],
+  ['Dirección de Seguridad Pública', 'Capitán de Corbeta José Ramón Jacques Mena'],
   ['Dirección de Obras Públicas', 'Jesús Martínez Vázquez'],
   ['Dirección de Servicios Municipales', 'Gregorio Hugo López Alducin'],
   ['Dirección de Imagen Urbana', 'Manuel Pedro González Báez'],
@@ -54,7 +54,6 @@ export const GABINETE = [
   ['Dirección de Turismo y Cultura', 'Sergio Jair Méndez Ramírez'],
   ['Dirección de Juzgado Municipal', 'Hilario Padilla Longino'],
   ['Dirección de Ecología y Desarrollo Ambiental', 'Edgar Torres López'],
-  ['Dirección de Salud', 'Jesús Servando Cervantes Huerta'],
   ['CAPAMA', 'Juan Ignacio Muñoz Guevara'],
   ['Coordinación de Comunicación Social', 'David Espinosa del Ángel'],
   ['Coordinación de Protección Civil', 'Israel Méndez Tlapalamatl'],
@@ -82,8 +81,12 @@ export const PRESENTACION_EJES = [
   'Transversal B. Igualdad Sustantiva',
 ]
 
+// Ejes adicionales de la administración (no forman parte del PMD).
+export const PRESENTACION_ADICIONALES_TEXTO = 'A ellos se suman dos ejes adicionales de la administración municipal:'
+export const PRESENTACION_ADICIONALES = ['Municipio Solidario', 'Administración y Procuración de Justicia']
+
 export const MENSAJE_PRESIDENTE = [
-  'Me dirijo a ustedes con profundo respeto y sentido de responsabilidad para presentar el Segundo Informe Ciudadano de Gobierno, correspondiente al periodo septiembre 2025 – agosto 2026, ejercicio con el que rendimos cuentas públicas de los resultados, avances y compromisos de esta administración.',
+  'Me dirijo a ustedes con profundo respeto y sentido de responsabilidad para presentar el Segundo Informe de Gobierno, correspondiente al periodo septiembre 2025 – agosto 2026, ejercicio con el que rendimos cuentas públicas de los resultados, avances y compromisos de esta administración.',
   'Este informe representa más que un simple documento contable: es el reflejo de un gobierno que decidió romper con las viejas prácticas; que puso al ciudadano en el centro de las decisiones; que apostó por la transparencia, la honestidad y la eficiencia en el uso de los recursos públicos.',
   'Durante este segundo año de gobierno, hemos consolidado los programas iniciados en nuestra primera etapa y avanzado con firmeza en el cumplimiento de los compromisos del Plan Municipal de Desarrollo 2024-2027. Seguimos construyendo un Apizaco más seguro, más justo, más próspero y más equitativo para todas y todos.',
   'Apizaco, Tlaxcala, 2026.',
