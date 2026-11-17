@@ -71,7 +71,10 @@ export default function RevisionInforme({ rev, ocupado, onBorrador, onFinal, onC
         </Punto>
         <Punto tipo={rev.sinDatos ? 'aviso' : 'ok'} cantidad={rev.sinDatos}
           titulo="Acciones sin datos de logro completos"
-          detalle="Les falta cifra principal, dónde, tema o pie de foto. Se publican, pero agrupadas por programa y sin cifra destacada." />
+          detalle="Les falta cifra principal, dónde o tema. Se publican igual: sin tema se agrupan por programa, sin cifra se destacan los beneficiarios (si los hay) y sin dónde se muestra el área." />
+        <Punto tipo={rev.sinPie ? 'aviso' : 'ok'} cantidad={rev.sinPie}
+          titulo="Acciones con fotos y sin pie de foto"
+          detalle="Se publican completas; bajo la foto se imprime el área y la fecha." />
         <Punto tipo={rev.logrosAnio === 0 || rev.logrosAnio > MAX_LOGROS_ANIO ? 'aviso' : 'ok'} cantidad={rev.logrosAnio}
           titulo="Logros marcados para «Los logros del año»"
           detalle={rev.logrosAnio === 0 ? 'Sin logros marcados, esa página no aparece en el documento.'

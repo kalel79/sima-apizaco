@@ -41,7 +41,10 @@ export function revisarInforme({ acciones, fotosPorAccion = new Map(), ejes = []
   return {
     total: acciones.length,
     corchetes,
-    sinDatos: acciones.filter(a => faltantesLogro(a, nFotos(a)).length).length,
+    // Sin cifra, dónde o tema (el pie de foto se cuenta aparte: su falta solo
+    // cambia el texto bajo la foto, no cómo se publica la acción).
+    sinDatos: acciones.filter(a => faltantesLogro(a).length).length,
+    sinPie: acciones.filter(a => nFotos(a) > 0 && !a.pie_foto).length,
     logrosAnio: acciones.filter(a => a.destacado_informe).length,
     sinApertura: ejes.filter(e => conAcciones.has(e.codigo) && !acciones.some(a => a.eje_codigo === e.codigo && a.destacado_eje)).map(e => nombreEje[e.codigo]),
     ejesSinLogros: ejes.filter(e => !conAcciones.has(e.codigo)).map(e => nombreEje[e.codigo]),
