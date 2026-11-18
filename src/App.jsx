@@ -35,6 +35,9 @@ const NAV_INFORME = {id:'informe', l:'Informe', icon:Landmark}
 const NAV_DESPUES_PMD = [
   {id:'alertas',    l:'Alertas',    icon:Bell},
 ]
+// Áreas que solo participan en el Informe de Gobierno (sin indicadores MIR):
+// su enlace ve únicamente el módulo Informe. 39 = CAPAMA.
+const AREAS_SOLO_INFORME = [39]
 
 export default function App() {
   const [pan, setPan] = useState('dashboard')
@@ -53,7 +56,8 @@ export default function App() {
   // Informe de Gobierno (fase_informe_01): el enlace captura las acciones de su
   // área y admin/planeación revisan; la RLS lo respalda.
   const puedeVerInforme = isAdmin || isPlaneacion || isEnlace
-  const NAV = [...NAV_ANTES_PMD, ...(puedeVerPMD ? [NAV_PMD] : []), ...NAV_DESPUES_PMD, ...(puedeVerASM ? [NAV_ASM] : []), ...(puedeVerMML ? [NAV_MML] : []), ...(puedeVerInforme ? [NAV_INFORME] : []), ...(puedeCapturar ? [NAV_CAPTURA] : [])]
+  const soloInforme = isEnlace && AREAS_SOLO_INFORME.includes(profile?.area_id)
+  const NAV = soloInforme ? [NAV_INFORME] : [...NAV_ANTES_PMD, ...(puedeVerPMD ? [NAV_PMD] : []), ...NAV_DESPUES_PMD, ...(puedeVerASM ? [NAV_ASM] : []), ...(puedeVerMML ? [NAV_MML] : []), ...(puedeVerInforme ? [NAV_INFORME] : []), ...(puedeCapturar ? [NAV_CAPTURA] : [])]
   const { mesActual, anioActual, loading: cfgLoading, refetch: refetchCfg } = useConfiguracion()
   const periodoLabel = formatPeriodoLabel(mesActual, anioActual)
 
@@ -65,6 +69,11 @@ export default function App() {
   useEffect(() => {
     if (user?.id) refetchCfg()
   }, [user?.id]) // eslint-disable-line
+
+  // El enlace de un área "solo Informe" entra directo al módulo Informe.
+  useEffect(() => {
+    if (soloInforme && pan !== 'informe') setPan('informe')
+  }, [soloInforme, pan])
 
   if (loading) {
     return (
@@ -165,15 +174,15 @@ export default function App() {
 
       {/* Contenido */}
       <main style={{maxWidth:980,margin:'0 auto',padding:'1.1rem 0.85rem 4rem'}}>
-        {pan==='dashboard'   && <PantallaDashboard/>}
-        {pan==='indicadores' && <PantallaIndicadores/>}
-        {pan==='areas'       && <PantallaAreas/>}
+        {pan==='dashboard'   && !soloInforme && <PantallaDashboard/>}
+        {pan==='indicadores' && !soloInforme && <PantallaIndicadores/>}
+        {pan==='areas'       && !soloInforme && <PantallaAreas/>}
         {pan==='pmd'         && puedeVerPMD && <PantallaPMD/>}
-        {pan==='alertas'     && <PantallaAlertas/>}
+        {pan==='alertas'     && !soloInforme && <PantallaAlertas/>}
         {pan==='asm'         && puedeVerASM && <PantallaASM/>}
         {pan==='mml'         && puedeVerMML && <ExpedienteMML/>}
         {pan==='informe'     && puedeVerInforme && <InformeGobierno areaIdPropia={profile?.area_id ?? null} isEnlace={isEnlace} isAdmin={isAdmin} isPlaneacion={isPlaneacion}/>}
-        {pan==='captura'     && puedeCapturar && <PantallaCaptura areaCoordinador={isEnlace ? area : null}/>}
+        {pan==='captura'     && puedeCapturar && !soloInforme && <PantallaCaptura areaCoordinador={isEnlace ? area : null}/>}
         {pan==='admin'       && puedeVerAdmin && <AdminUsuarios/>}
       </main>
 
