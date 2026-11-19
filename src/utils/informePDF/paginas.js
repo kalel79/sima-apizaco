@@ -7,6 +7,7 @@ import { F, RATIO } from './recursos.js'
 import { artePortadaPrincipal, artePortadaEje, recortarFoto, hexARgb, matiz } from './arte.js'
 import { CENTRO } from './pictogramasSvg.js'
 import { dibujarDiagrama, diagramaValido, DIAGRAMA_RATIO } from './diagramas.js'
+import { pesos } from './formato.js'
 import {
   CABILDO, GABINETE, PRESENTACION_PARRAFOS, PRESENTACION_EJES, MENSAJE_PRESIDENTE, NOTA_METODOLOGICA, GLOSARIO,
   PRESENTACION_ADICIONALES_TEXTO, PRESENTACION_ADICIONALES, MENSAJE_LEMA,
@@ -33,7 +34,6 @@ export const PERIODO_LARGO = '1 de septiembre de 2025 – 31 de agosto de 2026'
 const pct = v => v == null ? '—' : `${(+v * 100).toFixed(1)}%`
 const pctPMD = v => v == null ? '—' : `${(+v).toFixed(1)}%`
 const num = v => Number(v || 0).toLocaleString('es-MX')
-const pesos = v => Number(v).toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 })
 const fechaCorta = f => f ? new Date(`${f}T12:00:00`).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }).replace('.', '') : ''
 
 function fuente(doc, fam, estilo, tam, color) {
@@ -151,6 +151,7 @@ function franjaCifras(doc, y, cifras, color = GUINDA) {
     const x = ML + i * cw
     if (i) { trazo(doc, LINEA); doc.setLineWidth(0.2); doc.line(x, y + 3, x, y + 19) }
     fuente(doc, F.LIGHT, 'normal', 24, color)
+    ajustar(doc, String(v), F.LIGHT, 'normal', 24, cw - 7, 14)  // montos largos
     doc.text(String(v), x + (i ? 4 : 0), y + 11.5)
     lineasVersalitas(doc, l, cw - 7, 6.3, 0.35).slice(0, 2)
       .forEach((t, k) => versalitas(doc, t, x + (i ? 4 : 0), y + 16 + k * 2.9, { tam: 6.3, cs: 0.35 }))
@@ -432,6 +433,7 @@ export async function portadaEje(doc, ctx, d, foto, satelites = [], cifras = [])
   cifras.slice(0, 2).forEach(([v, l], i) => {
     const xx = i ? W / 2 : X
     fuente(doc, F.LIGHT, 'normal', 30, BLANCO)
+    ajustar(doc, String(v), F.LIGHT, 'normal', 30, W / 2 - X - 6, 16)  // montos largos
     doc.text(String(v), xx, yn)
     opacidad(doc, 0.78, () => versalitas(doc, l, xx, yn + 4.6, { tam: 6.2, color: BLANCO, cs: 0.55 }))
   })
@@ -1006,50 +1008,79 @@ export function diezLogros(doc, ctx, logros, ejesDatos) {
   y = apertura(doc, y + 4, PERIODO_LARGO, titulo) - 3
   const [h, ...resto] = logros
 
-  const hh = 34, c = cifraDe(h)
+  // Logro principal: el texto completo, sin cortes. Si no cabe en 4 renglones
+  // se reduce el cuerpo y, como último recurso, la franja crece.
+  const c = cifraDe(h)
+  const tx = c ? ML + 82 : ML + 9, tw = W - ML - 8 - tx
+  let tamH = 11, tl
+  for (; ; tamH -= 0.5) {
+    tl = lineas(doc, sinPunto(h.accion), tw, F.SANS, 'normal', tamH)
+    if (tl.length <= 4 || tamH <= 9.5) break
+  }
+  const lhH = altoLinea(tamH, 1.4), invH = inversionDe(h)
+  const etH = c ? lineasVersalitas(doc, c.l, 64, 6.5, 0.5) : []
+  const altoT = tl.length * lhH + (invH ? 4.5 : 0)
+  const hh = Math.max(34, altoT + 12, 26 + etH.length * 3 + 4)
   relleno(doc, GUINDA); doc.rect(ML, y, CW, hh, 'F')
   relleno(doc, DORADO); doc.rect(ML, y, 1.6, hh, 'F')
-  let tx = ML + 9
   if (c) {
+    const yc = y + (hh - 34) / 2
     ajustar(doc, c.v, F.SERIF, 'normal', 34, 64, 16)
-    doc.setTextColor(255, 255, 255); doc.text(c.v, ML + 9, y + 18)
-    lineasVersalitas(doc, c.l, 64, 6.5, 0.5).slice(0, 2)
-      .forEach((t, k) => versalitas(doc, t, ML + 9, y + 24 + k * 3, { tam: 6.5, color: DORADO_CLARO, cs: 0.5 }))
-    tx = ML + 82
+    doc.setTextColor(255, 255, 255); doc.text(c.v, ML + 9, yc + 18)
+    etH.forEach((t, k) => versalitas(doc, t, ML + 9, yc + 24 + k * 3, { tam: 6.5, color: DORADO_CLARO, cs: 0.5 }))
   }
-  const tw = W - ML - 8 - tx, lhH = altoLinea(11, 1.4)
-  const tl = lineas(doc, sinPunto(h.accion), tw, F.SANS, 'normal', 11).slice(0, 4)
-  fuente(doc, F.SANS, 'normal', 11, BLANCO)
-  const invH = inversionDe(h), altoT = tl.length * lhH + (invH ? 4.5 : 0)
+  fuente(doc, F.SANS, 'normal', tamH, BLANCO)
   const y0 = y + (hh - altoT) / 2 + lhH * 0.72
   tl.forEach((l, i) => doc.text(l, tx, y0 + i * lhH))
   if (invH) versalitas(doc, `Inversión: ${invH.v}`, tx, y0 + tl.length * lhH + 0.6, { tam: 6.5, color: DORADO_CLARO, cs: 0.5 })
   y += hh + 5
 
-  const gap = 4, cw = (CW - gap * 2) / 3, th = 46, pad = 4.5
+  // Mosaico: cada tarjeta lleva su texto completo (sin "…"). La fila toma el
+  // alto de su tarjeta más larga; si el mosaico no cabe en la página, el
+  // texto se reduce un poco hasta que quepa.
+  const gap = 4, cw = (CW - gap * 2) / 3, pad = 4.5, tw2 = cw - pad * 2, TH_MIN = 46, PIE_TARJETA = 9
+  const medir = (a, k) => {
+    const ci = cifraDe(a)
+    if (ci) {
+      const tamE = 9.5 * k, tamD = 8.3 * k
+      const et = lineas(doc, ci.l, tw2, F.SANS, 'bold', tamE)
+      const ds = lineas(doc, sinPunto(a.accion), tw2, F.SANS, 'normal', tamD)
+      const fin = 13.5 + 5.5 + et.length * altoLinea(tamE, 1.2) + 1 + (ds.length - 1) * altoLinea(tamD, 1.3)
+      return { ci, et, ds, tamE, tamD, alto: fin + PIE_TARJETA }
+    }
+    const tamT = 10.5 * k
+    const ds = lineas(doc, sinPunto(a.accion), tw2, F.SANS, 'bold', tamT)
+    return { ds, tamT, alto: 9.5 + (ds.length - 1) * altoLinea(tamT, 1.25) + PIE_TARJETA }
+  }
+  const disponible = PIE - 3 - y
+  let k = 1, med, filas
+  for (; ; k -= 0.04) {
+    med = resto.map(a => medir(a, k))
+    filas = []
+    for (let i = 0; i < med.length; i += 3) filas.push(Math.max(TH_MIN, ...med.slice(i, i + 3).map(m => m.alto)))
+    if (filas.reduce((t, f) => t + f, 0) + gap * (filas.length - 1) <= disponible || k <= 0.84) break
+  }
+  const yFila = filas.map((_, f) => y + filas.slice(0, f).reduce((t, v) => t + v + gap, 0))
+
   resto.forEach((a, i) => {
-    const x = ML + (i % 3) * (cw + gap), yy = y + Math.floor(i / 3) * (th + gap)
+    const th = filas[Math.floor(i / 3)], m = med[i]
+    const x = ML + (i % 3) * (cw + gap), yy = yFila[Math.floor(i / 3)]
     const e = ejesDatos[a.eje_codigo], col = hexARgb(e?.color || '#7B1F2C')
     relleno(doc, ALT); doc.rect(x, yy, cw, th, 'F')
     relleno(doc, col); doc.rect(x, yy, cw, 0.9, 'F')
-    const ci = cifraDe(a)
     let ty = yy + 13.5
-    if (ci) {
-      ajustar(doc, ci.v, F.LIGHT, 'normal', 26, cw - pad * 2, 12)
-      doc.setTextColor(col[0], col[1], col[2]); doc.text(ci.v, x + pad, ty)
+    if (m.ci) {
+      ajustar(doc, m.ci.v, F.LIGHT, 'normal', 26, tw2, 12)
+      doc.setTextColor(col[0], col[1], col[2]); doc.text(m.ci.v, x + pad, ty)
       ty += 5.5
-      const et = lineas(doc, ci.l, cw - pad * 2, F.SANS, 'bold', 9.5).slice(0, 2)
-      fuente(doc, F.SANS, 'bold', 9.5, TINTA)
-      et.forEach(l => { doc.text(l, x + pad, ty); ty += altoLinea(9.5, 1.2) })
+      fuente(doc, F.SANS, 'bold', m.tamE, TINTA)
+      m.et.forEach(l => { doc.text(l, x + pad, ty); ty += altoLinea(m.tamE, 1.2) })
       ty += 1
-      const ds = lineas(doc, sinPunto(a.accion), cw - pad * 2, F.SANS, 'normal', 8.3)
-      const max = 4 - et.length
-      fuente(doc, F.SANS, 'normal', 8.3, SUB)
-      ds.slice(0, max).forEach((l, k) => { doc.text(k === max - 1 && ds.length > max ? l.replace(/[\s,;:.]*$/, '…') : l, x + pad, ty); ty += altoLinea(8.3, 1.3) })
+      fuente(doc, F.SANS, 'normal', m.tamD, SUB)
+      m.ds.forEach(l => { doc.text(l, x + pad, ty); ty += altoLinea(m.tamD, 1.3) })
     } else {
-      const ds = lineas(doc, sinPunto(a.accion), cw - pad * 2, F.SANS, 'bold', 10.5)
-      fuente(doc, F.SANS, 'bold', 10.5, TINTA)
-      ds.slice(0, 5).forEach((l, k) => doc.text(k === 4 && ds.length > 5 ? l.replace(/[\s,;:.]*$/, '…') : l, x + pad, yy + 9.5 + k * altoLinea(10.5, 1.25)))
+      fuente(doc, F.SANS, 'bold', m.tamT, TINTA)
+      m.ds.forEach((l, j) => doc.text(l, x + pad, yy + 9.5 + j * altoLinea(m.tamT, 1.25)))
     }
     const inv = inversionDe(a)
     let wInv = 0

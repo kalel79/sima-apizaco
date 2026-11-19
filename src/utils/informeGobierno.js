@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf'
 import { PMD_EJE_MAP } from './informeGobiernoContenido.js'
 import { prepararRecursos } from './informePDF/recursos.js'
 import { satelitesEje } from './informePDF/pictogramasSvg.js'
+import { pesos, accionConFormato } from './informePDF/formato.js'
 import {
   portadaPrincipal, indice, presentacion, mensajePresidente, cabildo, gabinete,
   resumenEjecutivo, notaMetodologica, colofon, contraportada, portadaEje, resultadosEje, logrosEje, diezLogros, logrosDelAnio, pies, datosEje,
@@ -30,9 +31,11 @@ function textoCorte(corte) {
 // catalogo:          filas de `ejes` (descripción de cada eje para su portada)
 // fotosPorAccion:    Map accion_id → [{ orden, bmp }] (fase_informe_02)
 export async function generarInformeGobierno({
-  ejes: ejesBase, indicadoresPorEje, pmdProgramas, acciones = [], catalogo: catalogoBase = [], fotosPorAccion = new Map(), corte, borrador = false,
+  ejes: ejesBase, indicadoresPorEje, pmdProgramas, acciones: accionesBase = [], catalogo: catalogoBase = [], fotosPorAccion = new Map(), corte, borrador = false,
 }) {
   const ejes = conColor(ejesBase), catalogo = conColor(catalogoBase)
+  // Montos con signo de peso y el mismo formato en todo el documento.
+  const acciones = accionesBase.map(accionConFormato)
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter', compress: true })
   const imgs = await prepararRecursos(doc)
   const ctx = { imgs, portadas: new Set() }
@@ -84,7 +87,7 @@ export async function generarInformeGobierno({
     const cifras = accs.length ? [
       [accs.length.toLocaleString('es-MX'), accs.length === 1 ? 'Logro del periodo' : 'Logros del periodo'],
       monto > 0
-        ? [monto.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }), 'Inversión reportada']
+        ? [pesos(monto), 'Inversión reportada']
         : [String(nAreas), nAreas === 1 ? 'Área participante' : 'Áreas participantes'],
     ] : []
     const pPag = await portadaEje(doc, ctx, d, null, satelitesEje(pmdPorEje[eje.codigo], areas), cifras)
