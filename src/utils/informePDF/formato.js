@@ -27,7 +27,8 @@ export function formatoCifra(valor, etiqueta, monto) {
 
 // Montos dentro de un texto ("$150,800", "$4,480.", "$ 21610.8").
 export const montosEnTexto = t => t == null ? t : String(t)
-  .replace(/\$\s*(\d{1,3}(?:,\d{3})+|\d+)(\.\d{1,2})?(?!\d)/g, (_, e, d) => pesos((e + (d || '')).replace(/,/g, '')))
+  // «$79.76 millones» no es un monto en pesos cerrados: se deja como está.
+  .replace(/\$\s*(\d{1,3}(?:,\d{3})+|\d+)(\.\d{1,2})?(?!\d)(?!\s*(?:mil\b|millones|millón|M\b|mdp))/gi, (_, e, d) => pesos((e + (d || '')).replace(/,/g, '')))
 
 // Acción lista para el PDF: textos y cifra con el formato uniforme.
 export const accionConFormato = a => ({

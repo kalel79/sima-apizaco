@@ -2,13 +2,16 @@
 // Las plantillas están en diagramasSvg.js; aquí solo se dibujan con svg2pdf.
 import { svg2pdf } from 'svg2pdf.js'
 import { svgDiagrama, DIAGRAMA_W, DIAGRAMA_H } from './diagramasSvg.js'
+import { usarMedidor } from './infografiasSvg.js'
 
 export { diagramaValido, DIAGRAMA_RATIO } from './diagramasSvg.js'
 
 // Dibuja el diagrama en el PDF dentro de la caja (x, y, w, h) en mm.
 // svg2pdf necesita el SVG en el documento para resolver estilos y degradados.
-export async function dibujarDiagrama(doc, spec, x, y, w, h) {
-  const svg = svgDiagrama(spec)
+export async function dibujarDiagrama(doc, spec, x, y, w, h, color) {
+  // Las infografías miden el texto con las tipografías registradas en el PDF.
+  usarMedidor((t, fam, negrita) => { doc.setFont(fam, negrita && fam === 'Sans' ? 'bold' : 'normal'); return doc.getStringUnitWidth(t) })
+  const svg = svgDiagrama(spec, color)
   if (!svg) return false
   const el = new DOMParser().parseFromString(svg, 'image/svg+xml').documentElement
   const host = document.createElement('div')

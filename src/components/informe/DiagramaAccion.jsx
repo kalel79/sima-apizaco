@@ -25,9 +25,12 @@ function declararFuentes() {
 
 // Vista previa del diagrama vectorial de una acción (columna `diagrama`), tal
 // como sale en el PDF del Informe.
+// Colores de eje del Informe (los mismos que usa el PDF).
+const COLOR_EJE = { E1: '#B71C1C', E2: '#1B8A3A', E3: '#37474F', E4: '#8B6914', E5: '#00695C', MS: '#6D4C41', TA: '#2E7D32', TB: '#880E4F', AJ: '#4A148C' }
+
 export default function DiagramaAccion({ accion }) {
   const svg = useMemo(() => {
-    const s = svgDiagrama(accion.diagrama)
+    const s = svgDiagrama(accion.diagrama, COLOR_EJE[accion.eje_codigo])
     if (!s) return null
     declararFuentes()
     // Varios diagramas en la página: ids de degradados únicos por acción.

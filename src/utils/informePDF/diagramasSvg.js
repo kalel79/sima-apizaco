@@ -6,6 +6,7 @@
 // registradas en jsPDF (Sans, SansLight y Cormorant). Los datos vienen de
 // la columna informe_acciones.diagrama ({ tipo, ...datos }; fase_informe_04).
 import { F_SVG_SERIF } from './recursos.js'
+import { esInfografia, svgInfografia } from './infografiasSvg.js'
 
 export const DIAGRAMA_W = 870, DIAGRAMA_H = 630
 export const DIAGRAMA_RATIO = DIAGRAMA_W / DIAGRAMA_H
@@ -384,9 +385,11 @@ function serie(d) {
 
 const PLANTILLAS = { indice, plataforma, proceso, productos, cascada, ciclo, metodologia, reconocimiento, cifras, serie }
 
-export const diagramaValido = spec => !!(spec && PLANTILLAS[spec.tipo])
+export const diagramaValido = spec => !!(spec && (PLANTILLAS[spec.tipo] || esInfografia(spec)))
 
-export function svgDiagrama(spec) {
+// `color`: color del eje (hex); lo usan las infografías de la familia editorial.
+export function svgDiagrama(spec, color) {
+  if (esInfografia(spec)) return svgInfografia(spec, color)
   return diagramaValido(spec) ? PLANTILLAS[spec.tipo](spec) : null
 }
 

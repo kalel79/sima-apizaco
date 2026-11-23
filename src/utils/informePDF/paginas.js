@@ -8,6 +8,7 @@ import { artePortadaPrincipal, artePortadaEje, recortarFoto, hexARgb, matiz } fr
 import { CENTRO } from './pictogramasSvg.js'
 import { dibujarDiagrama, diagramaValido, DIAGRAMA_RATIO } from './diagramas.js'
 import { pesos } from './formato.js'
+import { ocultaCifra } from './infografiasSvg.js'
 import {
   CABILDO, GABINETE, PRESENTACION_PARRAFOS, PRESENTACION_EJES, MENSAJE_PRESIDENTE, NOTA_METODOLOGICA, GLOSARIO,
   PRESENTACION_ADICIONALES_TEXTO, PRESENTACION_ADICIONALES, MENSAJE_LEMA,
@@ -722,7 +723,9 @@ function cifraDe(a) {
   return null
 }
 const inversionDe = a => a.monto != null && Number(a.monto) > 0 ? { v: pesos(a.monto), l: 'Inversión' } : null
-const cifrasDe = a => [cifraDe(a), inversionDe(a)].filter(Boolean)
+// Si la infografía ya muestra la cifra protagonista, la columna no la repite.
+const cifrasDe = a => [ocultaCifra(a.diagrama) ? null : cifraDe(a), inversionDe(a)].filter(Boolean)
+const aHex = c => '#' + c.map(v => v.toString(16).padStart(2, '0')).join('')
 const metaAccion = a => [fechaLarga(a.fecha), a.lugar || a.area].filter(Boolean).join('  ·  ')
 const pieDe = a => a.pie_foto || [a.area, fechaCorta(a.fecha)].filter(Boolean).join(' · ')
 
@@ -757,11 +760,11 @@ function dibujarCifras(doc, cifras, x, y, ancho, col, tam = 18) {
     const xx = x + i * cw
     ajustar(doc, c.v, F.LIGHT, 'normal', tam, cw - 4)
     doc.setTextColor(col[0], col[1], col[2]); doc.text(c.v, xx, y + 8)
-    lineasVersalitas(doc, c.l, cw - 4, 5.8, 0.6).slice(0, 2)
+    lineasVersalitas(doc, c.l, cw - 4, 5.8, 0.6).slice(0, 3)
       .forEach((t, k) => versalitas(doc, t, xx, y + 12 + k * 2.7, { tam: 5.8, cs: 0.6 }))
   })
 }
-const ALTO_CIFRAS = 18
+const ALTO_CIFRAS = 20.5  // hasta tres renglones de rótulo
 
 // Medidas del bloque destacado; las usa también el salto de página del grupo.
 // Con diagrama: texto a lo ancho y debajo el diagrama grande con las fotos al
@@ -818,7 +821,7 @@ function pieFoto(doc, lineasPie, x, y) {
   lineasPie.forEach((l, i) => doc.text(l, x, y + i * 3.6))
 }
 
-async function bloqueDestacado(doc, ctx, a, fotos, y, lado, col, seccion) {
+export async function bloqueDestacado(doc, ctx, a, fotos, y, lado, col, seccion) {
   const m = medidasBloque(doc, a, fotos)
   if (y + m.alto > PIE) y = nuevaPagina(doc, ctx, seccion, col)
 
@@ -827,7 +830,7 @@ async function bloqueDestacado(doc, ctx, a, fotos, y, lado, col, seccion) {
     fuente(doc, F.SANS, 'bold', 11.5, TINTA)
     m.tTit.forEach(l => { doc.text(l, ML, yt); yt += m.lhT })
     const yc = y + m.altoTit
-    await dibujarDiagrama(doc, diagramaDe(a), ML, yc, m.dw, m.dh)
+    await dibujarDiagrama(doc, diagramaDe(a), ML, yc, m.dw, m.dh, aHex(col))
     pieFoto(doc, m.tPie, ML, yc + m.dh + 4)
     const cx = ML + m.dw + 6
     yt = yc + m.lhM * 0.8
@@ -898,7 +901,7 @@ async function aperturaLogros(doc, ctx, d, a, fotos, acciones) {
   const dg = diagramaDe(a)
   if (dg) {
     const h = mw / DIAGRAMA_RATIO
-    await dibujarDiagrama(doc, dg, ML, y, mw, h); y += h
+    await dibujarDiagrama(doc, dg, ML, y, mw, h, d.color); y += h
   } else if (fotos[0]) {
     const h = mw * 0.56
     doc.addImage(recortarFoto(fotos[0].bmp, mw / h), 'JPEG', ML, y, mw, h, undefined, 'FAST'); y += h
