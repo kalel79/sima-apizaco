@@ -1130,6 +1130,12 @@ export async function logrosEje(doc, ctx, d, acciones, fotosPorAccion) {
     let sobra = Math.max(0, libre())
     const margen = logros.reduce((t, it) => t + (it.min.altoMax - it.min.alto), 0)
     const parte = margen > 0 ? Math.min(1, sobra / margen) : 0
+    const planes = buf.map(it => it.a && !it.min.renglon && parte > 0 ? medir(it.a, it.min.alto + (it.min.altoMax - it.min.alto) * parte) : it.min)
+    // Lo que todavía sobra (las fotos ya están en su tamaño máximo) se reparte
+    // como separación entre los logros de la página, hasta 40 mm por espacio.
+    const crecio = buf.reduce((t, it, i) => t + (it.a && !it.min.renglon ? planes[i].alto - it.min.alto : 0), 0)
+    const espacios = buf.filter((it, i) => it.a && i < buf.length - 1).length
+    const extra = !ultima && espacios ? Math.min(40, Math.max(0, sobra - crecio) / espacios) : 0
     let yy = y0
     for (let i = 0; i < buf.length; i++) {
       const it = buf[i]
@@ -1143,16 +1149,17 @@ export async function logrosEje(doc, ctx, d, acciones, fotosPorAccion) {
         yy += 7
       } else if (it.min.renglon) {
         yy = renglonAccion(doc, ctx, it.a, it.min, yy, col, seccion)
+        if (i < buf.length - 1) yy += extra
       } else {
-        const m = parte > 0 ? medir(it.a, it.min.alto + (it.min.altoMax - it.min.alto) * parte) : it.min
+        const m = planes[i], ex = i < buf.length - 1 ? extra : 0
         yy = await dibujarBloque(doc, ctx, it.a, fotosDe(it.a), m, yy, lado, col, seccion)
         if (m.con === 'fotos') lado = lado === 'izq' ? 'der' : 'izq'
-        // Separación uniforme entre logros: 22 pt con un filete fino.
+        // Separación entre logros: 22 pt (más lo repartido) con un filete fino al centro.
         const sigue = buf[i + 1]
-        if (sigue && sigue.a && yy + SEP_LOGROS < PIE) {
-          trazo(doc, LINEA); doc.setLineWidth(0.5 * PT); doc.line(ML, yy + SEP_LOGROS / 2, W - ML, yy + SEP_LOGROS / 2)
+        if (sigue && sigue.a && yy + SEP_LOGROS + ex < PIE) {
+          trazo(doc, LINEA); doc.setLineWidth(0.5 * PT); doc.line(ML, yy + (SEP_LOGROS + ex) / 2, W - ML, yy + (SEP_LOGROS + ex) / 2)
         }
-        yy += SEP_LOGROS
+        yy += SEP_LOGROS + ex
       }
     }
     cierraPagina(doc, ctx, Math.min(yy, PIE), ultima)
