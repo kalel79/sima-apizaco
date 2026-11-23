@@ -163,10 +163,11 @@ function proporcion(d, col) {
   const li = d.lista?.items?.length ? d.lista : null
   const cols = li?.columnas || 1
   const [svgL, altoL] = li ? lista(li.items.slice(0, 8), xr, 0, wr, cols, cols > 1 ? 7 : 7.5) : ['', 0]
-  const altoDer = sp * 0.78 + 4 + et.length * 10 + (li ? 18 + altoL : 0)
+  const bajo = Math.max(12, sp * 0.24 + 9)
+  const altoDer = sp * 0.78 + bajo - 8 + et.length * 10 + (li ? 18 + altoL : 0)
   let y = 50 + Math.max(0, (140 - altoDer) / 2) + sp * 0.78
   let der = tx(xr, y, d.pct, { s: sp, f: 'SansLight', c: col })
-  y += 12
+  y += bajo
   der += tx(xr, y, et.join('\n'), { s: 8, c: T })
   y += (et.length - 1) * 10 + 8
   if (li) {
@@ -399,12 +400,13 @@ function ficha(d, col) {
   const cel = dt.map(([v, l]) => ({ v, s: cabe(v, cw - 2, 12, 8, { w: 'bold' }), l: partir(l, cw - 2, 7.5).slice(0, 3) }))
   const altoD = dt.length ? 14 + Math.max(...cel.map(x => x.l.length)) * 9.4 + 6 : 0
   const [svgL, altoL] = li ? lista(li.items.slice(0, 8), MX, 0, AN, li.items.length > 2 ? 2 : 1) : ['', 0]
-  const alto = (d.sub ? 12 : 0) + sv * 0.78 + 5 + et.length * 11 + 10 + altoD + (li ? 16 + altoL : 0)
+  const bajoV = Math.max(13, sv * 0.2 + 9)
+  const alto = (d.sub ? 12 : 0) + sv * 0.78 + bajoV - 8 + et.length * 11 + 10 + altoD + (li ? 16 + altoL : 0)
   let y = 48 + Math.max(2, (144 - alto) / 2), o = ''
   if (d.sub) { o += rot(MX, y + 7, d.sub); y += 12 }
   y += sv * 0.78
   o += tx(MX, y, d.valor, { s: sv, f: 'SansLight', c: col })
-  y += 13
+  y += bajoV
   o += tx(MX, y, et.join('\n'), { s: 9, c: T, lh: 1.22 })
   y += (et.length - 1) * 11 + 8
   o += `<rect x="${MX}" y="${n2(y)}" width="18" height="0.9" fill="${ORO}"/><line x1="${MX + 18}" y1="${n2(y + 0.45)}" x2="${W - MX}" y2="${n2(y + 0.45)}" stroke="${L}" stroke-width="0.4"/>`

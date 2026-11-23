@@ -4,7 +4,7 @@
 // capítulo. Carta vertical, medidas en mm.
 import autoTable from 'jspdf-autotable'
 import { F, RATIO } from './recursos.js'
-import { artePortadaPrincipal, artePortadaEje, recortarFoto, hexARgb, matiz } from './arte.js'
+import { artePortadaPrincipal, artePortadaEje, recortarFoto, fotoPDF, esDocumento, hexARgb, matiz } from './arte.js'
 import { CENTRO } from './pictogramasSvg.js'
 import { dibujarDiagrama, diagramaValido, DIAGRAMA_RATIO } from './diagramas.js'
 import { pesos } from './formato.js'
@@ -87,14 +87,54 @@ function lineas(doc, txt, ancho, fam, estilo, tam) {
 // alineado a la izquierda. La fuente ya debe estar puesta.
 function renglon(doc, l, x, y, ancho, justificar) {
   const p = String(l).trim().split(/\s+/)
-  if (!justificar || p.length < 2) { doc.text(l, x, y); return }
   const anchos = p.map(w => doc.getTextWidth(w))
-  const gap = (ancho - anchos.reduce((t, w) => t + w, 0)) / (p.length - 1)
+  const esp = doc.getTextWidth(' ')
+  const gap = p.length > 1 ? (ancho - anchos.reduce((t, w) => t + w, 0)) / (p.length - 1) : 0
   // En columnas angostas una palabra larga deja renglones abiertos; se
   // justifican igual (hasta ~7 espacios) para que el bloque se vea parejo.
-  if (gap > doc.getTextWidth(' ') * 7) { doc.text(l, x, y); return }
+  const justo = justificar && p.length > 1 && gap <= esp * 7
+  marcarPendientes(doc, p, anchos, x, y, justo ? gap : esp)
+  if (!justo) { doc.text(l, x, y); return }
   let xx = x
   p.forEach((w, i) => { doc.text(w, xx, y); xx += anchos[i] + gap })
+}
+
+// ── Pendientes de captura (texto de plantilla entre corchetes) ───────────────
+// En el borrador se resaltan en amarillo; la versión final no se genera
+// mientras existan. `dentro` sigue un marcador que continúa en otro renglón.
+const OPC = { borrador: false, debug: false, dentro: false }
+export function opcionesInforme({ borrador = false, debug = false } = {}) { Object.assign(OPC, { borrador, debug, dentro: false }) }
+const nuevoCampo = () => { OPC.dentro = false }
+function marcarPendientes(doc, palabras, anchos, x, y, sep) {
+  if (!OPC.borrador) return
+  const alto = doc.getFontSize() * 0.3528
+  let xx = x, x0 = null, x1 = 0
+  const cierra = () => {
+    if (x0 == null) return
+    doc.setFillColor(255, 243, 176); doc.rect(x0 - 0.3, y - alto * 0.8, x1 - x0 + 0.6, alto * 1.08, 'F'); x0 = null
+  }
+  palabras.forEach((w, i) => {
+    const abre = w.lastIndexOf('['), fin = w.lastIndexOf(']')
+    const marcada = OPC.dentro || abre >= 0
+    if (abre > fin) OPC.dentro = true; else if (fin >= 0) OPC.dentro = false
+    if (marcada) { if (x0 == null) x0 = xx; x1 = xx + anchos[i] } else cierra()
+    xx += anchos[i] + sep
+  })
+  cierra()
+}
+// Texto de un renglón (sin justificar) con el resaltado de pendientes.
+function texto(doc, l, x, y) {
+  const p = String(l ?? '').split(' ')
+  marcarPendientes(doc, p, p.map(w => doc.getTextWidth(w)), x, y, doc.getTextWidth(' '))
+  doc.text(String(l ?? ''), x, y)
+}
+const PENDIENTE = /\[[^\]]{1,60}\]/g
+const CAMPOS_PENDIENTES = [['accion', 'Título'], ['descripcion', 'Descripción'], ['lugar', 'Lugar'], ['pie_foto', 'Pie de foto'], ['cifra_valor', 'Cifra'], ['cifra_etiqueta', 'Rótulo de la cifra']]
+// Registra los pendientes de la acción con la página donde se publica.
+function anotarPendientes(doc, ctx, a, seccion) {
+  if (!ctx.pendientes) return
+  CAMPOS_PENDIENTES.forEach(([k, campo]) => (String(a[k] ?? '').match(PENDIENTE) || []).forEach(m =>
+    ctx.pendientes.push({ pag: doc.getNumberOfPages(), eje: String(seccion).split(' · ')[0], logro: sinPunto(a.accion), campo, marca: m })))
 }
 
 function marco(doc, color, inset, lw) {
@@ -724,10 +764,20 @@ function cifraDe(a) {
 }
 const inversionDe = a => a.monto != null && Number(a.monto) > 0 ? { v: pesos(a.monto), l: 'Inversión' } : null
 // Si la infografía ya muestra la cifra protagonista, la columna no la repite.
-const cifrasDe = a => [ocultaCifra(a.diagrama) ? null : cifraDe(a), inversionDe(a)].filter(Boolean)
+// Si la cifra principal es el mismo monto que la inversión, se publica una
+// sola vez, con el rótulo más descriptivo.
+function cifrasDe(a) {
+  const c = ocultaCifra(a.diagrama) ? null : cifraDe(a), inv = inversionDe(a)
+  if (c && inv) {
+    const n = Number(String(c.v).replace(/[$,\s]/g, ''))
+    if (/^\$/.test(c.v) && Number.isFinite(n) && Math.abs(n - Number(a.monto)) < 1) return [{ v: inv.v, l: c.l || inv.l }]
+  }
+  return [c, inv].filter(Boolean)
+}
 const aHex = c => '#' + c.map(v => v.toString(16).padStart(2, '0')).join('')
 const metaAccion = a => [fechaLarga(a.fecha), a.lugar || a.area].filter(Boolean).join('  ·  ')
-const pieDe = a => a.pie_foto || [a.area, fechaCorta(a.fecha)].filter(Boolean).join(' · ')
+// Pie de foto; en la versión final un pie con texto de plantilla se omite.
+const pieDe = a => (a.pie_foto && /\[/.test(a.pie_foto) && !OPC.borrador) ? '' : (a.pie_foto || [a.area, fechaCorta(a.fecha)].filter(Boolean).join(' · '))
 
 // `primero`: tema que va antes que los demás (el del logro que abre el eje).
 function grupos(acciones, primero) {
@@ -753,91 +803,150 @@ export const FOTOS_INFORME = 2
 // Diagrama vectorial de la acción (columna informe_acciones.diagrama).
 const diagramaDe = a => diagramaValido(a.diagrama) ? a.diagrama : null
 
-// Renglones de cifras (valor grande + etiqueta) repartidos en `ancho`.
+// Renglones de cifras (valor grande + etiqueta) repartidos en `ancho`. Una
+// sola cifra ocupa todo el ancho.
 function dibujarCifras(doc, cifras, x, y, ancho, col, tam = 18) {
-  const cw = ancho / Math.max(2, cifras.length)
+  const cw = ancho / (cifras.length === 1 ? 1 : Math.max(2, cifras.length))
   cifras.forEach((c, i) => {
     const xx = x + i * cw
-    ajustar(doc, c.v, F.LIGHT, 'normal', tam, cw - 4)
-    doc.setTextColor(col[0], col[1], col[2]); doc.text(c.v, xx, y + 8)
+    ajustar(doc, c.v, F.LIGHT, 'normal', tam, Math.min(cw, ancho / 2) - 4)
+    doc.setTextColor(col[0], col[1], col[2]); nuevoCampo(); texto(doc, c.v, xx, y + 8)
     lineasVersalitas(doc, c.l, cw - 4, 5.8, 0.6).slice(0, 3)
       .forEach((t, k) => versalitas(doc, t, xx, y + 12 + k * 2.7, { tam: 5.8, cs: 0.6 }))
   })
 }
 const ALTO_CIFRAS = 20.5  // hasta tres renglones de rótulo
 
-// Medidas del bloque destacado; las usa también el salto de página del grupo.
-// Con diagrama: texto a lo ancho y debajo el diagrama grande con las fotos al
-// costado (a media columna sus rótulos no se leían impresos). Sin diagrama:
-// fotos a un lado y texto al otro.
-function medidasBloque(doc, a, fotos) {
-  const cifras = cifrasDe(a)
-  const dg = diagramaDe(a)
-  const lhT = altoLinea(11.5, 1.2), lhM = altoLinea(7.5, 1.35), lhD = altoLinea(9, 1.42)
-  if (dg) {
-    // Título a lo ancho; debajo, el diagrama a la izquierda y el texto, las
-    // cifras y las fotos (en miniatura) en una columna a su derecha. Así caben
-    // dos logros con diagrama por página.
-    const dw = 104, dh = dw / DIAGRAMA_RATIO, cw = CW - dw - 6
-    // Una sola foto va al ancho de la columna de texto; dos, en miniatura.
-    const lhC = altoLinea(8.8, 1.4), fhF = fotos.length === 1 ? cw * 0.45 : fotos.length ? 22.5 : 0
-    const tTit = lineas(doc, sinPunto(a.accion), CW, F.SANS, 'bold', 11.5)
-    const tDesc = lineas(doc, a.descripcion, cw, F.SANS, 'normal', 8.8)
-    const tPie = lineas(doc, pieDe(a), dw, F.SERIF, 'italic', 8.5).slice(0, 1)
-    const altoTit = tTit.length * lhT + 1.5
-    const altoCol = lhM + 2 + tDesc.length * lhC + (cifras.length ? ALTO_CIFRAS + 2 : 0) + (fhF ? fhF + 2.5 : 0)
-    return { ancho: true, tTit, tDesc, tPie, lhT, lhM, lhC, cifras, dw, dh, cw, fhF, altoTit, alto: altoTit + Math.max(dh + 5, altoCol) }
-  }
-  // Con una sola foto, la foto y el párrafo tienen el mismo ancho.
-  const pw = fotos.length === 1 ? (CW - 7) / 2 : CW * 0.44, tw = CW - pw - 7
-  const fh = fotos.length >= 2 ? pw * 0.47 : pw * 0.66
-  const mh = fotos.length * fh + (fotos.length - 1) * 2.5
-  const tTit = lineas(doc, sinPunto(a.accion), tw, F.SANS, 'bold', 11.5)
-  const tDesc = lineas(doc, a.descripcion, tw, F.SANS, 'normal', 9)
-  const tPie = lineas(doc, pieDe(a), pw, F.SERIF, 'italic', 8.5).slice(0, 3)
-  const altoTexto = tTit.length * lhT + 0.5 + lhM + 2.5 + tDesc.length * lhD + (cifras.length ? ALTO_CIFRAS + 2 : 0)
-  return { ancho: false, pw, tw, fh, mh, tTit, tDesc, tPie, lhT, lhM, lhD, cifras, alto: Math.max(mh + 2 + tPie.length * 3.6, altoTexto) }
+// Medidas de maquetación (mm). Ninguna foto se publica con menos de 120 pt de alto.
+const PT = 25.4 / 72
+const FOTO_MIN = 120 * PT, SEP_LOGROS = 22 * PT, HUECO = 2.5
+const acotar = (v, min, max) => Math.max(min, Math.min(max, v))
+
+// ── Registro de la maquetación (modo ?debugLayout=1 y revisión automática) ───
+function registrar(doc, ctx, a, tipo, x, y, w, h) {
+  if (ctx.lay) ctx.lay.rects.push({ pag: doc.getNumberOfPages(), id: a.id, tipo, x, y, w, h })
+}
+// Cierra una página de logros: anota el espacio libre al pie y, en modo
+// debug, lo pinta de azul.
+function cierraPagina(doc, ctx, y, ultima = false) {
+  if (!ctx.lay) return
+  const libre = Math.max(0, PIE - y)
+  ctx.lay.paginas.push({ pag: doc.getNumberOfPages(), libre: libre / (PIE - 30), ultima })
+  if (OPC.debug && libre > 1) opacidad(doc, 0.18, () => { relleno(doc, [30, 90, 220]); doc.rect(ML, y, CW, libre, 'F') })
 }
 
-function textoBloque(doc, a, m, x, y, col) {
-  let yt = y + m.lhT * 0.8
-  fuente(doc, F.SANS, 'bold', 11.5, TINTA)
-  m.tTit.forEach(l => { doc.text(l, x, yt); yt += m.lhT })
-  yt += 0.5
-  fuente(doc, F.SANS, 'normal', 7.5, col)
-  doc.text(doc.splitTextToSize(metaAccion(a), m.tw)[0] || '', x, yt); yt += m.lhM
-  yt += 2.5
-  fuente(doc, F.SANS, 'normal', 9, [58, 46, 48])
-  m.tDesc.forEach((l, i) => { renglon(doc, l, x, yt, m.tw, i < m.tDesc.length - 1); yt += m.lhD })
-  if (m.cifras.length) {
-    yt += 1
-    trazo(doc, LINEA); doc.setLineWidth(0.2); doc.line(x, yt, x + m.tw, yt)
-    dibujarCifras(doc, m.cifras, x, yt, m.tw, col)
+// Coloca una foto: recorte centrado que llena la caja; las capturas y los
+// documentos van completos, sobre fondo blanco con borde fino.
+function ponerFoto(doc, ctx, a, f, x, y, w, h) {
+  if (esDocumento(f.bmp)) {
+    relleno(doc, BLANCO); trazo(doc, [196, 190, 188]); doc.setLineWidth(0.5 * PT); doc.rect(x, y, w, h, 'FD')
+    const r = f.bmp.width / f.bmp.height
+    let iw = w - 1.4, ih = iw / r
+    if (ih > h - 1.4) { ih = h - 1.4; iw = ih * r }
+    doc.addImage(fotoPDF(f.bmp, r, iw), 'JPEG', x + (w - iw) / 2, y + (h - ih) / 2, iw, ih, undefined, 'FAST')
+  } else {
+    doc.addImage(fotoPDF(f.bmp, w / h, w), 'JPEG', x, y, w, h, undefined, 'FAST')
   }
+  registrar(doc, ctx, a, 'foto', x, y, w, h)
 }
 
 function pieFoto(doc, lineasPie, x, y) {
   fuente(doc, F.SERIF, 'italic', 8.5, SUB)
-  lineasPie.forEach((l, i) => doc.text(l, x, y + i * 3.6))
+  nuevoCampo()
+  lineasPie.forEach((l, i) => texto(doc, l, x, y + i * 3.6))
 }
 
-export async function bloqueDestacado(doc, ctx, a, fotos, y, lado, col, seccion) {
-  const m = medidasBloque(doc, a, fotos)
-  if (y + m.alto > PIE) y = nuevaPagina(doc, ctx, seccion, col)
+// Plan del bloque destacado de un logro: mide el texto y decide dónde y con
+// qué alto van las fotos. `objetivo` es el alto que se quiere que ocupe el
+// bloque: las fotos crecen hasta alcanzarlo, entre su mínimo (120 pt) y su
+// máximo. Con objetivo 0 se obtiene el bloque más compacto; `altoMax` dice
+// hasta dónde puede crecer.
+//   Con infografía: tarjeta a la izquierda y texto a la derecha. Las fotos van
+//   apiladas a todo el ancho de la columna, hasta la base de la tarjeta; si no
+//   hay lugar, en una franja a ancho completo debajo.
+//   Sin infografía: fotos apiladas en una columna o lado a lado.
+const FRANJA_MAX = 200 * PT
+function planBloque(doc, a, fotos, objetivo = 0) {
+  const cifras = cifrasDe(a), dg = diagramaDe(a), n = fotos.length
+  const lhT = altoLinea(11.5, 1.2), lhM = altoLinea(7.5, 1.35)
+  const altoCifras = cifras.length ? ALTO_CIFRAS + 2 : 0
+  if (dg) {
+    const dw = 104, dh = dw / DIAGRAMA_RATIO, cw = CW - dw - 6, lhC = altoLinea(8.8, 1.4)
+    const tTit = lineas(doc, sinPunto(a.accion), CW, F.SANS, 'bold', 11.5)
+    const tDesc = lineas(doc, a.descripcion, cw, F.SANS, 'normal', 8.8)
+    const tPie = lineas(doc, pieDe(a), dw, F.SERIF, 'italic', 8.5).slice(0, 1)
+    const altoTit = tTit.length * lhT + 1.5
+    const altoTxt = lhM + 2 + tDesc.length * lhC + altoCifras
+    const altoDg = dh + (tPie.length ? 5 : 1)
+    const libre = dh - altoTxt - 3.5
+    let enCol = 0, hCol = 0, franja = 0
+    if (n === 1) {
+      // Una foto siempre va en la columna; si el texto es largo, baja con él.
+      enCol = 1; hCol = acotar(libre, FOTO_MIN, cw / 1.15)
+    } else if (n > 1) {
+      if (libre >= n * FOTO_MIN + HUECO * (n - 1)) { enCol = n; hCol = Math.min((libre - HUECO * (n - 1)) / n, cw / 1.15) }
+      else franja = FOTO_MIN
+    }
+    const altoCol = altoTxt + (enCol ? 3.5 + enCol * hCol + HUECO * (enCol - 1) : 0)
+    const cuerpo = Math.max(altoDg, altoCol)
+    const base = altoTit + cuerpo
+    if (franja) franja = acotar(objetivo - base - 3, FOTO_MIN, FRANJA_MAX)
+    return {
+      con: 'tarjeta', tTit, tDesc, tPie, lhT, lhM, lhC, cifras, dw, dh, cw, altoTit, altoTxt, cuerpo, enCol, hCol, franja,
+      alto: base + (franja ? franja + 3 : 0), altoMax: base + (franja ? FRANJA_MAX + 3 : 0),
+    }
+  }
 
-  if (m.ancho) {
+  const lhD = altoLinea(9, 1.42)
+  const medir = (pw, apiladas) => {
+    const tw = CW - pw - 7
+    const tTit = lineas(doc, sinPunto(a.accion), tw, F.SANS, 'bold', 11.5)
+    const tDesc = lineas(doc, a.descripcion, tw, F.SANS, 'normal', 9)
+    const tPie = lineas(doc, pieDe(a), pw, F.SERIF, 'italic', 8.5).slice(0, 3)
+    const altoTxt = tTit.length * lhT + 0.5 + lhM + 2.5 + tDesc.length * lhD + altoCifras
+    const altoPie = tPie.length ? 2 + tPie.length * 3.6 : 0
+    const fw = apiladas ? pw : (pw - HUECO * (n - 1)) / n
+    const filas = apiladas ? n : 1, huecos = HUECO * (filas - 1)
+    const altoCon = h => Math.max(filas * h + huecos + altoPie, altoTxt)
+    const hMax = Math.max(FOTO_MIN, fw / 1.2)
+    return { pw, tw, fw, filas, huecos, apiladas, tTit, tDesc, tPie, altoTxt, altoPie, altoMin: altoCon(FOTO_MIN), altoMax: altoCon(hMax), hMax }
+  }
+  const formas = (n === 1 ? [[(CW - 7) / 2, true]] : [[CW * 0.44, true], [CW * 0.6, false]]).map(([pw, ap]) => medir(pw, ap))
+  // La forma que más se acerca al objetivo sin pasarse; si ninguna cabe, la más baja.
+  const caben = formas.filter(f => f.altoMin <= objetivo)
+  const f = caben.length
+    ? caben.sort((x, y) => Math.min(objetivo, y.altoMax) - Math.min(objetivo, x.altoMax) || x.altoMin - y.altoMin)[0]
+    : formas.sort((x, y) => x.altoMin - y.altoMin)[0]
+  // La foto crece hasta igualar el texto o el objetivo, sin dejar de ser apaisada.
+  const meta = Math.max(f.altoTxt, Math.min(objetivo, f.altoMax))
+  const fh = acotar((meta - f.altoPie - f.huecos) / f.filas, FOTO_MIN, f.hMax)
+  const mh = f.filas * fh + f.huecos
+  return {
+    con: 'fotos', pw: f.pw, tw: f.tw, fw: f.fw, fh, mh, apiladas: f.apiladas, tTit: f.tTit, tDesc: f.tDesc, tPie: f.tPie, lhT, lhM, lhD, cifras,
+    altoTxt: f.altoTxt, alto: Math.max(mh + f.altoPie, f.altoTxt), altoMax: Math.max(...formas.map(x => x.altoMax)),
+  }
+}
+
+// Dibuja el bloque en `y` (ya se comprobó que cabe). Devuelve la Y siguiente.
+async function dibujarBloque(doc, ctx, a, fotos, m, y, lado, col, seccion) {
+  anotarPendientes(doc, ctx, a, seccion)
+  if (OPC.debug) { trazo(doc, [220, 30, 30]); doc.setLineWidth(0.25); doc.rect(ML, y, CW, m.alto, 'S') }
+  registrar(doc, ctx, a, 'bloque', ML, y, CW, m.alto)
+
+  if (m.con === 'tarjeta') {
     let yt = y + m.lhT * 0.8
-    fuente(doc, F.SANS, 'bold', 11.5, TINTA)
-    m.tTit.forEach(l => { doc.text(l, ML, yt); yt += m.lhT })
+    fuente(doc, F.SANS, 'bold', 11.5, TINTA); nuevoCampo()
+    m.tTit.forEach(l => { texto(doc, l, ML, yt); yt += m.lhT })
     const yc = y + m.altoTit
     await dibujarDiagrama(doc, diagramaDe(a), ML, yc, m.dw, m.dh, aHex(col))
+    registrar(doc, ctx, a, 'tarjeta', ML, yc, m.dw, m.dh)
     pieFoto(doc, m.tPie, ML, yc + m.dh + 4)
     const cx = ML + m.dw + 6
     yt = yc + m.lhM * 0.8
-    fuente(doc, F.SANS, 'normal', 7.5, col)
-    doc.text(doc.splitTextToSize(metaAccion(a), m.cw)[0] || '', cx, yt)
+    fuente(doc, F.SANS, 'normal', 7.5, col); nuevoCampo()
+    texto(doc, doc.splitTextToSize(metaAccion(a), m.cw)[0] || '', cx, yt)
     yt += m.lhM * 0.2 + 2 + m.lhC * 0.8
-    fuente(doc, F.SANS, 'normal', 8.8, [58, 46, 48])
+    fuente(doc, F.SANS, 'normal', 8.8, [58, 46, 48]); nuevoCampo()
     m.tDesc.forEach((l, i) => { renglon(doc, l, cx, yt, m.cw, i < m.tDesc.length - 1); yt += m.lhC })
     yt -= m.lhC * 0.8
     if (m.cifras.length) {
@@ -846,44 +955,72 @@ export async function bloqueDestacado(doc, ctx, a, fotos, y, lado, col, seccion)
       dibujarCifras(doc, m.cifras, cx, yt, m.cw, col, 16)
       yt += ALTO_CIFRAS + 1
     }
-    if (m.fhF) {
-      const fw = fotos.length >= 2 ? (m.cw - 2.5) / 2 : m.cw
-      fotos.forEach((f, i) => doc.addImage(recortarFoto(f.bmp, fw / m.fhF), 'JPEG', cx + i * (fw + 2.5), yt + 2.5, fw, m.fhF, undefined, 'FAST'))
+    registrar(doc, ctx, a, 'texto', cx, yc, m.cw, m.altoTxt)
+    if (m.enCol) {
+      // Apiladas a todo el ancho de la columna; la última termina en la base
+      // de la tarjeta (o donde acabe el texto, si es más largo).
+      let yf = Math.max(yc + m.altoTxt + 3.5, yc + m.dh - (m.enCol * m.hCol + HUECO * (m.enCol - 1)))
+      fotos.slice(0, m.enCol).forEach(f => { ponerFoto(doc, ctx, a, f, cx, yf, m.cw, m.hCol); yf += m.hCol + HUECO })
+    } else if (m.franja) {
+      const yf = yc + m.cuerpo + 3, fw = (CW - 8 * PT * (fotos.length - 1)) / fotos.length
+      fotos.forEach((f, i) => ponerFoto(doc, ctx, a, f, ML + i * (fw + 8 * PT), yf, fw, m.franja))
     }
-    return y + m.alto + 9
+    return y + m.alto
   }
 
   const px = lado === 'izq' ? ML : ML + m.tw + 7
   const tx = lado === 'izq' ? ML + m.pw + 7 : ML
-  fotos.forEach((f, i) => {
-    doc.addImage(recortarFoto(f.bmp, m.pw / m.fh), 'JPEG', px, y + i * (m.fh + 2.5), m.pw, m.fh, undefined, 'FAST')
-  })
+  fotos.forEach((f, i) => m.apiladas
+    ? ponerFoto(doc, ctx, a, f, px, y + i * (m.fh + HUECO), m.fw, m.fh)
+    : ponerFoto(doc, ctx, a, f, px + i * (m.fw + HUECO), y, m.fw, m.fh))
   pieFoto(doc, m.tPie, px, y + m.mh + 4.2)
-  textoBloque(doc, a, m, tx, y, col)
-  return y + m.alto + 9
+  let yt = y + m.lhT * 0.8
+  fuente(doc, F.SANS, 'bold', 11.5, TINTA); nuevoCampo()
+  m.tTit.forEach(l => { texto(doc, l, tx, yt); yt += m.lhT })
+  yt += 0.5
+  fuente(doc, F.SANS, 'normal', 7.5, col); nuevoCampo()
+  texto(doc, doc.splitTextToSize(metaAccion(a), m.tw)[0] || '', tx, yt); yt += m.lhM
+  yt += 2.5
+  fuente(doc, F.SANS, 'normal', 9, [58, 46, 48]); nuevoCampo()
+  m.tDesc.forEach((l, i) => { renglon(doc, l, tx, yt, m.tw, i < m.tDesc.length - 1); yt += m.lhD })
+  if (m.cifras.length) {
+    yt += 1
+    trazo(doc, LINEA); doc.setLineWidth(0.2); doc.line(tx, yt, tx + m.tw, yt)
+    dibujarCifras(doc, m.cifras, tx, yt, m.tw, col)
+  }
+  registrar(doc, ctx, a, 'texto', tx, y, m.tw, m.altoTxt)
+  return y + m.alto
 }
 
-function renglonAccion(doc, ctx, a, y, col, seccion) {
-  const cx = ML + 30, cw = CW - 30
+// Logro sin foto ni infografía: renglón compacto con la fecha al margen.
+function medirRenglon(doc, a) {
+  const cw = CW - 30
   const tTit = lineas(doc, sinPunto(a.accion), cw, F.SANS, 'bold', 9.5)
   const tDesc = lineas(doc, a.descripcion, cw, F.SANS, 'normal', 8.5)
   const inv = inversionDe(a), ci = cifraDe(a)
-  const extras = [a.lugar || a.area, ci && `${ci.v} ${ci.l}`.trim(), inv && `Inversión: ${inv.v}`].filter(Boolean).join('  ·  ')
+  const mismo = ci && inv && ci.v === inv.v
+  const extras = [a.lugar || a.area, ci && `${ci.v} ${ci.l}`.trim(), inv && !mismo && `Inversión: ${inv.v}`].filter(Boolean).join('  ·  ')
   const tMeta = lineas(doc, extras, cw, F.SANS, 'normal', 7.5)
   const lhT = altoLinea(9.5, 1.25), lhD = altoLinea(8.5, 1.4), lhM = altoLinea(7.5, 1.35)
-  const alto = tTit.length * lhT + 1 + tDesc.length * lhD + 1.5 + tMeta.length * lhM + 4
-  if (y + alto > PIE) y = nuevaPagina(doc, ctx, seccion, col)
+  return { renglon: true, cw, tTit, tDesc, tMeta, lhT, lhD, lhM, alto: tTit.length * lhT + 1 + tDesc.length * lhD + 1.5 + tMeta.length * lhM + 4 }
+}
+
+function renglonAccion(doc, ctx, a, m, y, col, seccion) {
+  anotarPendientes(doc, ctx, a, seccion)
+  if (OPC.debug) { trazo(doc, [220, 30, 30]); doc.setLineWidth(0.25); doc.rect(ML, y, CW, m.alto, 'S') }
+  registrar(doc, ctx, a, 'bloque', ML, y, CW, m.alto)
+  const cx = ML + 30
   fuente(doc, F.SANS, 'bold', 7.5, SUB)
-  doc.text(fechaCorta(a.fecha), ML, y + lhT * 0.8)
-  let yy = y + lhT * 0.8
-  fuente(doc, F.SANS, 'bold', 9.5, TINTA); tTit.forEach(l => { doc.text(l, cx, yy); yy += lhT })
+  doc.text(fechaCorta(a.fecha), ML, y + m.lhT * 0.8)
+  let yy = y + m.lhT * 0.8
+  fuente(doc, F.SANS, 'bold', 9.5, TINTA); nuevoCampo(); m.tTit.forEach(l => { texto(doc, l, cx, yy); yy += m.lhT })
   yy += 0.6
-  fuente(doc, F.SANS, 'normal', 8.5, [70, 58, 60]); tDesc.forEach((l, i) => { renglon(doc, l, cx, yy, cw, i < tDesc.length - 1); yy += lhD })
+  fuente(doc, F.SANS, 'normal', 8.5, [70, 58, 60]); nuevoCampo(); m.tDesc.forEach((l, i) => { renglon(doc, l, cx, yy, m.cw, i < m.tDesc.length - 1); yy += m.lhD })
   yy += 1
-  fuente(doc, F.SANS, 'normal', 7.5, col); tMeta.forEach(l => { doc.text(l, cx, yy); yy += lhM })
+  fuente(doc, F.SANS, 'normal', 7.5, col); nuevoCampo(); m.tMeta.forEach(l => { texto(doc, l, cx, yy); yy += m.lhM })
   trazo(doc, LINEA); doc.setLineWidth(0.2); doc.setLineDashPattern([0.4, 0.9], 0)
-  doc.line(ML, y + alto - 1.5, W - ML, y + alto - 1.5); doc.setLineDashPattern([], 0)
-  return y + alto + 2
+  doc.line(ML, y + m.alto - 1.5, W - ML, y + m.alto - 1.5); doc.setLineDashPattern([], 0)
+  return y + m.alto + 2
 }
 
 // Apertura del capítulo: el logro que Planeación marcó para abrir el eje, con
@@ -891,6 +1028,7 @@ function renglonAccion(doc, ctx, a, y, col, seccion) {
 async function aperturaLogros(doc, ctx, d, a, fotos, acciones) {
   const col = hexARgb(d.color), seccion = `${d.corto} · Logros`
   let y = nuevaPagina(doc, ctx, seccion, col)
+  anotarPendientes(doc, ctx, a, seccion); nuevoCampo()
   y = apertura(doc, y + 4, `${d.kick} · ${d.nombre}`, sinPunto(a.accion), col, 25)
   const mw = 118, sx = ML + mw + 8, sw = W - ML - sx
   const invA = inversionDe(a)
@@ -904,7 +1042,7 @@ async function aperturaLogros(doc, ctx, d, a, fotos, acciones) {
     await dibujarDiagrama(doc, dg, ML, y, mw, h, d.color); y += h
   } else if (fotos[0]) {
     const h = mw * 0.56
-    doc.addImage(recortarFoto(fotos[0].bmp, mw / h), 'JPEG', ML, y, mw, h, undefined, 'FAST'); y += h
+    ponerFoto(doc, ctx, a, fotos[0], ML, y, mw, h); y += h
   }
   if (dg || fotos[0]) {
     const tPie = lineas(doc, pieDe(a), mw, F.SERIF, 'italic', 8.5).slice(0, 2)
@@ -941,7 +1079,7 @@ async function aperturaLogros(doc, ctx, d, a, fotos, acciones) {
     })
   }
   if (!dg && fotos[1] && ys + sw * 0.75 < PIE) {
-    doc.addImage(recortarFoto(fotos[1].bmp, 4 / 3), 'JPEG', sx, ys + 2, sw, sw * 0.75, undefined, 'FAST'); ys += sw * 0.75 + 4
+    ponerFoto(doc, ctx, a, fotos[1], sx, ys + 2, sw, sw * 0.75); ys += sw * 0.75 + 4
   }
   if (cifras.length) { trazo(doc, LINEA); doc.setLineWidth(0.25); doc.line(sx - 4, yTop, sx - 4, Math.max(ys, yTop + 40)) }
   return Math.max(y, ys) + 6
@@ -959,7 +1097,7 @@ export async function logrosEje(doc, ctx, d, acciones, fotosPorAccion) {
 
   if (principal) {
     y = await aperturaLogros(doc, ctx, d, principal, fotosDe(principal), acciones)
-    if (resto.length && y + 60 > PIE) y = nuevaPagina(doc, ctx, seccion, col)
+    if (resto.length && y + 60 > PIE) { cierraPagina(doc, ctx, y); y = nuevaPagina(doc, ctx, seccion, col) }
   } else {
     y = nuevaPagina(doc, ctx, seccion, col)
     y = apertura(doc, y + 4, `${d.kick} · ${d.nombre}`, 'Logros', col, 26)
@@ -974,29 +1112,131 @@ export async function logrosEje(doc, ctx, d, acciones, fotosPorAccion) {
     ].filter(Boolean), col)
   }
 
+  // Paginación con relleno, en dos pasos por página. Primero se decide qué
+  // cabe con los logros en su forma más compacta (fotos a 120 pt): si el
+  // siguiente no cabe y queda al menos 30 % de la página, se adelanta otro
+  // logro del mismo subtítulo que sí quepa. Al cerrar la página, el espacio
+  // que sobra se reparte entre las fotos de sus logros, que crecen hasta su
+  // tamaño máximo. Así no quedan huecos al pie ni fotos miniatura.
   let lado = 'izq'
-  for (const g of grupos(resto, principal?.tema)) {
-    // El título del grupo no se queda solo al pie: debe caber con su primer logro.
-    const a0 = g.filas[0]
-    const minimo = destacada(a0) ? medidasBloque(doc, a0, fotosDe(a0)).alto + 18 : 34
-    if (y + minimo > PIE) y = nuevaPagina(doc, ctx, seccion, col)
-    if (g.etiqueta) { versalitas(doc, g.etiqueta, ML, y, { tam: 6.8, color: col, cs: 0.55 }); y += 6.5 } else y += 4.5
-    const tt = lineas(doc, g.nombre, CW, F.SERIF, 'normal', 15)
-    fuente(doc, F.SERIF, 'normal', 15, TINTA)
-    tt.forEach((l, i) => doc.text(l, ML, y + i * altoLinea(15, 1.1)))
-    y += (tt.length - 1) * altoLinea(15, 1.1) + 2.5
-    trazo(doc, col); doc.setLineWidth(0.35); doc.line(ML, y, W - ML, y)
-    y += 7
-    for (const a of g.filas) {
-      if (destacada(a)) {
-        y = await bloqueDestacado(doc, ctx, a, fotosDe(a), y, lado, col, seccion)
-        if (!diagramaDe(a)) lado = lado === 'izq' ? 'der' : 'izq'
+  const util = PIE - 30
+  const medir = (a, objetivo = 0) => destacada(a) ? planBloque(doc, a, fotosDe(a), objetivo) : medirRenglon(doc, a)
+  const altoItem = m => m.alto + (m.renglon ? 2 : SEP_LOGROS)
+  let buf = [], usado = 0, y0 = y
+  const libre = () => PIE - y0 - usado
+  const dibujaPagina = async (ultima) => {
+    // Reparto del sobrante entre los logros que pueden crecer.
+    const logros = buf.filter(it => it.a && !it.min.renglon)
+    let sobra = Math.max(0, libre())
+    const margen = logros.reduce((t, it) => t + (it.min.altoMax - it.min.alto), 0)
+    const parte = margen > 0 ? Math.min(1, sobra / margen) : 0
+    let yy = y0
+    for (let i = 0; i < buf.length; i++) {
+      const it = buf[i]
+      if (it.titulo) {
+        const g = it.titulo
+        if (g.etiqueta) { versalitas(doc, g.etiqueta, ML, yy, { tam: 6.8, color: col, cs: 0.55 }); yy += 6.5 } else yy += 4.5
+        fuente(doc, F.SERIF, 'normal', 15, TINTA)
+        it.tt.forEach((l, k) => doc.text(l, ML, yy + k * altoLinea(15, 1.1)))
+        yy += (it.tt.length - 1) * altoLinea(15, 1.1) + 2.5
+        trazo(doc, col); doc.setLineWidth(0.35); doc.line(ML, yy, W - ML, yy)
+        yy += 7
+      } else if (it.min.renglon) {
+        yy = renglonAccion(doc, ctx, it.a, it.min, yy, col, seccion)
       } else {
-        y = renglonAccion(doc, ctx, a, y, col, seccion)
+        const m = parte > 0 ? medir(it.a, it.min.alto + (it.min.altoMax - it.min.alto) * parte) : it.min
+        yy = await dibujarBloque(doc, ctx, it.a, fotosDe(it.a), m, yy, lado, col, seccion)
+        if (m.con === 'fotos') lado = lado === 'izq' ? 'der' : 'izq'
+        // Separación uniforme entre logros: 22 pt con un filete fino.
+        const sigue = buf[i + 1]
+        if (sigue && sigue.a && yy + SEP_LOGROS < PIE) {
+          trazo(doc, LINEA); doc.setLineWidth(0.5 * PT); doc.line(ML, yy + SEP_LOGROS / 2, W - ML, yy + SEP_LOGROS / 2)
+        }
+        yy += SEP_LOGROS
       }
     }
-    y += 4
+    cierraPagina(doc, ctx, Math.min(yy, PIE), ultima)
+    buf = []; usado = 0
+    if (!ultima) y0 = nuevaPagina(doc, ctx, seccion, col)
   }
+
+  for (const g of grupos(resto, principal?.tema)) {
+    const pend = g.filas.map(a => ({ a, min: medir(a) }))
+    const tt = lineas(doc, g.nombre, CW, F.SERIF, 'normal', 15)
+    const altoTitulo = (g.etiqueta ? 6.5 : 4.5) + (tt.length - 1) * altoLinea(15, 1.1) + 2.5 + 7
+    // El subtítulo nunca queda solo al pie: necesita 140 pt libres después y
+    // que quepa al menos un logro de su grupo.
+    const tras = libre() - altoTitulo
+    const cabe = pend.some((it, i) => (i === 0 || tras >= util * 0.3) && it.min.alto <= tras)
+    if (buf.length && (tras < 140 * PT || !cabe)) await dibujaPagina(false)
+    else if (!buf.length && y0 > 31 && (tras < 140 * PT || !cabe)) { cierraPagina(doc, ctx, y0); y0 = nuevaPagina(doc, ctx, seccion, col) }
+    buf.push({ titulo: g, tt }); usado += altoTitulo
+
+    while (pend.length) {
+      let i = 0
+      if (pend[0].min.alto > libre()) {
+        i = libre() >= util * 0.3 ? pend.findIndex((it, k) => k > 0 && it.min.alto <= libre()) : -1
+        if (i < 0) {
+          // Nada cabe: página nueva. Si la página ya solo tiene el subtítulo
+          // o está vacía, el logro se coloca aunque no quepa completo.
+          if (buf.some(it => it.a)) { await dibujaPagina(false); continue }
+          if (y0 > 31 && buf.every(it => it.titulo)) { cierraPagina(doc, ctx, y0); y0 = nuevaPagina(doc, ctx, seccion, col); if (pend[0].min.alto <= libre()) continue }
+          i = 0
+        }
+      }
+      const it = pend.splice(i, 1)[0]
+      buf.push(it); usado += altoItem(it.min)
+    }
+    usado += 2
+  }
+  await dibujaPagina(true)
+}
+
+// Página del borrador con los textos de plantilla que faltan por capturar.
+export function pendientesCaptura(doc, ctx) {
+  const filas = ctx.pendientes || []
+  if (!filas.length) return null
+  let y = nuevaPagina(doc, ctx, 'Pendientes de captura')
+  const page = doc.getNumberOfPages()
+  y = apertura(doc, y + 4, 'Solo en el borrador', 'Pendientes de captura')
+  fuente(doc, F.SANS, 'normal', 9.5, [58, 46, 48])
+  doc.text(`${filas.length} textos de plantilla entre corchetes. La versión final no se genera mientras existan.`, ML, y - 3)
+  tabla(doc, ctx, 'Pendientes de captura', GUINDA, {
+    startY: y + 2,
+    head: [['Pág.', 'Eje', 'Logro', 'Campo', 'Pendiente']],
+    body: filas.map(f => [f.pag, f.eje, f.logro, f.campo, f.marca]),
+    styles: { fontSize: 7.6 },
+    columnStyles: { 0: { cellWidth: 11, halign: 'center' }, 1: { cellWidth: 24 }, 2: { cellWidth: 'auto' }, 3: { cellWidth: 26 }, 4: { cellWidth: 44 } },
+  })
+  return page
+}
+
+// Revisión automática de la maquetación de los logros. Devuelve los avisos
+// (también van a la consola): fotos de menos de 120 pt de alto, elementos que
+// se enciman y páginas con más de 20 % libre al pie.
+export function revisarMaquetacion(ctx) {
+  const lay = ctx.lay
+  if (!lay) return null
+  const avisos = []
+  lay.rects.filter(r => r.tipo === 'foto' && r.h < FOTO_MIN - 0.2)
+    .forEach(r => avisos.push(`p. ${r.pag} · logro ${r.id}: foto de ${Math.round(r.h / PT)} pt de alto`))
+  const hojas = lay.rects.filter(r => r.tipo !== 'bloque')
+  const toca = (p, q) => p.x < q.x + q.w - 0.3 && q.x < p.x + p.w - 0.3 && p.y < q.y + q.h - 0.3 && q.y < p.y + p.h - 0.3
+  for (let i = 0; i < hojas.length; i++) {
+    for (let k = i + 1; k < hojas.length; k++) {
+      const p = hojas[i], q = hojas[k]
+      if (p.pag === q.pag && toca(p, q)) avisos.push(`p. ${p.pag}: ${p.tipo} del logro ${p.id} se encima con ${q.tipo} del logro ${q.id}`)
+    }
+  }
+  lay.paginas.filter(p => !p.ultima && p.libre > 0.2)
+    .forEach(p => avisos.push(`p. ${p.pag}: ${Math.round(p.libre * 100)} % libre al pie`))
+  const fotos = lay.rects.filter(r => r.tipo === 'foto')
+  const resumen = {
+    avisos, fotos: fotos.length, fotoMinPt: fotos.length ? Math.round(Math.min(...fotos.map(r => r.h)) / PT) : null,
+    paginas: lay.paginas.map(p => ({ pag: p.pag, libre: Math.round(p.libre * 100), ultima: p.ultima })),
+  }
+  avisos.forEach(t => console.warn(`[Informe · maquetación] ${t}`))
+  return resumen
 }
 
 // ── Los logros del año ───────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ import { pesos, accionConFormato } from './informePDF/formato.js'
 import {
   portadaPrincipal, indice, presentacion, mensajePresidente, cabildo, gabinete,
   resumenEjecutivo, notaMetodologica, colofon, contraportada, portadaEje, resultadosEje, logrosEje, diezLogros, logrosDelAnio, pies, datosEje,
+  opcionesInforme, pendientesCaptura, revisarMaquetacion,
 } from './informePDF/paginas.js'
 
 // Colores de eje propios del Informe: el azul del Eje 5 y el naranja de
@@ -38,7 +39,11 @@ export async function generarInformeGobierno({
   const acciones = accionesBase.map(accionConFormato)
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter', compress: true })
   const imgs = await prepararRecursos(doc)
-  const ctx = { imgs, portadas: new Set() }
+  // ?debugLayout=1 dibuja el contorno de cada logro (rojo) y el espacio libre
+  // al pie (azul). El registro de la maquetación se revisa siempre.
+  const debug = typeof location !== 'undefined' && new URLSearchParams(location.search).get('debugLayout') === '1'
+  opcionesInforme({ borrador, debug })
+  const ctx = { imgs, portadas: new Set(), lay: { rects: [], paginas: [] }, pendientes: [] }
   const corteTexto = textoCorte(corte)
   doc.setProperties({
     title: 'Segundo Informe de Gobierno · Apizaco', subject: `Logros del periodo e indicadores con corte al ${corteTexto.largo}`,
@@ -106,6 +111,11 @@ export async function generarInformeGobierno({
   })
   for (const eje of ejes) resultadosEje(doc, ctx, datos[eje.codigo], indsDe(eje), pmdPorEje[eje.codigo])
   entradas.push({ label: 'Nota metodológica y glosario', anexo: true, page: notaMetodologica(doc, ctx, corteTexto.largo) })
+  // Solo en el borrador: lista de textos de plantilla que faltan por capturar.
+  if (borrador) {
+    const pPend = pendientesCaptura(doc, ctx)
+    if (pPend) entradas.push({ label: 'Pendientes de captura', anexo: true, page: pPend })
+  }
   colofon(doc, ctx, { corteLargo: corteTexto.largo, nLogros: acciones.length })
   await contraportada(doc, ctx)
 
@@ -113,6 +123,9 @@ export async function generarInformeGobierno({
   pies(doc, ctx, `Indicadores con corte al ${corteTexto.largo}`, borrador)
   // Marcadores del PDF: las mismas entradas del contenido.
   entradas.forEach(e => doc.outline.add(null, e.cod ? `${datos[e.cod].kick} · ${e.label}` : e.label, { pageNumber: e.page }))
+
+  const maquetacion = revisarMaquetacion(ctx)
+  if (typeof window !== 'undefined') window.__informeLayout = { ...maquetacion, paginasTotal: doc.getNumberOfPages(), pendientes: ctx.pendientes }
 
   const f = new Date()
   const fStr = `${f.getFullYear()}${String(f.getMonth() + 1).padStart(2, '0')}${String(f.getDate()).padStart(2, '0')}`

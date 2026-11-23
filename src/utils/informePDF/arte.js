@@ -162,7 +162,7 @@ export async function artePortadaPrincipal() {
 // Recorta una foto con la proporción ancho/alto pedida y la deja como JPEG
 // para el PDF. El foco (0 a 1 en cada eje) indica qué parte se conserva; por
 // omisión, el centro.
-export function recortarFoto(bmp, ratio, maxAncho = 1400, foco = { x: 0.5, y: 0.5 }) {
+export function recortarFoto(bmp, ratio, maxAncho = 1400, foco = { x: 0.5, y: 0.5 }, calidad = 0.84) {
   let sw = bmp.width, sh = bmp.width / ratio
   if (sh > bmp.height) { sh = bmp.height; sw = sh * ratio }
   const sx = (bmp.width - sw) * foco.x, sy = (bmp.height - sh) * foco.y
@@ -172,5 +172,36 @@ export function recortarFoto(bmp, ratio, maxAncho = 1400, foco = { x: 0.5, y: 0.
   const ctx = c.getContext('2d')
   ctx.imageSmoothingQuality = 'high'
   ctx.drawImage(bmp, sx, sy, sw, sh, 0, 0, w, h)
-  return c.toDataURL('image/jpeg', 0.84)
+  return c.toDataURL('image/jpeg', calidad)
+}
+
+// Foto de un logro lista para el PDF: recorte centrado con la proporción
+// pedida, al tamaño de colocación × 2 (144 ppp efectivos, máx. 1600 px) y
+// JPEG de calidad 0.78. La misma foto con el mismo recorte se procesa una vez.
+const cacheFotos = new WeakMap()
+export function fotoPDF(bmp, ratio, anchoMm) {
+  const px = Math.max(240, Math.min(1600, Math.round(anchoMm / 25.4 * 144)))
+  const clave = `${ratio.toFixed(3)}|${px}`
+  let m = cacheFotos.get(bmp)
+  if (!m) cacheFotos.set(bmp, m = new Map())
+  if (!m.has(clave)) m.set(clave, recortarFoto(bmp, ratio, px, undefined, 0.78))
+  return m.get(clave)
+}
+
+// Capturas de pantalla y documentos escaneados (fondo casi blanco): se
+// publican completos, sin recortar. Se decide por la proporción de píxeles
+// claros en una muestra reducida de la imagen.
+const cacheDoc = new WeakMap()
+export function esDocumento(bmp) {
+  if (cacheDoc.has(bmp)) return cacheDoc.get(bmp)
+  const n = 40, c = document.createElement('canvas')
+  c.width = n; c.height = n
+  const g = c.getContext('2d', { willReadFrequently: true })
+  g.drawImage(bmp, 0, 0, n, n)
+  const d = g.getImageData(0, 0, n, n).data
+  let claros = 0
+  for (let i = 0; i < d.length; i += 4) if (d[i] > 232 && d[i + 1] > 232 && d[i + 2] > 232) claros++
+  const r = claros / (n * n) > 0.5
+  cacheDoc.set(bmp, r)
+  return r
 }

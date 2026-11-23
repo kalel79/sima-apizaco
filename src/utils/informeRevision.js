@@ -17,7 +17,9 @@ export function faltantesLogro(a, nFotos = 0) {
 
 // Texto de plantilla: algo entre corchetes, como "[número]" o "$[monto]".
 const CORCHETES = /\[[^\]\n]{1,120}\]/
-export const tieneCorchetes = a => CORCHETES.test(a.accion || '') || CORCHETES.test(a.descripcion || '')
+// Se revisan todos los textos que se publican, salvo el pie de foto: en la
+// versión final un pie con texto de plantilla simplemente se omite.
+export const tieneCorchetes = a => ['accion', 'descripcion', 'lugar', 'cifra_valor', 'cifra_etiqueta'].some(k => CORCHETES.test(a[k] || ''))
 
 // acciones: las incluidas en el Informe; fotosPorAccion: Map id → [{ huella }];
 // ejes: [{ codigo, eje }] en su orden; indicadoresPorEje: para contar "sin meta".
