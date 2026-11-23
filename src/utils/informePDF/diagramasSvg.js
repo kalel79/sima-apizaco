@@ -263,7 +263,126 @@ function reconocimiento(d) {
     ${mods}`)
 }
 
-const PLANTILLAS = { indice, plataforma, proceso, productos, cascada, ciclo, metodologia, reconocimiento }
+// Parte un rótulo en renglones de hasta `max` caracteres (por palabras).
+function partir(txt, max) {
+  const out = []
+  let cur = ''
+  String(txt ?? '').split(/\s+/).filter(Boolean).forEach(p => {
+    if (cur && (cur + ' ' + p).length > max) { out.push(cur); cur = p } else cur = cur ? cur + ' ' + p : p
+  })
+  if (cur) out.push(cur)
+  return out
+}
+// Cuerpo que hace caber `txt` en `ancho` (Sans negrita ≈ 0.56 em por carácter).
+const cabe = (txt, ancho, max, min = 22) => Math.max(min, Math.min(max, ancho / (0.56 * String(txt).length)))
+
+// Cifras: la cifra principal en un panel guinda y, a la derecha, hasta cuatro
+// cifras de apoyo y un desglose en barras o una lista de conceptos.
+//   { valor, valor_etiqueta, kpis: [[v, l]], desglose: { titulo, items: [[l, n, texto?]] },
+//     lista: { titulo, items: [t] } }
+function cifras(d) {
+  const v = String(d.valor), sv = cabe(v, 222, 92)
+  const et = partir(d.valor_etiqueta, 19).slice(0, 4)
+  const hero = caja(44, 146, 256, 414, { fill: 'url(#gGuinda)', stroke: null, r: 16 }) +
+    `<circle cx="300" cy="146" r="120" fill="${C.b}" fill-opacity="0.05"/>` +
+    tx(172, 330, v, { s: sv, w: 'bold', c: C.b, a: 'middle' }) +
+    `<rect x="144" y="${352}" width="56" height="3" fill="${C.d}"/>` +
+    tx(172, 392, et.join('\n'), { s: 19, w: 'bold', c: C.dl, a: 'middle', lh: 1.3 })
+
+  const dg = d.desglose?.items?.length ? d.desglose : null
+  const li = !dg && d.lista?.items?.length ? d.lista : null
+  // Sin desglose ni lista, las cifras de apoyo ocupan toda la columna.
+  const k = (d.kpis || []).slice(0, 4), kw = (506 - 14) / 2, filasK = Math.ceil(k.length / 2)
+  const kh = dg || li ? 86 : Math.min(190, (414 - 14 * (filasK - 1)) / Math.max(1, filasK))
+  const kpis = k.map(([kv, kl], i) => {
+    const x = 320 + (i % 2) * (kw + 14), y = 146 + Math.floor(i / 2) * (kh + 14)
+    const s = cabe(kv, kw - 36, kh > 120 ? 50 : 34, 18), ls = partir(kl, kh > 120 ? 24 : 29).slice(0, 2)
+    const yv = kh > 120 ? y + kh / 2 + 4 : y + 38
+    return caja(x, y, kw, kh, { r: 12 }) + `<rect x="${x}" y="${y + 14}" width="5" height="${kh - 28}" fill="${C.d}"/>` +
+      tx(x + 22, yv, kv, { s, w: 'bold', c: C.g }) +
+      tx(x + 22, yv + (kh > 120 ? 30 : 21), ls.join('\n'), { s: kh > 120 ? 16 : 13.5, w: 'bold', c: C.s, lh: 1.18 })
+  }).join('')
+  let y = 146 + filasK * (kh + 14) + (k.length ? 6 : 0)
+
+  let extra = ''
+  if (dg) {
+    extra += tx(320, y + 12, String(dg.titulo || 'Desglose').toUpperCase(), { s: 14, w: 'bold', c: C.s })
+    y += 26
+    const it = dg.items.slice(0, 7), max = Math.max(...it.map(i => Number(i[1]) || 0)) || 1
+    const rh = Math.min(84, (560 - y) / it.length)
+    it.forEach(([l, n, t], i) => {
+      const yy = y + i * rh, w = Math.max(8, 506 * (Number(n) || 0) / max)
+      extra += tx(320, yy + 17, l, { s: 16, w: 'bold' }) +
+        tx(826, yy + 17, t ?? num(Number(n)), { s: 17, w: 'bold', c: C.g, a: 'end' }) +
+        `<rect x="320" y="${yy + 25}" width="506" height="11" rx="5.5" ry="5.5" fill="${C.anillo}"/>` +
+        `<rect x="320" y="${yy + 25}" width="${w.toFixed(1)}" height="11" rx="5.5" ry="5.5" fill="${i === 0 ? C.g : C.gm}"/>`
+    })
+  } else if (li) {
+    extra += tx(320, y + 12, String(li.titulo || '').toUpperCase(), { s: 14, w: 'bold', c: C.s })
+    y += 24
+    const it = li.items.slice(0, 8)
+    // Dos columnas solo si son muchos conceptos cortos.
+    const cols = it.length > 5 || (it.length > 4 && it.every(t => String(t).length <= 26)) ? 2 : 1, cw = cols === 2 ? (506 - 12) / 2 : 506
+    const rh = Math.min(64, (562 - y) / Math.ceil(it.length / cols))
+    it.forEach((t, i) => {
+      const x = 320 + (i % cols) * (cw + 12), yy = y + Math.floor(i / cols) * rh, h = rh - 8
+      const ls = partir(t, cols === 2 ? 23 : 54).slice(0, 2), s = ls.length > 1 ? 14 : 16
+      extra += caja(x, yy, cw, h, { r: 10 }) +
+        `<circle cx="${x + 18}" cy="${yy + h / 2}" r="5" fill="${C.d}"/>` +
+        tx(x + 34, yy + h / 2 + s * 0.36 - (ls.length - 1) * s * 0.58, ls.join('\n'), { s, w: 'bold', lh: 1.16 })
+    })
+  }
+  return marco(d, hero + kpis + extra)
+}
+
+// Serie mensual: barras por mes con el máximo resaltado y, a la derecha, la
+// tabla de importes con su total.
+//   { total, total_etiqueta, serie: [[mes, año, valor]], escala: 1e6, unidad: 'M' }
+function serie(d) {
+  const s = d.serie.slice(0, 12), esc = d.escala || 1e6, u = d.unidad || 'M'
+  const vals = s.map(r => Number(r[2]) || 0), max = Math.max(...vals)
+  const tope = Math.ceil(max / esc / 5) * 5 || 5
+  const x0 = 96, x1 = 512, y0 = 176, y1 = 500, bw = (x1 - x0) / s.length
+  let g = ''
+  for (let t = 0; t <= tope; t += 5) {
+    const y = y1 - (y1 - y0) * t / tope
+    g += `<line x1="${x0}" y1="${y}" x2="${x1}" y2="${y}" stroke="${t ? C.l : C.s}" stroke-width="${t ? 1.2 : 2}"${t ? ' stroke-dasharray="3 5"' : ''}/>` +
+      tx(x0 - 10, y + 5, `${t} ${u}`, { s: 13, w: 'bold', c: C.s, a: 'end' })
+  }
+  const imax = vals.indexOf(max)
+  const barras = s.map(([m], i) => {
+    const h = (y1 - y0) * vals[i] / esc / tope, x = x0 + i * bw + bw * 0.18, w = bw * 0.64, top = i === imax
+    return `<rect x="${x.toFixed(1)}" y="${(y1 - h).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="3" ry="3" fill="${top ? 'url(#gGuinda)' : C.d}"/>` +
+      tx(x + w / 2, y1 - h - 8, (vals[i] / esc).toLocaleString('es-MX', { maximumFractionDigits: 1, minimumFractionDigits: 1 }), { s: top ? 15 : 13, w: 'bold', c: top ? C.g : C.dd, a: 'middle' }) +
+      tx(x + w / 2, y1 + 22, String(m).slice(0, 3).toUpperCase(), { s: 13, w: 'bold', c: top ? C.g : C.s, a: 'middle' })
+  }).join('')
+  // Años bajo los meses: una llave por cada año.
+  const anios = []
+  s.forEach(([, a], i) => { const ult = anios[anios.length - 1]; if (ult && ult.a === a) ult.f = i; else anios.push({ a, i, f: i }) })
+  const llaves = anios.map(({ a, i, f }) => {
+    const xa = x0 + i * bw + 6, xb = x0 + (f + 1) * bw - 6
+    return `<path d="M ${xa} 532 L ${xa} 538 L ${xb} 538 L ${xb} 532" fill="none" stroke="${C.d}" stroke-width="2"/>` +
+      tx((xa + xb) / 2, 558, a, { s: 14, w: 'bold', c: C.dd, a: 'middle' })
+  }).join('')
+
+  // Tabla
+  const tx0 = 540, tw = 286, rh = (560 - 246) / (s.length + 0.2)
+  const filas = s.map(([m, a], i) => {
+    const y = 246 + i * rh, top = i === imax
+    return (i % 2 ? '' : `<rect x="${tx0}" y="${y.toFixed(1)}" width="${tw}" height="${rh.toFixed(1)}" fill="${C.anillo}" fill-opacity="0.55"/>`) +
+      tx(tx0 + 12, y + rh * 0.68, `${m} ${a}`, { s: 14, w: top ? 'bold' : 'normal', c: top ? C.g : C.t }) +
+      tx(tx0 + tw - 10, y + rh * 0.68, '$' + vals[i].toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), { s: 14, w: 'bold', c: top ? C.g : C.t, a: 'end' })
+  }).join('')
+  const tot = String(d.total)
+  return marco(d, `${g}${barras}${llaves}
+    ${caja(tx0, 146, tw, 88, { fill: 'url(#gGuinda)', stroke: null, r: 14 })}
+    ${tx(tx0 + tw / 2, 176, String(d.total_etiqueta || 'Total').toUpperCase(), { s: 13, w: 'bold', c: C.dl, a: 'middle' })}
+    ${tx(tx0 + tw / 2, 216, tot, { s: cabe(tot, tw - 24, 34, 20), w: 'bold', c: C.b, a: 'middle' })}
+    ${filas}
+    <line x1="${tx0}" y1="560" x2="${tx0 + tw}" y2="560" stroke="${C.g}" stroke-width="2"/>`)
+}
+
+const PLANTILLAS = { indice, plataforma, proceso, productos, cascada, ciclo, metodologia, reconocimiento, cifras, serie }
 
 export const diagramaValido = spec => !!(spec && PLANTILLAS[spec.tipo])
 
