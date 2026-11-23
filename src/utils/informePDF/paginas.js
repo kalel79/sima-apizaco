@@ -866,7 +866,9 @@ function pieFoto(doc, lineasPie, x, y) {
 //   hay lugar, en una franja a ancho completo debajo.
 //   Sin infografía: fotos apiladas en una columna o lado a lado.
 const FRANJA_MAX = 200 * PT
-function planBloque(doc, a, fotos, objetivo = 0) {
+// `holgado`: las fotos pueden crecer hasta quedar cuadradas. Solo se usa en
+// páginas que llevan un único logro y aún dejarían un hueco grande al pie.
+function planBloque(doc, a, fotos, objetivo = 0, holgado = false) {
   const cifras = cifrasDe(a), dg = diagramaDe(a), n = fotos.length
   const lhT = altoLinea(11.5, 1.2), lhM = altoLinea(7.5, 1.35)
   const altoCifras = cifras.length ? ALTO_CIFRAS + 2 : 0
@@ -890,7 +892,8 @@ function planBloque(doc, a, fotos, objetivo = 0) {
     const altoCol = altoTxt + (enCol ? 3.5 + enCol * hCol + HUECO * (enCol - 1) : 0)
     const cuerpo = Math.max(altoDg, altoCol)
     const base = altoTit + cuerpo
-    if (franja) franja = acotar(objetivo - base - 3, FOTO_MIN, FRANJA_MAX)
+    const topeFranja = holgado ? Math.max(FRANJA_MAX, (CW - 8 * PT * (n - 1)) / n) : FRANJA_MAX
+    if (franja) franja = acotar(objetivo - base - 3, FOTO_MIN, topeFranja)
     return {
       con: 'tarjeta', tTit, tDesc, tPie, lhT, lhM, lhC, cifras, dw, dh, cw, altoTit, altoTxt, cuerpo, enCol, hCol, franja,
       alto: base + (franja ? franja + 3 : 0), altoMax: base + (franja ? FRANJA_MAX + 3 : 0),
@@ -908,7 +911,7 @@ function planBloque(doc, a, fotos, objetivo = 0) {
     const fw = apiladas ? pw : (pw - HUECO * (n - 1)) / n
     const filas = apiladas ? n : 1, huecos = HUECO * (filas - 1)
     const altoCon = h => Math.max(filas * h + huecos + altoPie, altoTxt)
-    const hMax = Math.max(FOTO_MIN, fw / 1.2)
+    const hMax = Math.max(FOTO_MIN, fw / (holgado ? 1 : 1.2))
     return { pw, tw, fw, filas, huecos, apiladas, tTit, tDesc, tPie, altoTxt, altoPie, altoMin: altoCon(FOTO_MIN), altoMax: altoCon(hMax), hMax }
   }
   const formas = (n === 1 ? [[(CW - 7) / 2, true]] : [[CW * 0.44, true], [CW * 0.6, false]]).map(([pw, ap]) => medir(pw, ap))
@@ -1120,7 +1123,7 @@ export async function logrosEje(doc, ctx, d, acciones, fotosPorAccion) {
   // tamaño máximo. Así no quedan huecos al pie ni fotos miniatura.
   let lado = 'izq'
   const util = PIE - 30
-  const medir = (a, objetivo = 0) => destacada(a) ? planBloque(doc, a, fotosDe(a), objetivo) : medirRenglon(doc, a)
+  const medir = (a, objetivo = 0, holgado = false) => destacada(a) ? planBloque(doc, a, fotosDe(a), objetivo, holgado) : medirRenglon(doc, a)
   const altoItem = m => m.alto + (m.renglon ? 2 : SEP_LOGROS)
   let buf = [], usado = 0, y0 = y
   const libre = () => PIE - y0 - usado
@@ -1133,6 +1136,12 @@ export async function logrosEje(doc, ctx, d, acciones, fotosPorAccion) {
     const planes = buf.map(it => it.a && !it.min.renglon && parte > 0 ? medir(it.a, it.min.alto + (it.min.altoMax - it.min.alto) * parte) : it.min)
     // Lo que todavía sobra (las fotos ya están en su tamaño máximo) se reparte
     // como separación entre los logros de la página, hasta 40 mm por espacio.
+    // Página con un solo logro que aún dejaría más de 20 % libre: sus fotos
+    // crecen por encima del máximo habitual, hasta quedar cuadradas.
+    if (!ultima && logros.length === 1) {
+      const i = buf.indexOf(logros[0])
+      if (sobra - (planes[i].alto - logros[0].min.alto) > util * 0.2) planes[i] = medir(logros[0].a, logros[0].min.alto + sobra, true)
+    }
     const crecio = buf.reduce((t, it, i) => t + (it.a && !it.min.renglon ? planes[i].alto - it.min.alto : 0), 0)
     const espacios = buf.filter((it, i) => it.a && i < buf.length - 1).length
     const extra = !ultima && espacios ? Math.min(40, Math.max(0, sobra - crecio) / espacios) : 0
