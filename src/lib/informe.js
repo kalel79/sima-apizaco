@@ -192,25 +192,52 @@ async function huellaDe(blob) {
   } catch (_) { return null }
 }
 
-// Para el PDF: baja las fotos de las acciones como ImageBitmap, agrupadas por
-// acción y en su orden. Una foto que no baja se omite, no tumba el Informe.
+// Una foto lista para dibujarse en el PDF: un <img> sobre el archivo
+// comprimido. Tiene width/height y sirve en drawImage igual que un
+// ImageBitmap, pero el navegador solo la descomprime al dibujarla y puede
+// soltar esa memoria después. Con ImageBitmap cada foto quedaba descomprimida
+// (unos 5 MB) todo el tiempo: con más de 200 fotos pasaba de 1 GB y el iPhone
+// cerraba o recargaba la página antes de mostrar la revisión previa.
+function imagenDe(blob) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(blob)
+    const img = new Image()
+    img.onload = () => res(img)
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('foto ilegible')) }
+    img.src = url
+  })
+}
+
+// Para el PDF: baja las fotos de las acciones, agrupadas por acción y en su
+// orden, de a pocas a la vez. Una foto que no baja se omite, no tumba el Informe.
+const DESCARGAS_A_LA_VEZ = 6
 export async function descargarFotosAcciones(accionIds) {
   const fotos = await getFotosAcciones(accionIds)
   if (!fotos.length) return new Map()
   const urls = await urlsFotos(fotos.map(f => f.storage_path))
   const porAccion = new Map()
-  await Promise.all(fotos.map(async f => {
-    try {
-      const resp = await fetch(urls[f.storage_path])
-      if (!resp.ok) return
-      const blob = await resp.blob()
-      const bmp = await createImageBitmap(blob)
-      if (!porAccion.has(f.accion_id)) porAccion.set(f.accion_id, [])
-      porAccion.get(f.accion_id).push({ orden: f.orden, bmp, huella: await huellaDe(blob) })
-    } catch (_) { /* foto omitida */ }
-  }))
+  let siguiente = 0
+  async function trabajador() {
+    while (siguiente < fotos.length) {
+      const f = fotos[siguiente++]
+      try {
+        const resp = await fetch(urls[f.storage_path])
+        if (!resp.ok) continue
+        const blob = await resp.blob()
+        const bmp = await imagenDe(blob)
+        if (!porAccion.has(f.accion_id)) porAccion.set(f.accion_id, [])
+        porAccion.get(f.accion_id).push({ orden: f.orden, bmp, huella: await huellaDe(blob) })
+      } catch (_) { /* foto omitida */ }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(DESCARGAS_A_LA_VEZ, fotos.length) }, trabajador))
   porAccion.forEach(l => l.sort((a, b) => a.orden - b.orden))
   return porAccion
+}
+
+// Suelta los archivos de las fotos cuando ya no se va a generar el PDF.
+export function liberarFotosAcciones(porAccion) {
+  porAccion?.forEach(l => l.forEach(f => { if (f.bmp?.src?.startsWith('blob:')) URL.revokeObjectURL(f.bmp.src) }))
 }
 
 // Descripción de cada eje (v_resumen_ejes no la trae) para las portadas.
