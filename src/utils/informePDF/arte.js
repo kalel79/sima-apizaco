@@ -159,12 +159,13 @@ export async function artePortadaPrincipal() {
   return c.toDataURL('image/jpeg', 0.92)
 }
 
-// Recorta una foto al centro con la proporción ancho/alto pedida y la deja
-// como JPEG para el PDF.
-export function recortarFoto(bmp, ratio, maxAncho = 1400) {
+// Recorta una foto con la proporción ancho/alto pedida y la deja como JPEG
+// para el PDF. El foco (0 a 1 en cada eje) indica qué parte se conserva; por
+// omisión, el centro.
+export function recortarFoto(bmp, ratio, maxAncho = 1400, foco = { x: 0.5, y: 0.5 }) {
   let sw = bmp.width, sh = bmp.width / ratio
   if (sh > bmp.height) { sh = bmp.height; sw = sh * ratio }
-  const sx = (bmp.width - sw) / 2, sy = (bmp.height - sh) / 2
+  const sx = (bmp.width - sw) * foco.x, sy = (bmp.height - sh) * foco.y
   const w = Math.min(maxAncho, Math.round(sw)), h = Math.round(w / ratio)
   const c = document.createElement('canvas')
   c.width = w; c.height = h

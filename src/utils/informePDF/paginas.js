@@ -281,16 +281,26 @@ export function presentacion(doc, ctx, ejes) {
 export function mensajePresidente(doc, ctx) {
   let y = nuevaPagina(doc, ctx, 'Mensaje del Presidente Municipal')
   const page = doc.getNumberOfPages()
+
+  // Foto oficial en retrato a la derecha del título y la cita (así el mensaje
+  // cabe en una página); recorte centrado en el Presidente, filete dorado abajo.
+  const foto = ctx.imgs.fotoPresidente
+  const pw = foto ? 64 : 0, ph = 74, y0 = y
+  if (foto) {
+    doc.addImage(recortarFoto(foto.el, pw / ph, 1200, { x: 0.86, y: 0 }), 'JPEG', W - ML - pw, y0, pw, ph, 'fotoPresidente', 'FAST')
+    relleno(doc, DORADO); doc.rect(W - ML - pw, y0 + ph, pw, 0.9, 'F')
+  }
   y = apertura(doc, y + 4, 'Mensaje del', 'Presidente Municipal')
 
-  // Cita de apertura a lo ancho; la firma va una sola vez, al final.
-  const tw = 150, lhQ = altoLinea(14.5, 1.3)
+  // Cita de apertura junto a la foto; la firma va una sola vez, al final.
+  const tw = foto ? CW - pw - 20 : 150, lhQ = altoLinea(14.5, 1.3)
   fuente(doc, F.SERIF, 'normal', 40, DORADO)
   doc.text('“', ML - 1, y + 10)
   const primero = lineas(doc, MENSAJE_PRESIDENTE[0], tw, F.SERIF, 'italic', 14.5)
   fuente(doc, F.SERIF, 'italic', 14.5, GUINDA)
   primero.forEach((l, i) => renglon(doc, l, ML + 12, y + 8 + i * lhQ, tw, i < primero.length - 1))
   y += 8 + primero.length * lhQ + 8
+  if (foto) y = Math.max(y, y0 + ph + 8)
   const cuerpo = MENSAJE_PRESIDENTE.slice(1, -1)
   y = parrafos(doc, ctx, cuerpo, y, { seccion: 'Mensaje del Presidente Municipal' })
   if (y > PIE - 38) y = nuevaPagina(doc, ctx, 'Mensaje del Presidente Municipal')

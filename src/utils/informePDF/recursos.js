@@ -11,6 +11,7 @@ import escudoDoradoUrl from '../../assets/informe/escudo_dorado.png?url'
 import escudoGuindaUrl from '../../assets/informe/escudo_guinda.png?url'
 import logoBlancoUrl   from '../../assets/informe/logo_blanco.png?url'
 import logoGuindaUrl   from '../../assets/informe/logo_guinda.png?url'
+import presidenteUrl   from '../../assets/informe/presidente.jpg?url'
 
 // Familias registradas en jsPDF. Cormorant trae cifras de estilo antiguo (no
 // se pueden cambiar en jsPDF): las cifras van siempre en Sans o SansLight.
@@ -30,6 +31,8 @@ const FUENTES = [
 const IMAGENES = {
   escudoBlanco: escudoBlancoUrl, escudoDorado: escudoDoradoUrl, escudoGuinda: escudoGuindaUrl,
   logoBlanco: logoBlancoUrl, logoGuinda: logoGuindaUrl,
+  // Foto oficial del Presidente Municipal (Mensaje del Presidente).
+  fotoPresidente: presidenteUrl,
 }
 
 let cache = null
@@ -61,7 +64,8 @@ async function cargarTodo() {
     ({ archivo, fam, estilo, b64: aBase64(await bajar(url)) })))
   const imgs = {}
   await Promise.all(Object.entries(IMAGENES).map(async ([k, url]) => {
-    const data = `data:image/png;base64,${aBase64(await bajar(url))}`
+    const mime = /\.jpe?g(\?|$)/i.test(url) ? 'image/jpeg' : 'image/png'
+    const data = `data:${mime};base64,${aBase64(await bajar(url))}`
     imgs[k] = { data, el: await cargarImagen(data) }
   }))
   return { fuentes, imgs }
