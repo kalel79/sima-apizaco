@@ -4,7 +4,7 @@ import {
   TreePine, Presentation, Search, FileText, FileSpreadsheet, FileBarChart2,
 } from 'lucide-react'
 import { generarPDF, generarExcel, generarExcelEjecutivo, generarPDFPiloto, generarExcelPiloto, generarExcelMetas } from '../../utils/reportes'
-import { getInformeActual, getAccionesInforme, getEjesCatalogo, descargarFotosAcciones, getProgramaPorIndicador } from '../../lib/informe.js'
+import { getInformeActual, getAccionesInforme, getEjesCatalogo, descargarFotosAcciones, liberarFotosAcciones, getProgramaPorIndicador } from '../../lib/informe.js'
 import { esErrorDeChunk } from '../../lib/recargaVersion.js'
 import { indicadoresAlCorte, programasAlCorte, corteInforme } from '../../utils/informeIndicadores.js'
 import { revisarInforme } from '../../utils/informeRevision.js'
@@ -143,9 +143,14 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
     ? 'Hay una versión nueva de SIMA. Cierra y vuelve a abrir la app (o recarga la página) e inténtalo de nuevo.'
     : e.message)
 
+  // Al cerrar la revisión se sueltan las fotos descargadas para ese Informe.
+  function cerrarRevision() {
+    setRevInforme(prev => { liberarFotosAcciones(prev?.datos?.fotosPorAccion); return null })
+  }
+
   // Paso 1: reúne los datos del Informe y muestra la revisión previa.
   async function handleInformeGobierno() {
-    setGenStatus('cargando'); setRevInforme(null)
+    setGenStatus('cargando'); cerrarRevision()
     try {
       const [pmdVivo, claves, informe, catalogo, progDe] = await Promise.all([
         getComparativoPMD(),
@@ -295,7 +300,7 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
         {revInforme && (
           <RevisionInforme rev={revInforme.rev} ocupado={genStatus === 'cargando'}
             onBorrador={() => descargarInforme(true)} onFinal={() => descargarInforme(false)}
-            onCerrar={() => setRevInforme(null)} />
+            onCerrar={cerrarRevision} />
         )}
       </div>
 
