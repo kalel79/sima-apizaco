@@ -6,7 +6,7 @@ import autoTable from 'jspdf-autotable'
 import { F, RATIO } from './recursos.js'
 import { artePortadaPrincipal, artePortadaEje, recortarFoto, fotoPDF, esDocumento, hexARgb, matiz } from './arte.js'
 import { CENTRO } from './pictogramasSvg.js'
-import { dibujarDiagrama, diagramaValido, DIAGRAMA_RATIO } from './diagramas.js'
+import { dibujarDiagrama, dibujarIcono, diagramaValido, DIAGRAMA_RATIO } from './diagramas.js'
 import { pesos } from './formato.js'
 import { ocultaCifra } from './infografiasSvg.js'
 import {
@@ -1270,99 +1270,187 @@ export function logrosDelAnio(acciones, ordenEje = {}) {
   return principal ? [principal, ...sel.filter(a => a !== principal)].slice(0, MAX_LOGROS_INFORME) : []
 }
 
-export function diezLogros(doc, ctx, logros, ejesDatos) {
-  const titulo = logros.length >= 2 ? `El segundo año en ${NUM_LETRA[logros.length]} logros` : 'El logro del año'
+// Nombre breve de cada eje para el rótulo de la tarjeta (el nombre completo
+// del catálogo no cabe). Si falta el código, el rótulo lleva solo «Eje N».
+const EJE_CORTO = {
+  E1: 'Seguridad y justicia', E2: 'Bienestar', E3: 'Infraestructura y servicios', E4: 'Desarrollo económico',
+  E5: 'Gobernanza y transparencia', TA: 'Medio ambiente', TB: 'Igualdad sustantiva', MS: 'Municipio solidario', AJ: 'Procuración de justicia',
+}
+// Ícono lineal según de qué trata el logro; el primero que coincide. Sin
+// coincidencia, la tarjeta va sin ícono.
+const ICONO_LOGRO = [
+  [/patrulla|polic/i, 'local_police'], [/c[áa]mara|videovigil/i, 'videocam'], [/luminaria|alumbrado/i, 'lightbulb'],
+  [/baliz|señaliz/i, 'signpost'], [/paviment|bache/i, 'add_road'], [/edificio/i, 'apartment'], [/tractocami|cami[oó]n|unidades recolectoras/i, 'local_shipping'],
+  [/residuos|recolecci|barred/i, 'delete'], [/agua|saneamiento|drenaje/i, 'water_drop'],
+  [/desfile|evento|festival|concurso/i, 'festival'], [/tur[íi]st|barrio m[áa]gico/i, 'map'],
+  [/predial|recaud/i, 'payments'], [/aplicaci[oó]n|parqu[íi]metro/i, 'touch_app'], [/constancia|tr[áa]mite|cartilla/i, 'receipt_long'],
+  [/inafed|desempeño|primer lugar|1er lugar/i, 'trophy'],
+]
+const iconoLogro = a => (ICONO_LOGRO.find(([re]) => re.test(`${a.accion} ${a.cifra_etiqueta || ''}`)) || [])[1] || ''
+
+// Monto de una cifra capturada como dinero ("$24,660,599"); null si no lo es.
+const dinero = s => { const m = String(s || '').match(/^\$\s*([\d,]+(?:\.\d+)?)$/); return m ? Number(m[1].replace(/,/g, '')) : null }
+// Solo en esta página: de un millón en adelante el monto va abreviado.
+const montoCorto = (n, unidad) => n >= 1e6 ? `$${(n / 1e6).toFixed(1)} ${unidad}` : pesos(n)
+
+// Lo que publica la tarjeta de un logro. La cifra protagonista es la capturada;
+// si es dinero, el pie no la repite: lleva el lugar. Si no, el pie es la inversión.
+function tarjetaLogro(a) {
+  const ci = cifraDe(a), din = ci ? dinero(ci.v) : null, monto = Number(a.monto) || 0
+  return {
+    cifra: ci ? (din != null ? montoCorto(din, 'millones') : ci.v) : '',
+    rotulo: ci ? ci.l : '',
+    texto: sinPunto(a.accion),
+    pie: din != null ? sinPunto(a.lugar) : monto > 0 ? `Inversión: ${montoCorto(monto, 'mdp')}` : '',
+    peso: Math.max(monto, din || 0),
+    icono: iconoLogro(a),
+  }
+}
+
+export async function diezLogros(doc, ctx, logros, ejesDatos) {
+  const n = logros.length, enLetra = NUM_LETRA[n] || String(n)
+  const titulo = n >= 2 ? `El segundo año en ${enLetra} logros` : 'El logro del año'
   let y = nuevaPagina(doc, ctx, titulo)
   const page = doc.getNumberOfPages()
-  y = apertura(doc, y + 4, PERIODO_LARGO, titulo) - 3
+  y = apertura(doc, y + 4, PERIODO_LARGO, titulo) - 6.5
   const [h, ...resto] = logros
 
-  // Logro principal: el texto completo, sin cortes. Si no cabe en 4 renglones
-  // se reduce el cuerpo y, como último recurso, la franja crece.
+  // ── Franja de cifras-resumen: todo se calcula de los logros publicados ─────
+  const total = logros.reduce((t, a) => t + (Number(a.monto) || 0), 0)
+  const resumen = [
+    total > 0 && [montoCorto(total, 'millones'), n >= 2 ? `de inversión en los ${enLetra} logros` : 'de inversión'],
+    [String(new Set(logros.map(a => a.eje_codigo)).size), 'ejes de gobierno con logros destacados'],
+    [String(new Set(logros.map(a => a.area_id)).size), 'áreas municipales responsables'],
+  ].filter(Boolean)
+  const wr = CW / resumen.length
+  trazo(doc, LINEA); doc.setLineWidth(0.25); doc.line(ML, y, W - ML, y); doc.line(ML, y + 13, W - ML, y + 13)
+  resumen.forEach(([v, l], i) => {
+    const x = ML + i * wr + (i ? 5 : 0)
+    if (i) { trazo(doc, LINEA); doc.setLineWidth(0.25); doc.line(ML + i * wr, y + 2.8, ML + i * wr, y + 10.2) }
+    const [num1, ...uni] = v.split(' ')
+    fuente(doc, F.LIGHT, 'normal', 20, GUINDA); doc.text(num1, x, y + 9.2)
+    let xl = x + doc.getTextWidth(num1) + 2.5
+    if (uni.length) { fuente(doc, F.SANS, 'normal', 10, GUINDA); doc.text(uni.join(' '), xl - 1, y + 9.2); xl += doc.getTextWidth(uni.join(' ')) + 2 }
+    const ls = lineasVersalitas(doc, l, ML + (i + 1) * wr - xl - 3, 6.5, 0.4).slice(0, 3)
+    const y0 = y + 7.4 - (ls.length - 1) * 1.5
+    ls.forEach((t, k) => versalitas(doc, t, xl, y0 + k * 3, { tam: 6.5, cs: 0.4 }))
+  })
+  y += 15.5
+
+  // ── Logro estelar: cifra, rótulo y texto completo; sin inversión ───────────
   const c = cifraDe(h)
-  const tx = c ? ML + 82 : ML + 9, tw = W - ML - 8 - tx
-  let tamH = 11, tl
+  const tx = c ? ML + 80 : ML + 9, tw = W - ML - 8 - tx
+  let tamH = 11.5, tl
   for (; ; tamH -= 0.5) {
     tl = lineas(doc, sinPunto(h.accion), tw, F.SANS, 'normal', tamH)
     if (tl.length <= 4 || tamH <= 9.5) break
   }
-  const lhH = altoLinea(tamH, 1.4), invH = inversionDe(h)
-  const etH = c ? lineasVersalitas(doc, c.l, 64, 6.5, 0.5) : []
-  const altoT = tl.length * lhH + (invH ? 4.5 : 0)
-  const hh = Math.max(34, altoT + 12, 26 + etH.length * 3 + 4)
+  const lhH = altoLinea(tamH, 1.4)
+  const etH = c ? lineasVersalitas(doc, c.l, 62, 6.8, 0.5) : []
+  const altoT = tl.length * lhH
+  const hh = Math.max(28, altoT + 11, 19 + etH.length * 3.2 + 9)
   relleno(doc, GUINDA); doc.rect(ML, y, CW, hh, 'F')
   relleno(doc, DORADO); doc.rect(ML, y, 1.6, hh, 'F')
   if (c) {
-    const yc = y + (hh - 34) / 2
-    ajustar(doc, c.v, F.SERIF, 'normal', 34, 64, 16)
-    doc.setTextColor(255, 255, 255); doc.text(c.v, ML + 9, yc + 18)
-    etH.forEach((t, k) => versalitas(doc, t, ML + 9, yc + 24 + k * 3, { tam: 6.5, color: DORADO_CLARO, cs: 0.5 }))
+    const yc = y + (hh - (19 + etH.length * 3.2)) / 2
+    ajustar(doc, c.v, F.SERIF, 'normal', 34, 62, 16)
+    doc.setTextColor(255, 255, 255); doc.text(c.v, ML + 9, yc + 12)
+    etH.forEach((t, k) => versalitas(doc, t, ML + 9, yc + 18.5 + k * 3.2, { tam: 6.8, color: DORADO_CLARO, cs: 0.5 }))
+    opacidad(doc, 0.35, () => { trazo(doc, DORADO_CLARO); doc.setLineWidth(0.2); doc.line(tx - 6, y + 6, tx - 6, y + hh - 6) })
   }
   fuente(doc, F.SANS, 'normal', tamH, BLANCO)
   const y0 = y + (hh - altoT) / 2 + lhH * 0.72
   tl.forEach((l, i) => doc.text(l, tx, y0 + i * lhH))
-  if (invH) versalitas(doc, `Inversión: ${invH.v}`, tx, y0 + tl.length * lhH + 0.6, { tam: 6.5, color: DORADO_CLARO, cs: 0.5 })
-  y += hh + 5
+  y += hh + 3.4
 
-  // Mosaico: cada tarjeta lleva su texto completo (sin "…"). La fila toma el
-  // alto de su tarjeta más larga; si el mosaico no cabe en la página, el
-  // texto se reduce un poco hasta que quepa.
-  const gap = 4, cw = (CW - gap * 2) / 3, pad = 4.5, tw2 = cw - pad * 2, TH_MIN = 46, PIE_TARJETA = 9
-  const medir = (a, k) => {
-    const ci = cifraDe(a)
-    if (ci) {
-      const tamE = 9.5 * k, tamD = 8.3 * k
-      const et = lineas(doc, ci.l, tw2, F.SANS, 'bold', tamE)
-      const ds = lineas(doc, sinPunto(a.accion), tw2, F.SANS, 'normal', tamD)
-      const fin = 13.5 + 5.5 + et.length * altoLinea(tamE, 1.2) + 1 + (ds.length - 1) * altoLinea(tamD, 1.3)
-      return { ci, et, ds, tamE, tamD, alto: fin + PIE_TARJETA }
+  // ── Tarjetas: tres destacadas (las de mayor monto) y el resto, compactas ───
+  // Cada tarjeta lleva su texto completo. La fila toma el alto de su tarjeta
+  // más larga; si no cabe todo, el cuerpo baja un poco (la descripción nunca
+  // de 8 pt).
+  const vm = resto.map(a => ({ a, ...tarjetaLogro(a) }))
+  const top = [...vm].sort((p, q) => q.peso - p.peso).slice(0, 3)
+  const orden = [...top, ...vm.filter(v => !top.includes(v))]
+  const gap = 3.2, cw = (CW - gap * 2) / 3, pad = 4, tw2 = cw - pad * 2, IC = 5, SUP = 3.6, ALTO_CIERRE = 11
+  const medir = (v, grande, k) => {
+    const tamC = (grande ? 26 : 21) * k, tamE = (grande ? 9.8 : 9.2) * k, tamD = Math.max(8, (grande ? 8.6 : 8.3) * k)
+    if (!v.cifra) {
+      const tamT = (grande ? 11.5 : 10.5) * k
+      const ds = lineas(doc, v.texto, tw2, F.SANS, 'bold', tamT)
+      return { tamT, ds, alto: SUP + IC + 7 + (ds.length - 1) * altoLinea(tamT, 1.25) + (v.pie ? 10 : 5) }
     }
-    const tamT = 10.5 * k
-    const ds = lineas(doc, sinPunto(a.accion), tw2, F.SANS, 'bold', tamT)
-    return { ds, tamT, alto: 9.5 + (ds.length - 1) * altoLinea(tamT, 1.25) + PIE_TARJETA }
+    const et = lineas(doc, v.rotulo, tw2, F.SANS, 'bold', tamE)
+    const ds = lineas(doc, v.texto, tw2, F.SANS, 'normal', tamD)
+    const yC = SUP + IC + 2.2 + tamC * 0.3528 * 0.74
+    const alto = yC + 2 + et.length * altoLinea(tamE, 1.2) + 0.8 + ds.length * altoLinea(tamD, 1.3) + (v.pie ? 8.8 : 2.6)
+    return { tamC, tamE, tamD, et, ds, yC, alto }
   }
-  const disponible = PIE - 3 - y
+  const disponible = PIE - 2 - y - ALTO_CIERRE
   let k = 1, med, filas
-  for (; ; k -= 0.04) {
-    med = resto.map(a => medir(a, k))
+  for (; ; k -= 0.01) {
+    med = orden.map((v, i) => medir(v, i < 3, k))
     filas = []
-    for (let i = 0; i < med.length; i += 3) filas.push(Math.max(TH_MIN, ...med.slice(i, i + 3).map(m => m.alto)))
-    if (filas.reduce((t, f) => t + f, 0) + gap * (filas.length - 1) <= disponible || k <= 0.84) break
+    for (let i = 0; i < med.length; i += 3) filas.push(Math.max(i < 3 ? 38 : 32, ...med.slice(i, i + 3).map(m => m.alto)))
+    if (filas.reduce((t, f) => t + f, 0) + gap * (filas.length - 1) <= disponible || k <= 0.9) break
   }
+  // El sobrante se reparte entre las filas (hasta 5 mm cada una).
+  const libre = disponible - filas.reduce((t, f) => t + f, 0) - gap * (filas.length - 1)
+  if (libre > 0 && filas.length) { const extra = Math.min(5, libre / filas.length); filas = filas.map(f => f + extra) }
   const yFila = filas.map((_, f) => y + filas.slice(0, f).reduce((t, v) => t + v + gap, 0))
 
-  resto.forEach((a, i) => {
-    const th = filas[Math.floor(i / 3)], m = med[i]
+  for (let i = 0; i < orden.length; i++) {
+    const v = orden[i], m = med[i], th = filas[Math.floor(i / 3)]
     const x = ML + (i % 3) * (cw + gap), yy = yFila[Math.floor(i / 3)]
-    const e = ejesDatos[a.eje_codigo], col = hexARgb(e?.color || '#7B1F2C')
+    const e = ejesDatos[v.a.eje_codigo], hex = e?.color || '#7B1F2C', col = hexARgb(hex)
     relleno(doc, ALT); doc.rect(x, yy, cw, th, 'F')
     relleno(doc, col); doc.rect(x, yy, cw, 0.9, 'F')
-    let ty = yy + 13.5
-    if (m.ci) {
-      ajustar(doc, m.ci.v, F.LIGHT, 'normal', 26, tw2, 12)
-      doc.setTextColor(col[0], col[1], col[2]); doc.text(m.ci.v, x + pad, ty)
-      ty += 5.5
+    // Ícono y rótulo del eje (número y nombre breve).
+    const conIcono = v.icono && await dibujarIcono(doc, v.icono, x + pad - 0.4, yy + SUP, IC, '#7B1F2C')
+    if (e) {
+      const corto = EJE_CORTO[e.cod]
+      const pmd = e.kick !== 'Eje adicional'
+      const maxChip = tw2 - (conIcono ? IC + 2.5 : 0)
+      fuente(doc, F.SANS, 'bold', 6.4)
+      let chip = pmd && corto ? `${e.kick} · ${corto}` : corto || e.corto
+      if (doc.getTextWidth(chip) + 3.6 > maxChip) chip = pmd ? e.kick : chip
+      const wc = doc.getTextWidth(chip) + 3.6
+      relleno(doc, hexARgb(matiz(hex, 0.86))); doc.roundedRect(x + cw - pad - wc, yy + SUP + 0.3, wc, 4.4, 1.1, 1.1, 'F')
+      fuente(doc, F.SANS, 'bold', 6.4, col); doc.text(chip, x + cw - pad - wc + 1.8, yy + SUP + 3.4)
+    }
+    if (v.cifra) {
+      // La unidad («millones») va en cuerpo menor junto al número.
+      const [num1, ...uni] = /^\$[\d.]+ /.test(v.cifra) ? v.cifra.split(' ') : [v.cifra]
+      const unidad = uni.join(' ')
+      fuente(doc, F.SANS, 'normal', m.tamC * 0.42)
+      const wu = unidad ? doc.getTextWidth(unidad) + 1.6 : 0
+      const tam = ajustar(doc, num1, F.LIGHT, 'normal', m.tamC, tw2 - wu, 12)
+      doc.setTextColor(GUINDA[0], GUINDA[1], GUINDA[2]); doc.text(num1, x + pad, yy + m.yC)
+      if (unidad) { const wn = doc.getTextWidth(num1); fuente(doc, F.SANS, 'normal', tam * 0.42, GUINDA); doc.text(unidad, x + pad + wn + 1.6, yy + m.yC) }
+      let ty = yy + m.yC + 2 + altoLinea(m.tamE, 1.2) * 0.8
       fuente(doc, F.SANS, 'bold', m.tamE, TINTA)
       m.et.forEach(l => { doc.text(l, x + pad, ty); ty += altoLinea(m.tamE, 1.2) })
-      ty += 1
-      fuente(doc, F.SANS, 'normal', m.tamD, SUB)
+      ty += 0.8
+      fuente(doc, F.SANS, 'normal', m.tamD, [74, 66, 68])
       m.ds.forEach(l => { doc.text(l, x + pad, ty); ty += altoLinea(m.tamD, 1.3) })
     } else {
       fuente(doc, F.SANS, 'bold', m.tamT, TINTA)
-      m.ds.forEach((l, j) => doc.text(l, x + pad, yy + 9.5 + j * altoLinea(m.tamT, 1.25)))
+      m.ds.forEach((l, j) => doc.text(l, x + pad, yy + SUP + IC + 6 + j * altoLinea(m.tamT, 1.25)))
     }
-    const inv = inversionDe(a)
-    let wInv = 0
-    if (inv) {
-      fuente(doc, F.SANS, 'bold', 7, SUB)
-      wInv = doc.getTextWidth(inv.v) + 3
-      doc.text(inv.v, x + cw - pad, yy + th - 4, { align: 'right' })
+    if (v.pie) {
+      ajustar(doc, v.pie, F.SANS, 'bold', 7.4, tw2, 6.4)
+      if (doc.getTextWidth(v.pie) <= tw2) {
+        trazo(doc, LINEA); doc.setLineWidth(0.2); doc.line(x + pad, yy + th - 6.9, x + cw - pad, yy + th - 6.9)
+        doc.setTextColor(SUB[0], SUB[1], SUB[2]); doc.text(v.pie, x + pad, yy + th - 3.1)
+      }
     }
-    if (e) {
-      const ne = lineasVersalitas(doc, e.nombre, cw - pad * 2 - 2 - wInv, 5.8, 0.5)
-      versalitas(doc, ne.length > 1 ? e.kick : ne[0] || '', x + pad, yy + th - 4, { tam: 5.8, color: col, cs: 0.5 })
-    }
-  })
+  }
+  y = (yFila[yFila.length - 1] ?? y) + (filas[filas.length - 1] ?? 0)
+
+  // ── Cierre ────────────────────────────────────────────────────────────────
+  const yc = Math.min(Math.max(y + 4.5, PIE - 2 - ALTO_CIERRE + 4), PIE - 7)
+  relleno(doc, DORADO); doc.rect(ML, yc, 22, 0.6, 'F')
+  fuente(doc, F.SERIF, 'italic', 13, TINTA)
+  const frase = n >= 2 ? `${enLetra.charAt(0).toUpperCase()}${enLetra.slice(1)} resultados que ya se ven en las calles de Apizaco.` : 'Un resultado que ya se ve en las calles de Apizaco.'
+  doc.text(frase, ML, yc + 5.8)
   return page
 }
 
@@ -1440,9 +1528,9 @@ export function pies(doc, ctx, textoCentro, borrador = false) {
   for (let p = 1; p <= total; p++) {
     if (borrador) {
       doc.setPage(p)
-      opacidad(doc, 0.2, () => {
+      opacidad(doc, 0.08, () => {
         // Centrada en la página: jsPDF gira el texto desde su punto de inicio.
-        fuente(doc, F.SANS, 'bold', 96, [150, 140, 140])
+        fuente(doc, F.SANS, 'bold', 96, [70, 60, 62])
         const ang = 52 * Math.PI / 180, w = doc.getTextWidth('BORRADOR')
         doc.text('BORRADOR', W / 2 - w / 2 * Math.cos(ang), H / 2 + w / 2 * Math.sin(ang), { angle: 52 })
       })

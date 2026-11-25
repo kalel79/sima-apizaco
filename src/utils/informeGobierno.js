@@ -63,7 +63,7 @@ export async function generarInformeGobierno({
   entradas.push({ label: 'Presentación', page: presentacion(doc, ctx, catalogo) })
   entradas.push({ label: 'Mensaje del Presidente Municipal', page: mensajePresidente(doc, ctx) })
   const logros = logrosDelAnio(acciones, ordenEje)
-  if (logros.length) entradas.push({ label: 'Los logros del año', page: diezLogros(doc, ctx, logros, datos) })
+  if (logros.length) entradas.push({ label: 'Los logros del año', page: await diezLogros(doc, ctx, logros, datos) })
   entradas.push({ label: 'Integrantes del H. Cabildo', page: cabildo(doc, ctx) })
   // "Acciones del H. Cabildo" y "Datos financieros" aún no tienen contenido en
   // SIMA: se omiten en lugar de publicarse como recuadros vacíos.
