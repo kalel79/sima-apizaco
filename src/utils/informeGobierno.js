@@ -101,7 +101,18 @@ export async function generarInformeGobierno({
   }
 
   // Lo que sigue: compromisos y metas del año siguiente, por eje.
-  entradas.push({ label: 'La agenda del tercer año', page: await agendaTercerAnio(doc, ctx, ejes.map(e => datos[e.codigo]), metasAgenda) })
+  // Si la página no se puede armar (un texto no cabe, faltan metas en SIMA), el
+  // borrador sale sin ella y lo anota en «Pendientes de captura»; la versión
+  // final sí se detiene, para no publicarse incompleta.
+  const pagsAntes = doc.getNumberOfPages()
+  try {
+    entradas.push({ label: 'La agenda del tercer año', page: await agendaTercerAnio(doc, ctx, ejes.map(e => datos[e.codigo]), metasAgenda) })
+  } catch (e) {
+    if (!borrador) throw e
+    while (doc.getNumberOfPages() > pagsAntes) doc.deletePage(doc.getNumberOfPages())
+    console.warn('[Informe] Se omitió «La agenda del tercer año»:', e?.message || e)
+    ctx.pendientes.push({ pag: '—', eje: '', logro: 'La agenda del tercer año', campo: 'Página omitida', marca: e?.message || String(e) })
+  }
 
   // Anexo estadístico: resumen de los indicadores y el detalle de cada eje.
   entradas.push({

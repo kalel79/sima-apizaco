@@ -159,6 +159,7 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
         getInformeActual(),
         getEjesCatalogo(),
         getProgramaPorIndicador(),
+        getMetasAgenda(AGENDA_ANIO, AGENDA_CLAVES),
       ])
       // Los indicadores del anexo se acumulan al cierre del periodo del Informe
       // (no al mes activo de SIMA) y desde el catálogo completo del ejercicio,
