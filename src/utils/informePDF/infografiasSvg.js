@@ -14,7 +14,7 @@
 import { F_SVG_SERIF } from './recursos.js'
 
 const crudos = import.meta.glob([
-  '/node_modules/@material-symbols/svg-400/rounded/{text_fields,wc,stadium,map,celebration,flag,skull,forest,festival,school,account_balance,local_shipping,airport_shuttle,medication,vaccines,dentistry,psychology,nutrition,favorite,monitor_heart,stethoscope,sentiment_satisfied,receipt_long,pets,coronavirus,agriculture,grass,science,inventory_2,campaign,payments,health_and_safety,military_tech,sell,water_drop,view_in_ar,videocam,smart_display,touch_app,apartment,router,shield,key,search,sports_volleyball,sports_martial_arts,sports_score,directions_run,accessible_forward,emoji_events,target,swap_horiz,local_police,lightbulb,signpost,delete,trophy,add_road}.svg',
+  '/node_modules/@material-symbols/svg-400/rounded/{text_fields,wc,stadium,map,celebration,flag,skull,forest,festival,school,account_balance,local_shipping,airport_shuttle,medication,vaccines,dentistry,psychology,nutrition,favorite,monitor_heart,stethoscope,sentiment_satisfied,receipt_long,pets,coronavirus,agriculture,grass,science,inventory_2,campaign,payments,health_and_safety,military_tech,sell,water_drop,view_in_ar,videocam,smart_display,touch_app,apartment,router,shield,key,search,sports_volleyball,sports_martial_arts,sports_score,directions_run,accessible_forward,emoji_events,target,swap_horiz,local_police,lightbulb,signpost,delete,trophy,add_road,volunteer_activism,gavel,storefront}.svg',
 ], { query: '?raw', import: 'default', eager: true })
 const ICONOS = Object.fromEntries(Object.entries(crudos).map(([k, v]) => [k.split('/').pop().replace('.svg', ''), v]))
 

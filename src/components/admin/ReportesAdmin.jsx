@@ -4,10 +4,11 @@ import {
   TreePine, Presentation, Search, FileText, FileSpreadsheet, FileBarChart2,
 } from 'lucide-react'
 import { generarPDF, generarExcel, generarExcelEjecutivo, generarPDFPiloto, generarExcelPiloto, generarExcelMetas } from '../../utils/reportes'
-import { getInformeActual, getAccionesInforme, getEjesCatalogo, descargarFotosAcciones, liberarFotosAcciones, getProgramaPorIndicador } from '../../lib/informe.js'
+import { getInformeActual, getAccionesInforme, getEjesCatalogo, descargarFotosAcciones, liberarFotosAcciones, getProgramaPorIndicador, getMetasAgenda } from '../../lib/informe.js'
 import { esErrorDeChunk } from '../../lib/recargaVersion.js'
 import { indicadoresAlCorte, programasAlCorte, corteInforme } from '../../utils/informeIndicadores.js'
 import { revisarInforme } from '../../utils/informeRevision.js'
+import { AGENDA_ANIO, AGENDA_CLAVES, agendaPendientes } from '../../utils/informeGobiernoContenido.js'
 import RevisionInforme from './RevisionInforme.jsx'
 import { generarArbolProblemaObjetivosMIR } from '../../utils/reporteArbolMIR'
 import { generarMatrizPMDAreas } from '../../utils/reporteMatrizPMD'
@@ -152,7 +153,7 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
   async function handleInformeGobierno() {
     setGenStatus('cargando'); cerrarRevision()
     try {
-      const [pmdVivo, claves, informe, catalogo, progDe] = await Promise.all([
+      const [pmdVivo, claves, informe, catalogo, progDe, metasAgenda] = await Promise.all([
         getComparativoPMD(),
         getClavesIndicadores(),
         getInformeActual(),
@@ -168,8 +169,8 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
       const pmdProgramas = programasAlCorte(pmdVivo, indsCorte, progDe)
       const acciones = informe ? await getAccionesInforme(informe.id, { soloIncluidas: true }) : []
       const fotosPorAccion = await descargarFotosAcciones(acciones.map(a => a.id))
-      const datos = { ejes: ejesCorte, indicadoresPorEje: indsCorte, pmdProgramas, acciones, catalogo, fotosPorAccion, corte }
-      setRevInforme({ datos, rev: revisarInforme({ acciones, fotosPorAccion, ejes: ejesCorte, indicadoresPorEje: indsCorte }) })
+      const datos = { ejes: ejesCorte, indicadoresPorEje: indsCorte, pmdProgramas, acciones, catalogo, fotosPorAccion, corte, metasAgenda }
+      setRevInforme({ datos, rev: revisarInforme({ acciones, fotosPorAccion, ejes: ejesCorte, indicadoresPorEje: indsCorte, agenda: agendaPendientes() }) })
       setGenStatus(null)
     } catch (e) {
       setGenStatus(errorInforme(e))

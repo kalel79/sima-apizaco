@@ -69,6 +69,10 @@ export default function RevisionInforme({ rev, ocupado, onBorrador, onFinal, onC
           efecto={rev.corchetes.length ? 'Impiden descargar la versión final.' : null}>
           <Lista items={rev.corchetes} />
         </Punto>
+        <Punto tipo={rev.agenda ? 'bloqueo' : 'ok'} cantidad={rev.agenda || 0}
+          titulo="Textos de «La agenda del tercer año» entre corchetes"
+          detalle="Los compromisos para 2027 se redactan en el contenido del Informe; las cifras de sus metas se leen de SIMA."
+          efecto={rev.agenda ? 'Impiden descargar la versión final.' : null} />
         <Punto tipo={rev.sinDatos ? 'aviso' : 'ok'} cantidad={rev.sinDatos}
           titulo="Acciones sin datos de logro completos"
           detalle="Les falta cifra principal, dónde o tema. Se publican igual: sin tema se agrupan por programa, sin cifra se destacan los beneficiarios (si los hay) y sin dónde se muestra el área." />
@@ -104,7 +108,7 @@ export default function RevisionInforme({ rev, ocupado, onBorrador, onFinal, onC
       </div>
       <div style={{ fontSize: FS.xxs, color: C.txtMuted, marginTop: 6 }}>
         El borrador lleva la marca «Borrador» en cada página.
-        {rev.bloqueos > 0 && ' La versión final se habilita cuando no queden acciones con corchetes.'}
+        {rev.bloqueos > 0 && ' La versión final se habilita cuando no queden textos entre corchetes.'}
       </div>
     </div>
   )

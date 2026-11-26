@@ -12,6 +12,7 @@ import { ocultaCifra } from './infografiasSvg.js'
 import {
   CABILDO, GABINETE, PRESENTACION_PARRAFOS, PRESENTACION_EJES, MENSAJE_PRESIDENTE, NOTA_METODOLOGICA, GLOSARIO,
   PRESENTACION_ADICIONALES_TEXTO, PRESENTACION_ADICIONALES, MENSAJE_LEMA,
+  AGENDA_ANIO, AGENDA_DISENO, AGENDA_ENTRADILLA, AGENDA_PRINCIPAL, AGENDA_CIERRE, AGENDA_TRAMOS, AGENDA_EJES,
 } from '../informeGobiernoContenido.js'
 
 export const W = 215.9, H = 279.4, ML = 18, CW = W - ML * 2
@@ -1451,6 +1452,329 @@ export async function diezLogros(doc, ctx, logros, ejesDatos) {
   fuente(doc, F.SERIF, 'italic', 13, TINTA)
   const frase = n >= 2 ? `${enLetra.charAt(0).toUpperCase()}${enLetra.slice(1)} resultados que ya se ven en las calles de Apizaco.` : 'Un resultado que ya se ve en las calles de Apizaco.'
   doc.text(frase, ML, yc + 5.8)
+  return page
+}
+
+// ── La agenda del tercer año ─────────────────────────────────────────────────
+// Cierra los capítulos de los ejes: los compromisos del año siguiente y sus
+// metas de la MIR, cuyo número llega de SIMA en `metas` ({ clave: meta anual }).
+// Dos diseños con los mismos datos (AGENDA_DISENO): 'v2', hoja de ruta, y
+// 'v1', mosaico de tarjetas como «Los logros del año».
+const cifraAgenda = v => Number(v).toLocaleString('es-MX', { maximumFractionDigits: 2 })
+const esPendiente = t => /\[[^\]]{1,60}\]/.test(String(t))
+
+// Datos de la página: por eje, sus metas con valor y su compromiso ya con las
+// cifras de SIMA en lugar de las marcas {m1}, {metas}, {areas}, {anio}.
+function datosAgenda(ejesDatos, metas) {
+  const base = ejesDatos.filter(d => AGENDA_EJES[d.cod]).map(d => {
+    const ag = AGENDA_EJES[d.cod]
+    return { d, ag, col: hexARgb(d.color), ms: ag.metas.filter(([clave]) => metas[clave] > 0).slice(0, 3) }
+  })
+  const claves = base.flatMap(it => it.ms.map(m => m[0]))
+  const globales = { metas: claves.length, areas: new Set(claves.map(c => c.split('-')[1])).size, anio: AGENDA_ANIO }
+  const llenar = (t, it) => String(t).replace(/\{(m[123]|metas|areas|anio)(:letra)?\}/g, (_, k, letra) => {
+    // {m1} busca la meta por su lugar en el contenido, aunque otra falte en SIMA.
+    const v = /^m\d$/.test(k) ? metas[it?.ag.metas[+k[1] - 1]?.[0]] : globales[k]
+    if (!(v > 0)) return '[meta sin capturar]'
+    if (k === 'anio') return String(v)
+    return letra && Number.isInteger(v) && v <= 9 ? NUM_LETRA[v] : cifraAgenda(v)
+  })
+  return {
+    items: base.map(it => ({ ...it, txt: llenar(it.ag.compromiso, it) })),
+    principal: llenar(AGENDA_PRINCIPAL), entradilla: llenar(AGENDA_ENTRADILLA), claves, ...globales,
+  }
+}
+
+export async function agendaTercerAnio(doc, ctx, ejesDatos, metas = {}) {
+  return AGENDA_DISENO === 'v1' ? agendaTarjetas(doc, ctx, ejesDatos, metas) : agendaRuta(doc, ctx, ejesDatos, metas)
+}
+
+// Color del eje apto para texto sobre blanco: se oscurece hasta cumplir el
+// contraste AA (4.5 : 1).
+function colorTexto(rgb) {
+  const lum = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]) }
+  let c = rgb
+  for (let i = 0; i < 5 && 1.05 / (lum(c) + 0.05) < 4.5; i++) c = c.map(v => Math.round(v * 0.85))
+  return c
+}
+
+// v2 · Hoja de ruta: apertura con el año monumental, franja del compromiso
+// principal con las cifras clave y los compromisos como estaciones sobre una
+// línea, en renglones sin cajas. El color de cada eje va solo en su punto de
+// la ruta, su rótulo y su ícono.
+async function agendaRuta(doc, ctx, ejesDatos, metas) {
+  const SECCION = 'La agenda del tercer año'
+  const A = datosAgenda(ejesDatos, metas)
+  // Tamaños de la página (pt): título, cifras, itálica, entradilla, texto y versales.
+  const T = { tit: 36, cif: 23, it: 14, ent: 10.5, txt: 9, ver: 7 }
+  const CUERPO = [58, 46, 48], LIMITE = PIE
+  nuevaPagina(doc, ctx, SECCION)
+  const page = doc.getNumberOfPages()
+  const anota = (eje, t) => { if (esPendiente(t) && ctx.pendientes) ctx.pendientes.push({ pag: page, eje, logro: SECCION, campo: 'Compromiso', marca: (String(t).match(/\[[^\]]{1,60}\]/) || [''])[0] }) }
+  // Ajuste: parte el texto en su zona y avisa con un error claro si no cabe,
+  // en lugar de encimarlo o de reducir la letra.
+  const encaja = (nombre, txt, ancho, max, fam, estilo, tam) => {
+    const ls = lineas(doc, txt, ancho, fam, estilo, tam)
+    if (ls.length > max) throw new Error(`La agenda del tercer año: «${nombre}» ocupa ${ls.length} renglones y solo caben ${max}. Hay que acortar el texto.`)
+    return ls
+  }
+
+  // ── Apertura ───────────────────────────────────────────────────────────────
+  let y = 28
+  versalitas(doc, `Rumbo a ${AGENDA_ANIO} · Agenda del tercer año`, ML, y, { tam: T.ver, color: GUINDA, cs: 0.6 })
+  // El año, monumental y solo en contorno dorado; sale un poco de la caja.
+  fuente(doc, F.SERIF, 'normal', 94)
+  const wA = doc.getTextWidth(String(AGENDA_ANIO)), xA = W - ML + 4.5 - wA
+  trazo(doc, DORADO); doc.setLineWidth(0.28)
+  doc.text(String(AGENDA_ANIO), xA, y + 31, { renderingMode: 'stroke' })
+  const titulo = `El tercer año en ${NUM_LETRA[A.items.length + 1] || A.items.length + 1} compromisos`
+  const tit = encaja('título', titulo, CW, 1, F.SERIF, 'normal', T.tit)
+  fuente(doc, F.SERIF, 'normal', T.tit, TINTA); doc.text(tit[0], ML, y + 13)
+  relleno(doc, DORADO); doc.rect(ML, y + 16.6, 22, 0.9, 'F')
+  const wE = xA - 7 - ML, lhE = altoLinea(T.ent, 1.3)
+  const ent = encaja('entradilla', A.entradilla, wE, 5, F.SANS, 'normal', T.ent)
+  fuente(doc, F.SANS, 'normal', T.ent, CUERPO); nuevoCampo()
+  ent.forEach((l, i) => renglon(doc, l, ML, y + 22.6 + i * lhE, wE, false))
+  anota('', A.entradilla)
+  y = Math.max(y + 22.6 + (ent.length - 1) * lhE + 4.4, y + 40.5)
+
+  // ── Compromiso principal y cifras clave ────────────────────────────────────
+  const xK = ML + 127, hK = 7.5, wP = xK - 9 - ML, lhP = altoLinea(T.it, 1.2)
+  const pr = encaja('compromiso principal', A.principal, wP, 4, F.SERIF, 'italic', T.it)
+  relleno(doc, DORADO); doc.rect(ML, y, CW, 0.7, 'F')
+  versalitas(doc, 'Compromiso principal · Tercer año de gobierno', ML, y + 4.9, { tam: T.ver, color: GUINDA, cs: 0.6 })
+  fuente(doc, F.SERIF, 'italic', T.it, TINTA); nuevoCampo()
+  pr.forEach((l, i) => renglon(doc, l, ML, y + 10.6 + i * lhP, wP, false))
+  anota('', A.principal)
+  const nPmd = A.items.filter(it => it.d.kick !== 'Eje adicional').length, nAd = A.items.length - nPmd
+  const clave = [
+    [cifraAgenda(A.metas), `metas programadas en la MIR ${AGENDA_ANIO}`],
+    [nAd ? `${nPmd} + ${nAd}` : String(nPmd), nAd ? 'ejes del PMD y ejes adicionales' : 'ejes del PMD'],
+    [cifraAgenda(A.areas), 'áreas municipales responsables'],
+  ]
+  const xEt = xK + 21
+  clave.forEach(([v, l], i) => {
+    const yk = y + 1.6 + i * hK
+    if (i) { trazo(doc, LINEA); doc.setLineWidth(0.2); doc.line(xK, yk, W - ML, yk) }
+    fuente(doc, F.SERIF, 'normal', T.cif, GUINDA); doc.text(v, xK, yk + 5.3)
+    const ls = lineasVersalitas(doc, l, W - ML - xEt, T.ver, 0.45)
+    if (ls.length > 2) throw new Error(`La agenda del tercer año: el rótulo «${l}» no cabe junto a su cifra.`)
+    ls.forEach((t, k) => versalitas(doc, t, xEt, yk + (ls.length > 1 ? 3.4 : 4.8) + k * 2.9, { tam: T.ver, cs: 0.45 }))
+  })
+  trazo(doc, LINEA); doc.setLineWidth(0.2); doc.line(xK - 4.5, y + 3, xK - 4.5, y + 1.6 + hK * 3)
+  y += Math.max(10.6 + (pr.length - 1) * lhP + 3.8, 1.6 + hK * 3 + 2.2)
+
+  // ── La ruta: un renglón por compromiso ─────────────────────────────────────
+  // Zonas: eje · meta · compromiso · otras metas del año.
+  const xR = ML + 2.2, x0 = ML + 8
+  const Z = { id: [x0, 22], me: [x0 + 25, 33], co: [x0 + 61, 78], cm: [x0 + 142, W - ML - x0 - 142] }
+  const lhT = altoLinea(T.txt, 1.3), lhV = 2.95, wNum = 8.2
+  const KICK = d => d.kick === 'Eje adicional' ? '' : d.kick.replace('Eje transversal', 'Eje')
+  const filas = A.items.map(it => {
+    const nom = encaja(`nombre del eje ${it.d.cod}`, EJE_CORTO[it.d.cod] || it.d.nombre, Z.id[1], 2, F.SANS, 'normal', T.ver)
+    const uni = it.ms[0] ? encaja(`unidad de la meta de ${it.d.cod}`, it.ms[0][2] || it.ms[0][1], Z.me[1], 2, F.SANS, 'bold', T.txt) : []
+    const co = encaja(`compromiso de ${it.d.cod}`, it.txt, Z.co[1], 3, F.SANS, 'normal', T.txt)
+    const cm = it.ms.slice(1).map(m => ({ v: cifraAgenda(metas[m[0]]), ls: encaja(`meta complementaria de ${it.d.cod}`, m[2] || m[1], Z.cm[1] - wNum, 2, F.SANS, 'normal', T.ver) }))
+    const hId = 5.4 + nom.length * lhV, hMe = it.ms[0] ? 9 + uni.length * lhT : 0, hCo = co.length * lhT
+    const hCm = cm.reduce((t, c) => t + c.ls.length * lhV, 0) + Math.max(0, cm.length - 1) * 1.1
+    return { it, nom, uni, co, cm, hId, hMe, hCo, hCm, alto: Math.max(hId, hMe, hCo, hCm) + 2.3 }
+  })
+  const tramos = AGENDA_TRAMOS.map(t => ({ ...t, filas: filas.filter(f => t.ejes.includes(f.it.d.cod)) })).filter(t => t.filas.length)
+  const ALTO_CAB = 5, ALTO_TRAMO = 4.4, ALTO_CIERRE = 9
+  const total = ALTO_CAB + tramos.length * ALTO_TRAMO + filas.reduce((t, f) => t + f.alto, 0) + ALTO_CIERRE
+  if (y + total > LIMITE + 0.05) throw new Error(`La agenda del tercer año no cabe en una página: sobran ${(y + total - LIMITE).toFixed(1)} mm. Hay que acortar textos o quitar un renglón.`)
+  // El espacio que sobra se reparte entre los renglones (hasta 2.5 mm cada uno).
+  const extra = Math.min(2.5, (LIMITE - y - total) / Math.max(1, filas.length))
+
+  // Cabecera de las zonas.
+  ;[['Eje', Z.id], [`Meta ${AGENDA_ANIO}`, Z.me], ['Compromiso', Z.co], [`También en ${AGENDA_ANIO}`, Z.cm]]
+    .forEach(([t, z]) => versalitas(doc, t, z[0], y + 3, { tam: T.ver, cs: 0.5 }))
+  trazo(doc, TINTA); doc.setLineWidth(0.3); doc.line(x0, y + ALTO_CAB - 0.4, W - ML, y + ALTO_CAB - 0.4)
+  y += ALTO_CAB
+  const yRuta = y + 1.2, puntos = []
+
+  for (const tramo of tramos) {
+    versalitas(doc, tramo.rotulo, x0, y + 3.3, { tam: T.ver, color: GUINDA, cs: 0.6 })
+    y += ALTO_TRAMO
+    for (const f of tramo.filas) {
+      const { it } = f, h = f.alto + extra, yc = y + h / 2, tinta = colorTexto(it.col)
+      trazo(doc, LINEA); doc.setLineWidth(0.14); doc.line(x0, y, W - ML, y)
+      puntos.push([yc, it.col])
+      // Eje: ícono, rótulo en el color del eje y nombre breve.
+      let t = yc - f.hId / 2
+      const hex = `#${tinta.map(v => v.toString(16).padStart(2, '0')).join('')}`
+      const conIcono = it.ag.icono && await dibujarIcono(doc, it.ag.icono, Z.id[0] - 0.4, t, 4.6, hex)
+      if (KICK(it.d)) versalitas(doc, KICK(it.d), Z.id[0] + (conIcono ? 5.7 : 0), t + 3.5, { tam: T.ver, color: tinta, cs: 0.5 })
+      fuente(doc, F.SANS, 'normal', T.ver, SUB)
+      f.nom.forEach((l, k) => doc.text(l, Z.id[0], t + 5.4 + lhV * (k + 0.8)))
+      // Meta: la cifra y su unidad debajo.
+      if (it.ms[0]) {
+        t = yc - f.hMe / 2
+        fuente(doc, F.SERIF, 'normal', T.cif, GUINDA); doc.text(cifraAgenda(metas[it.ms[0][0]]), Z.me[0], t + 5.9)
+        fuente(doc, F.SANS, 'bold', T.txt, TINTA)
+        f.uni.forEach((l, k) => doc.text(l, Z.me[0], t + 9 + lhT * (k + 0.78)))
+      }
+      // Compromiso.
+      t = yc - f.hCo / 2
+      fuente(doc, F.SANS, 'normal', T.txt, CUERPO); nuevoCampo()
+      f.co.forEach((l, k) => renglon(doc, l, Z.co[0], t + lhT * (k + 0.78), Z.co[1], false))
+      anota(it.d.corto, it.txt)
+      // Otras metas del año: cifra en negrita y descriptor.
+      t = yc - f.hCm / 2
+      f.cm.forEach(c => {
+        fuente(doc, F.SANS, 'bold', T.ver, GUINDA); doc.text(c.v, Z.cm[0] + wNum - 1.6, t + lhV * 0.8, { align: 'right' })
+        fuente(doc, F.SANS, 'normal', T.ver, SUB)
+        c.ls.forEach((l, k) => doc.text(l, Z.cm[0] + wNum, t + lhV * (k + 0.8)))
+        t += c.ls.length * lhV + 1.1
+      })
+      y += h
+    }
+    trazo(doc, LINEA); doc.setLineWidth(0.14); doc.line(x0, y, W - ML, y)
+  }
+  // La ruta y sus estaciones, encima de los filetes.
+  trazo(doc, DORADO); doc.setLineWidth(0.35); doc.line(xR, yRuta, xR, y)
+  puntos.forEach(([yp, col]) => { relleno(doc, BLANCO); doc.circle(xR, yp, 2.1, 'F'); relleno(doc, col); doc.circle(xR, yp, 1.35, 'F') })
+  relleno(doc, DORADO); doc.circle(xR, yRuta, 0.75, 'F'); doc.circle(xR, y, 0.75, 'F')
+
+  // ── Cierre ────────────────────────────────────────────────────────────────
+  const cierre = encaja('frase de cierre', AGENDA_CIERRE, W - ML - x0, 1, F.SERIF, 'italic', T.it)
+  relleno(doc, DORADO); doc.rect(x0, y + 3, 22, 0.6, 'F')
+  fuente(doc, F.SERIF, 'italic', T.it, TINTA); doc.text(cierre[0], x0, y + 8.6)
+  return page
+}
+
+// v1 · Mosaico de tarjetas, con el diseño de «Los logros del año»: franja de
+// cifras, banda guinda con el compromiso principal y una tarjeta por eje.
+async function agendaTarjetas(doc, ctx, ejesDatos, metas) {
+  const cifra = cifraAgenda
+  const { items, principal } = datosAgenda(ejesDatos, metas)
+  const n = items.length + 1, enLetra = NUM_LETRA[n] || String(n)
+  const titulo = `El tercer año en ${enLetra} compromisos`, SECCION = 'La agenda del tercer año'
+  let y = nuevaPagina(doc, ctx, SECCION)
+  const page = doc.getNumberOfPages()
+  y = apertura(doc, y + 4, `Rumbo a ${AGENDA_ANIO}`, titulo) - 6.5
+  const anota = (eje, marca) => {
+    if (esPendiente(marca) && ctx.pendientes) ctx.pendientes.push({ pag: page, eje, logro: SECCION, campo: 'Compromiso', marca })
+  }
+
+  // ── Franja de cifras-resumen ───────────────────────────────────────────────
+  const claves = items.flatMap(it => it.ms.map(m => m[0]))
+  const resumen = [
+    claves.length > 0 && [String(claves.length), `metas programadas en la MIR ${AGENDA_ANIO}`],
+    [String(items.length), 'ejes de gobierno con compromiso'],
+    claves.length > 0 && [String(new Set(claves.map(c => c.split('-')[1])).size), 'áreas municipales responsables'],
+  ].filter(Boolean)
+  const wr = CW / resumen.length
+  trazo(doc, LINEA); doc.setLineWidth(0.25); doc.line(ML, y, W - ML, y); doc.line(ML, y + 13, W - ML, y + 13)
+  resumen.forEach(([v, l], i) => {
+    const x = ML + i * wr + (i ? 5 : 0)
+    if (i) { trazo(doc, LINEA); doc.setLineWidth(0.25); doc.line(ML + i * wr, y + 2.8, ML + i * wr, y + 10.2) }
+    fuente(doc, F.LIGHT, 'normal', 20, GUINDA); doc.text(v, x, y + 9.2)
+    const xl = x + doc.getTextWidth(v) + 2.5
+    const ls = lineasVersalitas(doc, l, ML + (i + 1) * wr - xl - 3, 6.5, 0.4).slice(0, 3)
+    const y0 = y + 7.4 - (ls.length - 1) * 1.5
+    ls.forEach((t, k) => versalitas(doc, t, xl, y0 + k * 3, { tam: 6.5, cs: 0.4 }))
+  })
+  y += 15.5
+
+  // ── Compromiso principal: el año a la izquierda, el texto a la derecha ─────
+  const tx = ML + 80, tw = W - ML - 8 - tx
+  let tamH = 12.5, tl
+  for (; ; tamH -= 0.5) {
+    tl = lineas(doc, sinPunto(principal), tw, F.SANS, 'normal', tamH)
+    if (tl.length <= 4 || tamH <= 9.5) break
+  }
+  const lhH = altoLinea(tamH, 1.4), altoT = tl.length * lhH, hh = Math.max(28, altoT + 11)
+  relleno(doc, GUINDA); doc.rect(ML, y, CW, hh, 'F')
+  relleno(doc, DORADO); doc.rect(ML, y, 1.6, hh, 'F')
+  const yc0 = y + (hh - 22.2) / 2
+  fuente(doc, F.SERIF, 'normal', 34, BLANCO); doc.text(String(AGENDA_ANIO), ML + 9, yc0 + 12)
+  versalitas(doc, 'Tercer año de gobierno', ML + 9, yc0 + 18.5, { tam: 6.8, color: DORADO_CLARO, cs: 0.5 })
+  versalitas(doc, 'Compromiso principal', ML + 9, yc0 + 21.7, { tam: 6.8, color: DORADO_CLARO, cs: 0.5 })
+  opacidad(doc, 0.35, () => { trazo(doc, DORADO_CLARO); doc.setLineWidth(0.2); doc.line(tx - 6, y + 6, tx - 6, y + hh - 6) })
+  const yt = y + (hh - altoT) / 2 + lhH * 0.72
+  // En el borrador, el pendiente va sobre una placa clara para que se lea.
+  const placa = OPC.borrador && esPendiente(principal)
+  tl.forEach((l, i) => {
+    fuente(doc, F.SANS, 'normal', tamH, placa ? GUINDA : BLANCO)
+    if (placa) { relleno(doc, [255, 243, 176]); doc.rect(tx - 0.8, yt + i * lhH - lhH * 0.7, doc.getTextWidth(l) + 1.6, lhH * 0.96, 'F') }
+    doc.text(l, tx, yt + i * lhH)
+  })
+  anota('', principal)
+  y += hh + 3.4
+
+  // ── Una tarjeta por eje ────────────────────────────────────────────────────
+  const gap = 3.2, cw = (CW - gap * 2) / 3, pad = 4, tw2 = cw - pad * 2, IC = 5, SUP = 3.6, ALTO_CIERRE = 11, TAM_P = 7.2
+  const medir = (it, k) => {
+    const tamC = 24 * k, tamE = 9.4 * k, tamD = Math.max(8, 8.5 * k)
+    const et = it.ms[0] ? lineas(doc, it.ms[0][1], tw2, F.SANS, 'bold', tamE) : []
+    const ds = lineas(doc, sinPunto(it.txt), tw2, F.SANS, 'normal', tamD)
+    const yC = SUP + IC + 2.2 + (it.ms[0] ? tamC * 0.3528 * 0.74 : 0)
+    const pie = Math.max(0, it.ms.length - 1)
+    const alto = yC + 2 + et.length * altoLinea(tamE, 1.2) + 1.6 + ds.length * altoLinea(tamD, 1.3) + (pie ? 4.6 + pie * 3.5 : 2.6)
+    return { tamC, tamE, tamD, et, ds, yC, alto, pie }
+  }
+  const disponible = PIE - 2 - y - ALTO_CIERRE
+  let k = 1, med, filas
+  for (; ; k -= 0.01) {
+    med = items.map(it => medir(it, k))
+    filas = []
+    for (let i = 0; i < med.length; i += 3) filas.push(Math.max(34, ...med.slice(i, i + 3).map(m => m.alto)))
+    if (filas.reduce((t, f) => t + f, 0) + gap * (filas.length - 1) <= disponible || k <= 0.9) break
+  }
+  const libre = disponible - filas.reduce((t, f) => t + f, 0) - gap * (filas.length - 1)
+  if (libre > 0 && filas.length) { const extra = Math.min(6, libre / filas.length); filas = filas.map(f => f + extra) }
+  const yFila = filas.map((_, f) => y + filas.slice(0, f).reduce((t, v) => t + v + gap, 0))
+
+  for (let i = 0; i < items.length; i++) {
+    const { d, ag, ms, col } = items[i], m = med[i], th = filas[Math.floor(i / 3)]
+    const x = ML + (i % 3) * (cw + gap), yy = yFila[Math.floor(i / 3)]
+    relleno(doc, ALT); doc.rect(x, yy, cw, th, 'F')
+    relleno(doc, col); doc.rect(x, yy, cw, 0.9, 'F')
+    // Ícono y rótulo del eje.
+    const conIcono = ag.icono && await dibujarIcono(doc, ag.icono, x + pad - 0.4, yy + SUP, IC, '#7B1F2C')
+    const corto = EJE_CORTO[d.cod], pmd = d.kick !== 'Eje adicional', maxChip = tw2 - (conIcono ? IC + 2.5 : 0)
+    fuente(doc, F.SANS, 'bold', 6.4)
+    let chip = pmd && corto ? `${d.kick} · ${corto}` : corto || d.corto
+    if (doc.getTextWidth(chip) + 3.6 > maxChip) chip = pmd ? d.kick : chip
+    const wc = doc.getTextWidth(chip) + 3.6
+    relleno(doc, hexARgb(matiz(d.color, 0.86))); doc.roundedRect(x + cw - pad - wc, yy + SUP + 0.3, wc, 4.4, 1.1, 1.1, 'F')
+    fuente(doc, F.SANS, 'bold', 6.4, col); doc.text(chip, x + cw - pad - wc + 1.8, yy + SUP + 3.4)
+    // Meta protagonista: cifra, «meta 2027» junto al número y su rótulo.
+    let ty = yy + m.yC + 2
+    if (ms[0]) {
+      const v = cifra(metas[ms[0][0]])
+      fuente(doc, F.LIGHT, 'normal', m.tamC, GUINDA); doc.text(v, x + pad, yy + m.yC)
+      versalitas(doc, `Meta ${AGENDA_ANIO}`, x + pad + doc.getTextWidth(v) + 2, yy + m.yC, { tam: 5.8, color: SUB, cs: 0.45, estilo: 'normal' })
+      fuente(doc, F.SANS, 'bold', m.tamE, TINTA)
+      m.et.forEach((l, j) => doc.text(l, x + pad, ty + altoLinea(m.tamE, 1.2) * (j + 0.8)))
+      ty += m.et.length * altoLinea(m.tamE, 1.2)
+    }
+    // Compromiso del eje.
+    ty += 1.6 + altoLinea(m.tamD, 1.3) * 0.8
+    fuente(doc, F.SANS, 'normal', m.tamD, [74, 66, 68]); nuevoCampo()
+    m.ds.forEach(l => { renglon(doc, l, x + pad, ty, tw2, false); ty += altoLinea(m.tamD, 1.3) })
+    anota(d.corto, items[i].txt)
+    // Pie: las otras metas, una por renglón, con el número en negrita.
+    if (m.pie) {
+      const yp = yy + th - 2.6 - (m.pie - 1) * 3.5
+      trazo(doc, LINEA); doc.setLineWidth(0.2); doc.line(x + pad, yp - 3.9, x + cw - pad, yp - 3.9)
+      ms.slice(1).forEach(([clave, l], j) => {
+        const v = cifra(metas[clave])
+        fuente(doc, F.SANS, 'bold', TAM_P, GUINDA); doc.text(v, x + pad, yp + j * 3.5)
+        const wv = doc.getTextWidth(v) + 1.3
+        ajustar(doc, l, F.SANS, 'normal', TAM_P, tw2 - wv, 6)
+        doc.setTextColor(SUB[0], SUB[1], SUB[2]); doc.text(l, x + pad + wv, yp + j * 3.5)
+      })
+    }
+  }
+  y = (yFila[yFila.length - 1] ?? y) + (filas[filas.length - 1] ?? 0)
+
+  // ── Cierre ────────────────────────────────────────────────────────────────
+  const yc = Math.min(Math.max(y + 4.5, PIE - 2 - ALTO_CIERRE + 4), PIE - 7)
+  relleno(doc, DORADO); doc.rect(ML, yc, 22, 0.6, 'F')
+  fuente(doc, F.SERIF, 'italic', 13, TINTA)
+  doc.text(`${enLetra.charAt(0).toUpperCase()}${enLetra.slice(1)} compromisos para que el tercer año también se vea en las calles de Apizaco.`, ML, yc + 5.8)
   return page
 }
 

@@ -272,3 +272,22 @@ export async function getProgramaPorIndicador() {
   const data = await paginarTodo(() => supabase.from('indicadores').select('id, programa_pmd_id').order('id'))
   return Object.fromEntries((data || []).filter(i => i.programa_pmd_id).map(i => [i.id, i.programa_pmd_id]))
 }
+
+// { clave: meta anual } de los indicadores de «La agenda del tercer año». La
+// meta anual es la fila `mes = 0` de `metas`. Si algo falla, la página sale sin
+// metas en lugar de tumbar el Informe.
+export async function getMetasAgenda(anio, claves) {
+  if (!claves?.length) return {}
+  try {
+    const { data: inds, error } = await supabase.from('indicadores').select('id, clave').in('clave', claves)
+    if (error) throw error
+    const { data: metas, error: e2 } = await supabase.from('metas').select('indicador_id, valor')
+      .eq('anio', anio).eq('mes', 0).in('indicador_id', (inds || []).map(i => i.id))
+    if (e2) throw e2
+    const claveDe = Object.fromEntries((inds || []).map(i => [i.id, i.clave]))
+    return Object.fromEntries((metas || []).filter(m => Number(m.valor) > 0).map(m => [claveDe[m.indicador_id], Number(m.valor)]))
+  } catch (e) {
+    console.warn('[Informe] No se pudieron leer las metas de la agenda:', e?.message || e)
+    return {}
+  }
+}

@@ -120,3 +120,95 @@ export const GLOSARIO = [
   ['Corte', 'Fecha en que se cierran las cifras para elaborar el Informe.'],
   ['SIMA', 'Sistema de Información Municipal de Avance: plataforma del Ayuntamiento donde las áreas capturan sus resultados y evidencias.'],
 ]
+
+// ── La agenda del tercer año ─────────────────────────────────────────────────
+// Única página del Informe que habla del futuro: los diez compromisos del año
+// siguiente (uno principal y uno por eje), cada uno con metas programadas en
+// la MIR de ese año. Todo el contenido sale de este arreglo de datos.
+//
+// Voz: futuro simple en forma impersonal («se renovarán», «el Ayuntamiento
+// concluirá»), igual que el resto del Informe. Sin condicionales ni fórmulas de
+// duda. Cada compromiso es una oración de 18 a 28 palabras.
+//
+// · `metas`: [clave del indicador, qué cuenta, rótulo breve]. El NÚMERO no se
+//   escribe aquí: se lee de la meta anual capturada en SIMA (tabla `metas`,
+//   mes 0). La primera es la meta principal del eje; las demás van como
+//   «También en 2027». Solo van indicadores cuya meta es una cantidad (no un
+//   porcentaje ni una suma mensual). Sin meta en SIMA, la meta se omite.
+// · En los textos, las cifras van como marcas para que nunca se desfasen de
+//   SIMA: {m1}, {m2}, {m3} = metas del eje ({m1:letra} la escribe con letra si
+//   va del uno al nueve); {metas} = total de metas de la página; {areas} =
+//   áreas responsables; {anio} = año de la agenda.
+// · Un texto entre [corchetes] es un pendiente: se resalta en el borrador e
+//   impide la versión final.
+export const AGENDA_ANIO = 2027
+// 'v2' = hoja de ruta (renglones sobre una línea); 'v1' = mosaico de tarjetas.
+export const AGENDA_DISENO = 'v2'
+export const AGENDA_ENTRADILLA = 'En {anio}, último año de esta administración, el Ayuntamiento cerrará el ciclo de gobierno con metas claras, medibles y a la vista de la ciudadanía. Diez compromisos —uno principal y nueve por eje— guiarán el trabajo de {areas} áreas municipales.'
+export const AGENDA_PRINCIPAL = 'El Ayuntamiento concluirá la administración 2024–2027 con las {metas} metas de esta agenda cumplidas y un Apizaco más seguro, mejor iluminado y con servicios cercanos a cada colonia.'
+export const AGENDA_CIERRE = 'Diez compromisos para que el tercer año también se vea en las calles de Apizaco.'
+// Tramos de la ruta. Municipio Solidario y Procuración de Justicia son los
+// «ejes adicionales» de la Presentación del Informe.
+export const AGENDA_TRAMOS = [
+  { rotulo: 'Ejes rectores', ejes: ['E1', 'E2', 'E3', 'E4', 'E5'] },
+  { rotulo: 'Ejes transversales', ejes: ['TA', 'TB'] },
+  { rotulo: 'Ejes adicionales', ejes: ['MS', 'AJ'] },
+]
+export const AGENDA_EJES = {
+  E1: {
+    icono: 'local_police',
+    compromiso: 'Se concluirá la certificación de {m1} policías municipales y se fortalecerá la prevención del delito con los comités vecinales de cada colonia.',
+    metas: [['E1-SP-A1.1-01', 'policías certificados', 'policías certificados'], ['E1-SP-A4.2-01', 'comités vecinales activos', 'comités vecinales'], ['E1-PC-C5-01', 'personas capacitadas en prevención', 'personas capacitadas']],
+  },
+  E2: {
+    icono: 'favorite',
+    compromiso: 'Se entregarán {m1} despensas a familias en situación de vulnerabilidad y se ampliarán los apoyos funcionales para personas con discapacidad y personas adultas mayores.',
+    metas: [['E2-DIF-A5.3-01', 'despensas entregadas', 'despensas'], ['E2-DIF-A5.1-01', 'apoyos funcionales entregados', 'apoyos funcionales'], ['E2-FYD-C2-01', 'espacios deportivos rehabilitados', 'espacios deportivos']],
+  },
+  E3: {
+    icono: 'lightbulb',
+    compromiso: 'Se renovarán {m1} luminarias en calles, parques y accesos, y continuará la recuperación de espacios públicos y la rehabilitación de vialidades.',
+    metas: [['E3-IU-A2.2-01', 'luminarias renovadas', 'luminarias'], ['E3-IU-A2.1-01', 'espacios públicos recuperados', 'espacios recuperados'], ['E3-OP-A1.1-01', 'calles rehabilitadas', 'calles rehabilitadas']],
+  },
+  E4: {
+    icono: 'storefront',
+    compromiso: 'Se acompañará a {m1} empresas locales en su capacitación y digitalización para fortalecer la economía de Apizaco y la generación de empleo.',
+    // Los complementarios son de Turismo y Cultura, áreas que SIMA ubica en el Eje 4.
+    metas: [['E4-DE-A1.3-01', 'empresas capacitadas o digitalizadas', 'empresas'], ['E4-TUR-A6.2-01', 'eventos culturales difundidos', 'eventos culturales'], ['E4-CUL-C6-02', 'actividades culturales', 'actividades culturales']],
+  },
+  E5: {
+    icono: 'account_balance',
+    compromiso: 'Se pondrán en línea {m1:letra} trámites municipales para que la ciudadanía los realice sin filas ni traslados, y se rendirán cuentas en tiempo y forma.',
+    metas: [['E5-ADM-A2.2-01', 'trámites digitalizados disponibles en línea', 'trámites en línea'], ['E5-TES-A6.1-01', 'entregas de la Cuenta Pública en tiempo', 'entregas de Cuenta Pública'], ['E5-CI-A1.1-01', 'auditorías de control interno', 'auditorías internas']],
+  },
+  TA: {
+    icono: 'forest',
+    compromiso: 'Se mantendrán en pie {m1} árboles de reforestación y se llevará la educación ambiental a {m3} escuelas del municipio.',
+    metas: [['E6-ECO-C1-01', 'árboles de reforestación en pie', 'árboles en pie'], ['E6-MC-A5.1-01', 'vacunas y esterilizaciones de mascotas', 'vacunas y esterilizaciones'], ['E6-ECO-A3.1-01', 'escuelas con programas ambientales', 'escuelas atendidas']],
+  },
+  TB: {
+    icono: 'wc',
+    compromiso: 'Operarán unidades de género en {m1:letra} dependencias municipales para incorporar la igualdad sustantiva en toda la gestión pública.',
+    // TODO(Hugo): validar. Solo hay un complementario: el resto de las metas 2027
+    // del Instituto de la Mujer valen 4 o 1 y no se distingue si son cantidades.
+    metas: [['E7-IMM-C1-01', 'dependencias con unidad de género operativa', 'unidades de género'], ['E7-IMM-A2.3-01', 'módulos de atención a mujeres', 'módulos de atención a mujeres']],
+  },
+  MS: {
+    icono: 'volunteer_activism',
+    compromiso: 'Se atenderá a {m1} personas en las jornadas de Martes Ciudadano para acercar el gobierno municipal a la población con respuestas oportunas.',
+    metas: [['E8-DP-A1.1-01', 'personas atendidas en Martes Ciudadano', 'personas atendidas'], ['E8-DP-PRO-01', 'trámites o servicios atendidos en plazo', 'trámites en plazo'], ['E8-PDC-C6-01', 'procesos estandarizados', 'procesos estandarizados']],
+  },
+  AJ: {
+    icono: 'gavel',
+    compromiso: 'Se brindarán {m1} asesorías e intervenciones jurídicas para dar certeza legal a la ciudadanía y a los actos del Ayuntamiento.',
+    metas: [['E9-DJ-A2.1-02', 'asesorías e intervenciones jurídicas', 'asesorías jurídicas'], ['E9-DJ-A2.2-01', 'convenios con visto bueno jurídico', 'convenios revisados'], ['E9-SIN-A1.1-02', 'acciones de vigilancia y fiscalización', 'acciones de vigilancia']],
+  },
+}
+// Claves de los indicadores que usa la agenda (para pedir sus metas a SIMA).
+export const AGENDA_CLAVES = [...new Set(Object.values(AGENDA_EJES).flatMap(e => e.metas.map(m => m[0])))]
+// Textos de la agenda que siguen siendo plantilla.
+const ES_PLANTILLA = /\[[^\]\n]{1,120}\]/
+export const agendaPendientes = () => [
+  ...[AGENDA_ENTRADILLA, AGENDA_PRINCIPAL].filter(t => ES_PLANTILLA.test(t)).map(t => ({ cod: '', marca: t })),
+  ...Object.entries(AGENDA_EJES).filter(([, e]) => ES_PLANTILLA.test(e.compromiso)).map(([cod, e]) => ({ cod, marca: e.compromiso })),
+]

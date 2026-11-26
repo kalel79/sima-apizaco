@@ -23,7 +23,7 @@ export const tieneCorchetes = a => ['accion', 'descripcion', 'lugar', 'cifra_val
 
 // acciones: las incluidas en el Informe; fotosPorAccion: Map id → [{ huella }];
 // ejes: [{ codigo, eje }] en su orden; indicadoresPorEje: para contar "sin meta".
-export function revisarInforme({ acciones, fotosPorAccion = new Map(), ejes = [], indicadoresPorEje = {} }) {
+export function revisarInforme({ acciones, fotosPorAccion = new Map(), ejes = [], indicadoresPorEje = {}, agenda = [] }) {
   const nFotos = a => fotosPorAccion.get(a.id)?.length || 0
   const nombreEje = Object.fromEntries(ejes.map(e => [e.codigo, String(e.eje || '').replace(/^Transversal [AB]\s*[–-]\s*/, '')]))
   const conAcciones = new Set(acciones.map(a => a.eje_codigo))
@@ -52,6 +52,8 @@ export function revisarInforme({ acciones, fotosPorAccion = new Map(), ejes = []
     ejesSinLogros: ejes.filter(e => !conAcciones.has(e.codigo)).map(e => nombreEje[e.codigo]),
     repetidas: acciones.filter(a => conRepetida.has(a.id)).map(ref),
     sinMeta: Object.values(indicadoresPorEje).flat().filter(i => i.semaforo === 'SIN META').length,
-    bloqueos: corchetes.length,
+    // Compromisos de «La agenda del tercer año» que siguen entre corchetes.
+    agenda: agenda.length,
+    bloqueos: corchetes.length + (agenda.length ? 1 : 0),
   }
 }

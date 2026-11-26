@@ -6,7 +6,7 @@ import { pesos, accionConFormato } from './informePDF/formato.js'
 import {
   portadaPrincipal, indice, presentacion, mensajePresidente, cabildo, gabinete,
   resumenEjecutivo, notaMetodologica, colofon, contraportada, portadaEje, resultadosEje, logrosEje, diezLogros, logrosDelAnio, pies, datosEje,
-  opcionesInforme, pendientesCaptura, revisarMaquetacion,
+  opcionesInforme, pendientesCaptura, revisarMaquetacion, agendaTercerAnio,
 } from './informePDF/paginas.js'
 
 // Colores de eje propios del Informe: el azul del Eje 5 y el naranja de
@@ -32,7 +32,7 @@ function textoCorte(corte) {
 // catalogo:          filas de `ejes` (descripción de cada eje para su portada)
 // fotosPorAccion:    Map accion_id → [{ orden, bmp }] (fase_informe_02)
 export async function generarInformeGobierno({
-  ejes: ejesBase, indicadoresPorEje, pmdProgramas, acciones: accionesBase = [], catalogo: catalogoBase = [], fotosPorAccion = new Map(), corte, borrador = false,
+  ejes: ejesBase, indicadoresPorEje, pmdProgramas, acciones: accionesBase = [], catalogo: catalogoBase = [], fotosPorAccion = new Map(), corte, borrador = false, metasAgenda = {},
 }) {
   const ejes = conColor(ejesBase), catalogo = conColor(catalogoBase)
   // Montos con signo de peso y el mismo formato en todo el documento.
@@ -99,6 +99,9 @@ export async function generarInformeGobierno({
     if (accs.length) await logrosEje(doc, ctx, d, accs, fotosPorAccion)
     entradas.push({ label: d.nombre, cod: d.cod, color: d.color, page: pPag })
   }
+
+  // Lo que sigue: compromisos y metas del año siguiente, por eje.
+  entradas.push({ label: 'La agenda del tercer año', page: await agendaTercerAnio(doc, ctx, ejes.map(e => datos[e.codigo]), metasAgenda) })
 
   // Anexo estadístico: resumen de los indicadores y el detalle de cada eje.
   entradas.push({
