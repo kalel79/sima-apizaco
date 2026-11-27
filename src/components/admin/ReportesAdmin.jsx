@@ -4,7 +4,7 @@ import {
   TreePine, Presentation, Search, FileText, FileSpreadsheet, FileBarChart2,
 } from 'lucide-react'
 import { generarPDF, generarExcel, generarExcelEjecutivo, generarPDFPiloto, generarExcelPiloto, generarExcelMetas } from '../../utils/reportes'
-import { getInformeActual, getAccionesInforme, getEjesCatalogo, descargarFotosAcciones, liberarFotosAcciones, getProgramaPorIndicador, getMetasAgenda } from '../../lib/informe.js'
+import { getInformeActual, getAccionesInforme, getEjesCatalogo, descargarFotosAcciones, liberarFotosAcciones, getProgramaPorIndicador, getMetasAgenda, getBloquesInforme, getTextosEjeInforme } from '../../lib/informe.js'
 import { esErrorDeChunk } from '../../lib/recargaVersion.js'
 import { indicadoresAlCorte, programasAlCorte, corteInforme } from '../../utils/informeIndicadores.js'
 import { revisarInforme } from '../../utils/informeRevision.js'
@@ -170,7 +170,8 @@ export default function ReportesAdmin({ global, ejes, indicadoresPorEje, rLoadin
       const pmdProgramas = programasAlCorte(pmdVivo, indsCorte, progDe)
       const acciones = informe ? await getAccionesInforme(informe.id, { soloIncluidas: true }) : []
       const fotosPorAccion = await descargarFotosAcciones(acciones.map(a => a.id))
-      const datos = { ejes: ejesCorte, indicadoresPorEje: indsCorte, pmdProgramas, acciones, catalogo, fotosPorAccion, corte, metasAgenda }
+      const [bloques, textosEje] = informe ? await Promise.all([getBloquesInforme(informe.id), getTextosEjeInforme(informe.id)]) : [[], {}]
+      const datos = { ejes: ejesCorte, indicadoresPorEje: indsCorte, pmdProgramas, acciones, catalogo, fotosPorAccion, corte, metasAgenda, bloques, textosEje, progDe }
       setRevInforme({ datos, rev: revisarInforme({ acciones, fotosPorAccion, ejes: ejesCorte, indicadoresPorEje: indsCorte, agenda: agendaPendientes() }) })
       setGenStatus(null)
     } catch (e) {

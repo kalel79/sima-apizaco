@@ -247,6 +247,23 @@ export async function getEjesCatalogo() {
   return data || []
 }
 
+// Bloques narrativos del Informe (fase_informe_06), con el código de su eje.
+export async function getBloquesInforme(informeId) {
+  const { data, error } = await supabase
+    .from('informe_bloques').select('id, eje_id, orden, titulo, texto_puente, activo, ejes(codigo)')
+    .eq('informe_id', informeId).order('eje_id').order('orden')
+  if (error) throw error
+  return (data || []).map(({ ejes, ...b }) => ({ ...b, eje_codigo: ejes?.codigo }))
+}
+
+// Textos de apertura y cierre de cada eje: { código: { entradilla, cierre } }.
+export async function getTextosEjeInforme(informeId) {
+  const { data, error } = await supabase
+    .from('informe_ejes_texto').select('entradilla, cierre, ejes(codigo)').eq('informe_id', informeId)
+  if (error) throw error
+  return Object.fromEntries((data || []).filter(t => t.ejes?.codigo).map(t => [t.ejes.codigo, { entradilla: t.entradilla || '', cierre: t.cierre || '' }]))
+}
+
 export async function setRevisionAccion(id, { revisada, incluir_en_informe }) {
   const cambios = {}
   if (revisada !== undefined) cambios.revisada = revisada

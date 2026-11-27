@@ -6,7 +6,7 @@ import { pesos, accionConFormato } from './informePDF/formato.js'
 import {
   portadaPrincipal, indice, presentacion, mensajePresidente, cabildo, gabinete,
   resumenEjecutivo, notaMetodologica, colofon, contraportada, portadaEje, resultadosEje, logrosEje, diezLogros, logrosDelAnio, pies, datosEje,
-  opcionesInforme, pendientesCaptura, revisarMaquetacion, agendaTercerAnio,
+  opcionesInforme, pendientesCaptura, revisarMaquetacion, agendaTercerAnio, resolverReferencias,
 } from './informePDF/paginas.js'
 
 // Colores de eje propios del Informe: el azul del Eje 5 y el naranja de
@@ -31,19 +31,31 @@ function textoCorte(corte) {
 // acciones:          filas de v_informe_acciones con incluir_en_informe
 // catalogo:          filas de `ejes` (descripción de cada eje para su portada)
 // fotosPorAccion:    Map accion_id → [{ orden, bmp }] (fase_informe_02)
+// bloques:           filas de informe_bloques con eje_codigo (fase_informe_06)
+// textosEje:         { código de eje: { entradilla, cierre } }
+// progDe:            { indicador_id: programa_pmd_id }, para la portada del eje
 export async function generarInformeGobierno({
   ejes: ejesBase, indicadoresPorEje, pmdProgramas, acciones: accionesBase = [], catalogo: catalogoBase = [], fotosPorAccion = new Map(), corte, borrador = false, metasAgenda = {},
+  bloques = [], textosEje = {}, progDe = {},
 }) {
   const ejes = conColor(ejesBase), catalogo = conColor(catalogoBase)
   // Montos con signo de peso y el mismo formato en todo el documento.
   const acciones = accionesBase.map(accionConFormato)
+  // La versión final no se publica con logros fuera de un bloque narrativo: en
+  // el borrador salen al final de su eje, bajo «Sin clasificar».
+  const idsBloque = new Set(bloques.filter(b => b.activo !== false).map(b => b.id))
+  const sinBloque = acciones.filter(a => !idsBloque.has(a.bloque_id))
+  if (!borrador && sinBloque.length) {
+    throw new Error(`Hay ${sinBloque.length} logro(s) sin bloque narrativo (${sinBloque.slice(0, 8).map(a => `#${a.id}`).join(', ')}${sinBloque.length > 8 ? '…' : ''}). Asígnalos antes de generar la versión final.`)
+  }
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter', compress: true })
   const imgs = await prepararRecursos(doc)
   // ?debugLayout=1 dibuja el contorno de cada logro (rojo) y el espacio libre
   // al pie (azul). El registro de la maquetación se revisa siempre.
   const debug = typeof location !== 'undefined' && new URLSearchParams(location.search).get('debugLayout') === '1'
-  opcionesInforme({ borrador, debug })
-  const ctx = { imgs, portadas: new Set(), lay: { rects: [], paginas: [] }, pendientes: [] }
+  // refs/logros/pagEje: referencias cruzadas entre ejes, que se completan con
+  // su número de página cuando ya está todo maquetado.
+  const ctx = { imgs, portadas: new Set(), lay: { rects: [], paginas: [] }, pendientes: [], refs: [], logros: [], pagEje: {}, pagAgenda: null }
   const corteTexto = textoCorte(corte)
   doc.setProperties({
     title: 'Segundo Informe de Gobierno · Apizaco', subject: `Logros del periodo e indicadores con corte al ${corteTexto.largo}`,
@@ -58,6 +70,9 @@ export async function generarInformeGobierno({
   // los suyos y el avance de los indicadores va completo al anexo estadístico.
   const datos = Object.fromEntries(ejes.map(e => [e.codigo, datosEje(e, catalogo.find(c => c.codigo === e.codigo))]))
   const ordenEje = Object.fromEntries(ejes.map((e, i) => [e.codigo, i]))
+  // Solo se remite a ejes que tienen capítulo de logros.
+  const conLogros = new Set(acciones.map(a => a.eje_codigo))
+  opcionesInforme({ borrador, debug, refEjes: Object.fromEntries(ejes.filter(e => conLogros.has(e.codigo)).map(e => [e.codigo, datos[e.codigo].corto])) })
 
   const entradas = []
   entradas.push({ label: 'Presentación', page: presentacion(doc, ctx, catalogo) })
@@ -79,10 +94,17 @@ export async function generarInformeGobierno({
     .sort((a, b) => (a.clave || '').localeCompare(b.clave || '', 'es'))
   const accsDe = eje => acciones.filter(a => a.eje_codigo === eje.codigo)
 
-  // Capítulos: portada del eje y sus logros.
+  // Capítulos: portada del eje y sus logros. Un eje sin logros no lleva
+  // capítulo (sus indicadores siguen en el anexo estadístico). En la portada
+  // solo aparecen los programas y las áreas que sí reportaron logros.
   for (const eje of ejes) {
     const d = datos[eje.codigo]
-    const areas = [...new Set(indsDe(eje).map(i => i.area).filter(Boolean))]
+    if (!accsDe(eje).length) continue
+    const areasLogro = new Set(accsDe(eje).map(a => a.area))
+    const indsLogro = indsDe(eje).filter(i => areasLogro.has(i.area))
+    const progsLogro = new Set(indsLogro.map(i => progDe[i.indicador_id]).filter(Boolean))
+    const pmdPortada = Object.keys(progDe).length ? (pmdPorEje[eje.codigo] || []).filter(p => progsLogro.has(p.programa_id)) : pmdPorEje[eje.codigo]
+    const areas = [...areasLogro]
     // La portada del eje va sin foto de fondo: las imágenes de las acciones
     // son evidencias (tablas, organigramas, capturas) y no sirven de fondo.
     const accs = accsDe(eje)
@@ -95,8 +117,10 @@ export async function generarInformeGobierno({
         ? [pesos(monto), 'Inversión reportada']
         : [String(nAreas), nAreas === 1 ? 'Área participante' : 'Áreas participantes'],
     ] : []
-    const pPag = await portadaEje(doc, ctx, d, null, satelitesEje(pmdPorEje[eje.codigo], areas), cifras)
-    if (accs.length) await logrosEje(doc, ctx, d, accs, fotosPorAccion)
+    const pPag = await portadaEje(doc, ctx, d, null, satelitesEje(pmdPortada, areas), cifras)
+    await logrosEje(doc, ctx, d, accs, fotosPorAccion, {
+      bloques: bloques.filter(b => b.eje_codigo === eje.codigo), textos: textosEje[eje.codigo] || {},
+    })
     entradas.push({ label: d.nombre, cod: d.cod, color: d.color, page: pPag })
   }
 
@@ -106,9 +130,11 @@ export async function generarInformeGobierno({
   // final sí se detiene, para no publicarse incompleta.
   const pagsAntes = doc.getNumberOfPages()
   try {
-    entradas.push({ label: 'La agenda del tercer año', page: await agendaTercerAnio(doc, ctx, ejes.map(e => datos[e.codigo]), metasAgenda) })
+    ctx.pagAgenda = await agendaTercerAnio(doc, ctx, ejes.map(e => datos[e.codigo]), metasAgenda)
+    entradas.push({ label: 'La agenda del tercer año', page: ctx.pagAgenda })
   } catch (e) {
     if (!borrador) throw e
+    ctx.pagAgenda = null
     while (doc.getNumberOfPages() > pagsAntes) doc.deletePage(doc.getNumberOfPages())
     console.warn('[Informe] Se omitió «La agenda del tercer año»:', e?.message || e)
     ctx.pendientes.push({ pag: '—', eje: '', logro: 'La agenda del tercer año', campo: 'Página omitida', marca: e?.message || String(e) })
@@ -133,6 +159,7 @@ export async function generarInformeGobierno({
   colofon(doc, ctx, { corteLargo: corteTexto.largo, nLogros: acciones.length })
   await contraportada(doc, ctx)
 
+  resolverReferencias(doc, ctx)
   indice(doc, ctx, entradas)
   pies(doc, ctx, `Indicadores con corte al ${corteTexto.largo}`, borrador)
   // Marcadores del PDF: las mismas entradas del contenido.

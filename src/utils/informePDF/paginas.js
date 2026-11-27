@@ -31,6 +31,9 @@ export const SEM = [
 
 export const PERIODO_CORTO = 'Sep 2025 – Ago 2026'
 export const PERIODO_LARGO = '1 de septiembre de 2025 – 31 de agosto de 2026'
+// Un logro fechado el último día del periodo es un acumulado: se publica con
+// el periodo en lugar de la fecha.
+const PERIODO_FIN = '2026-08-31'
 
 // ── Utilidades ───────────────────────────────────────────────────────────────
 const pct = v => v == null ? '—' : `${(+v * 100).toFixed(1)}%`
@@ -103,8 +106,10 @@ function renglon(doc, l, x, y, ancho, justificar) {
 // ── Pendientes de captura (texto de plantilla entre corchetes) ───────────────
 // En el borrador se resaltan en amarillo; la versión final no se genera
 // mientras existan. `dentro` sigue un marcador que continúa en otro renglón.
-const OPC = { borrador: false, debug: false, dentro: false }
-export function opcionesInforme({ borrador = false, debug = false } = {}) { Object.assign(OPC, { borrador, debug, dentro: false }) }
+// `refEjes`: { código: nombre corto } de los ejes que tienen capítulo de
+// logros, para las referencias cruzadas («Véase también…»).
+const OPC = { borrador: false, debug: false, dentro: false, refEjes: {} }
+export function opcionesInforme({ borrador = false, debug = false, refEjes = {} } = {}) { Object.assign(OPC, { borrador, debug, dentro: false, refEjes }) }
 const nuevoCampo = () => { OPC.dentro = false }
 function marcarPendientes(doc, palabras, anchos, x, y, sep) {
   if (!OPC.borrador) return
@@ -776,27 +781,74 @@ function cifrasDe(a) {
   return [c, inv].filter(Boolean)
 }
 const aHex = c => '#' + c.map(v => v.toString(16).padStart(2, '0')).join('')
-const metaAccion = a => [fechaLarga(a.fecha), a.lugar || a.area].filter(Boolean).join('  ·  ')
+// Línea de metadatos, igual en todas las fichas: área · periodo o fecha · lugar.
+const esAcumulado = a => String(a.fecha || '').slice(0, 10) === PERIODO_FIN
+const metaAccion = a => [a.area, esAcumulado(a) ? PERIODO_CORTO : fechaLarga(a.fecha), a.lugar].filter(Boolean).join('  ·  ')
+const lineasMeta = (doc, a, ancho, tam = 7.5) => lineas(doc, metaAccion(a), ancho, F.SANS, 'normal', tam)
+
+// Referencia cruzada a otro eje que trata el mismo tema. El número de página
+// se escribe al final (resolverReferencias), cuando ya se conoce.
+const refDe = a => (a.eje_referencia_codigo && OPC.refEjes[a.eje_referencia_codigo]) ? `Véase también ${OPC.refEjes[a.eje_referencia_codigo]}` : ''
+function ponerRef(doc, ctx, a, x, y, col) {
+  const t = refDe(a)
+  if (!t) return
+  fuente(doc, F.SERIF, 'italic', 8.5, col)
+  doc.text(t, x, y)
+  ctx.refs?.push({ pag: doc.getNumberOfPages(), x: x + doc.getTextWidth(t), y, col, tipo: 'eje', de: a.eje_codigo, a: a.eje_referencia_codigo })
+}
+// Anota en qué página quedó cada logro (para las referencias cruzadas).
+function anotarLogro(doc, ctx, a) {
+  ctx.logros?.push({ id: a.id, eje: a.eje_codigo, ref: a.eje_referencia_codigo || null, pag: doc.getNumberOfPages() })
+}
+// Completa las referencias con su página: la del logro del otro eje que
+// remite de vuelta a este; si no lo hay, donde empiezan los logros de ese eje.
+export function resolverReferencias(doc, ctx) {
+  const ultima = doc.getNumberOfPages()
+  ;(ctx.refs || []).forEach(r => {
+    const p = r.tipo === 'agenda' ? ctx.pagAgenda
+      : (ctx.logros.find(l => l.eje === r.a && l.ref === r.de)?.pag ?? ctx.pagEje?.[r.a])
+    if (!p) return
+    doc.setPage(r.pag)
+    fuente(doc, F.SERIF, 'italic', r.tam || 8.5, r.col)
+    doc.text(`, p. ${p}`, r.x, r.y)
+  })
+  doc.setPage(ultima)
+}
 // Pie de foto; en la versión final un pie con texto de plantilla se omite.
 const pieDe = a => (a.pie_foto && /\[/.test(a.pie_foto) && !OPC.borrador) ? '' : (a.pie_foto || [a.area, fechaCorta(a.fecha)].filter(Boolean).join(' · '))
 
-// `primero`: tema que va antes que los demás (el del logro que abre el eje).
-function grupos(acciones, primero) {
+// Bloques narrativos del eje, en su orden editorial (catálogo informe_bloques).
+// Dentro del bloque: área → orden manual → fecha. Las áreas van en el orden
+// de su primer logro según el orden manual, cada una en un solo tramo. El
+// título sale del catálogo, nunca del texto capturado. Un logro sin bloque
+// cae en «Sin clasificar», que solo existe en el borrador.
+export const SIN_CLASIFICAR = 'Sin clasificar'
+export function bloquesDe(acciones, catalogo = []) {
   const m = new Map()
   acciones.forEach(a => {
-    const k = a.tema ? `t:${a.tema}` : a.programa_pmd ? `p:${a.programa_pmd}` : ''
-    if (!m.has(k)) {
-      m.set(k, {
-        nombre: a.tema || a.programa_pmd || 'Otros logros',
-        etiqueta: a.tema ? null : a.programa_pmd ? 'Programa del Plan Municipal de Desarrollo' : null,
-        orden: a.tema ? (a.tema === primero ? -1 : 0) : a.programa_pmd ? 1000 + (a.programa_pmd_numero ?? 0) : 9999, filas: [],
-      })
-    }
+    const b = catalogo.find(c => c.id === a.bloque_id && c.activo !== false)
+    const k = b ? b.id : 0
+    if (!m.has(k)) m.set(k, { id: k, nombre: b ? b.titulo : SIN_CLASIFICAR, puente: b?.texto_puente || '', orden: b ? b.orden : 9999, filas: [] })
     m.get(k).filas.push(a)
   })
-  const lista = [...m.values()].map(g => ({ ...g, filas: g.filas.sort((x, y) => (x.fecha || '').localeCompare(y.fecha || '')) }))
-  return lista.sort((x, y) => x.orden - y.orden || (x.filas[0].fecha || '').localeCompare(y.filas[0].fecha || ''))
+  const man = a => a.orden_en_bloque ?? 9999
+  const porFecha = (x, y) => (x.fecha || '').localeCompare(y.fecha || '') || x.id - y.id
+  return [...m.values()].map(g => {
+    const areas = new Map()
+    g.filas.forEach(a => {
+      const k = a.area_id ?? a.area, v = areas.get(k)
+      if (!v || man(a) < v.man || (man(a) === v.man && porFecha(a, v.a) < 0)) areas.set(k, { man: man(a), a })
+    })
+    const pos = a => areas.get(a.area_id ?? a.area)
+    const filas = [...g.filas].sort((x, y) =>
+      pos(x).man - pos(y).man || porFecha(pos(x).a, pos(y).a) || man(x) - man(y) || porFecha(x, y))
+    return { ...g, filas }
+  }).sort((x, y) => x.orden - y.orden || x.id - y.id)
 }
+
+// Altos de los textos de enlace: frase puente del bloque, rótulo «En breve» y
+// frase de cierre del eje (mm).
+const LH_PUENTE = 4.6, ALTO_BREVE = 6, LH_CIERRE = 5.2
 
 // Máximo de fotos que el Informe publica por acción: con dos se ven grandes.
 export const FOTOS_INFORME = 2
@@ -878,8 +930,9 @@ function planBloque(doc, a, fotos, objetivo = 0, holgado = false) {
     const tTit = lineas(doc, sinPunto(a.accion), CW, F.SANS, 'bold', 11.5)
     const tDesc = lineas(doc, a.descripcion, cw, F.SANS, 'normal', 8.8)
     const tPie = lineas(doc, pieDe(a), dw, F.SERIF, 'italic', 8.5).slice(0, 1)
+    const tMeta = lineasMeta(doc, a, cw), nRef = refDe(a) ? 1 : 0
     const altoTit = tTit.length * lhT + 1.5
-    const altoTxt = lhM + 2 + tDesc.length * lhC + altoCifras
+    const altoTxt = (tMeta.length + nRef) * lhM + 2 + tDesc.length * lhC + altoCifras
     const altoDg = dh + (tPie.length ? 5 : 1)
     const libre = dh - altoTxt - 3.5
     let enCol = 0, hCol = 0, franja = 0
@@ -896,7 +949,7 @@ function planBloque(doc, a, fotos, objetivo = 0, holgado = false) {
     const topeFranja = holgado ? Math.max(FRANJA_MAX, (CW - 8 * PT * (n - 1)) / n) : FRANJA_MAX
     if (franja) franja = acotar(objetivo - base - 3, FOTO_MIN, topeFranja)
     return {
-      con: 'tarjeta', tTit, tDesc, tPie, lhT, lhM, lhC, cifras, dw, dh, cw, altoTit, altoTxt, cuerpo, enCol, hCol, franja,
+      con: 'tarjeta', tTit, tDesc, tPie, tMeta, lhT, lhM, lhC, cifras, dw, dh, cw, altoTit, altoTxt, cuerpo, enCol, hCol, franja,
       alto: base + (franja ? franja + 3 : 0), altoMax: base + (franja ? FRANJA_MAX + 3 : 0),
     }
   }
@@ -907,13 +960,14 @@ function planBloque(doc, a, fotos, objetivo = 0, holgado = false) {
     const tTit = lineas(doc, sinPunto(a.accion), tw, F.SANS, 'bold', 11.5)
     const tDesc = lineas(doc, a.descripcion, tw, F.SANS, 'normal', 9)
     const tPie = lineas(doc, pieDe(a), pw, F.SERIF, 'italic', 8.5).slice(0, 3)
-    const altoTxt = tTit.length * lhT + 0.5 + lhM + 2.5 + tDesc.length * lhD + altoCifras
+    const tMeta = lineasMeta(doc, a, tw), nRef = refDe(a) ? 1 : 0
+    const altoTxt = tTit.length * lhT + 0.5 + (tMeta.length + nRef) * lhM + 2.5 + tDesc.length * lhD + altoCifras
     const altoPie = tPie.length ? 2 + tPie.length * 3.6 : 0
     const fw = apiladas ? pw : (pw - HUECO * (n - 1)) / n
     const filas = apiladas ? n : 1, huecos = HUECO * (filas - 1)
     const altoCon = h => Math.max(filas * h + huecos + altoPie, altoTxt)
     const hMax = Math.max(FOTO_MIN, fw / (holgado ? 1 : 1.2))
-    return { pw, tw, fw, filas, huecos, apiladas, tTit, tDesc, tPie, altoTxt, altoPie, altoMin: altoCon(FOTO_MIN), altoMax: altoCon(hMax), hMax }
+    return { pw, tw, fw, filas, huecos, apiladas, tTit, tDesc, tPie, tMeta, altoTxt, altoPie, altoMin: altoCon(FOTO_MIN), altoMax: altoCon(hMax), hMax }
   }
   const formas = (n === 1 ? [[(CW - 7) / 2, true]] : [[CW * 0.44, true], [CW * 0.6, false]]).map(([pw, ap]) => medir(pw, ap))
   // La forma que más se acerca al objetivo sin pasarse; si ninguna cabe, la más baja.
@@ -926,7 +980,7 @@ function planBloque(doc, a, fotos, objetivo = 0, holgado = false) {
   const fh = acotar((meta - f.altoPie - f.huecos) / f.filas, FOTO_MIN, f.hMax)
   const mh = f.filas * fh + f.huecos
   return {
-    con: 'fotos', pw: f.pw, tw: f.tw, fw: f.fw, fh, mh, apiladas: f.apiladas, tTit: f.tTit, tDesc: f.tDesc, tPie: f.tPie, lhT, lhM, lhD, cifras,
+    con: 'fotos', pw: f.pw, tw: f.tw, fw: f.fw, fh, mh, apiladas: f.apiladas, tTit: f.tTit, tDesc: f.tDesc, tPie: f.tPie, tMeta: f.tMeta, lhT, lhM, lhD, cifras,
     altoTxt: f.altoTxt, alto: Math.max(mh + f.altoPie, f.altoTxt), altoMax: Math.max(...formas.map(x => x.altoMax)),
   }
 }
@@ -936,6 +990,7 @@ async function dibujarBloque(doc, ctx, a, fotos, m, y, lado, col, seccion) {
   anotarPendientes(doc, ctx, a, seccion)
   if (OPC.debug) { trazo(doc, [220, 30, 30]); doc.setLineWidth(0.25); doc.rect(ML, y, CW, m.alto, 'S') }
   registrar(doc, ctx, a, 'bloque', ML, y, CW, m.alto)
+  anotarLogro(doc, ctx, a)
 
   if (m.con === 'tarjeta') {
     let yt = y + m.lhT * 0.8
@@ -948,7 +1003,9 @@ async function dibujarBloque(doc, ctx, a, fotos, m, y, lado, col, seccion) {
     const cx = ML + m.dw + 6
     yt = yc + m.lhM * 0.8
     fuente(doc, F.SANS, 'normal', 7.5, col); nuevoCampo()
-    texto(doc, doc.splitTextToSize(metaAccion(a), m.cw)[0] || '', cx, yt)
+    m.tMeta.forEach((l, i) => texto(doc, l, cx, yt + i * m.lhM))
+    yt += (m.tMeta.length - 1) * m.lhM
+    if (refDe(a)) { yt += m.lhM; ponerRef(doc, ctx, a, cx, yt, col) }
     yt += m.lhM * 0.2 + 2 + m.lhC * 0.8
     fuente(doc, F.SANS, 'normal', 8.8, [58, 46, 48]); nuevoCampo()
     m.tDesc.forEach((l, i) => { renglon(doc, l, cx, yt, m.cw, i < m.tDesc.length - 1); yt += m.lhC })
@@ -983,7 +1040,8 @@ async function dibujarBloque(doc, ctx, a, fotos, m, y, lado, col, seccion) {
   m.tTit.forEach(l => { texto(doc, l, tx, yt); yt += m.lhT })
   yt += 0.5
   fuente(doc, F.SANS, 'normal', 7.5, col); nuevoCampo()
-  texto(doc, doc.splitTextToSize(metaAccion(a), m.tw)[0] || '', tx, yt); yt += m.lhM
+  m.tMeta.forEach(l => { texto(doc, l, tx, yt); yt += m.lhM })
+  if (refDe(a)) { ponerRef(doc, ctx, a, tx, yt, col); yt += m.lhM }
   yt += 2.5
   fuente(doc, F.SANS, 'normal', 9, [58, 46, 48]); nuevoCampo()
   m.tDesc.forEach((l, i) => { renglon(doc, l, tx, yt, m.tw, i < m.tDesc.length - 1); yt += m.lhD })
@@ -1003,25 +1061,30 @@ function medirRenglon(doc, a) {
   const tDesc = lineas(doc, a.descripcion, cw, F.SANS, 'normal', 8.5)
   const inv = inversionDe(a), ci = cifraDe(a)
   const mismo = ci && inv && ci.v === inv.v
-  const extras = [a.lugar || a.area, ci && `${ci.v} ${ci.l}`.trim(), inv && !mismo && `Inversión: ${inv.v}`].filter(Boolean).join('  ·  ')
+  const nRef = refDe(a) ? 1 : 0
+  const extras = [a.area, a.lugar, ci && `${ci.v} ${ci.l}`.trim(), inv && !mismo && `Inversión: ${inv.v}`].filter(Boolean).join('  ·  ')
   const tMeta = lineas(doc, extras, cw, F.SANS, 'normal', 7.5)
   const lhT = altoLinea(9.5, 1.25), lhD = altoLinea(8.5, 1.4), lhM = altoLinea(7.5, 1.35)
-  return { renglon: true, cw, tTit, tDesc, tMeta, lhT, lhD, lhM, alto: tTit.length * lhT + 1 + tDesc.length * lhD + 1.5 + tMeta.length * lhM + 4 }
+  return { renglon: true, cw, tTit, tDesc, tMeta, lhT, lhD, lhM, alto: tTit.length * lhT + 1 + tDesc.length * lhD + 1.5 + (tMeta.length + nRef) * lhM + 4 }
 }
 
 function renglonAccion(doc, ctx, a, m, y, col, seccion) {
   anotarPendientes(doc, ctx, a, seccion)
   if (OPC.debug) { trazo(doc, [220, 30, 30]); doc.setLineWidth(0.25); doc.rect(ML, y, CW, m.alto, 'S') }
   registrar(doc, ctx, a, 'bloque', ML, y, CW, m.alto)
+  anotarLogro(doc, ctx, a)
   const cx = ML + 30
   fuente(doc, F.SANS, 'bold', 7.5, SUB)
-  doc.text(fechaCorta(a.fecha), ML, y + m.lhT * 0.8)
+  // Al margen, la fecha; si el logro es un acumulado, el periodo en dos renglones.
+  if (esAcumulado(a)) PERIODO_CORTO.split(' – ').forEach((p, i, ps) => doc.text(i < ps.length - 1 ? `${p} –` : p, ML, y + m.lhT * 0.8 + i * 3.3))
+  else doc.text(fechaCorta(a.fecha), ML, y + m.lhT * 0.8)
   let yy = y + m.lhT * 0.8
   fuente(doc, F.SANS, 'bold', 9.5, TINTA); nuevoCampo(); m.tTit.forEach(l => { texto(doc, l, cx, yy); yy += m.lhT })
   yy += 0.6
   fuente(doc, F.SANS, 'normal', 8.5, [70, 58, 60]); nuevoCampo(); m.tDesc.forEach((l, i) => { renglon(doc, l, cx, yy, m.cw, i < m.tDesc.length - 1); yy += m.lhD })
   yy += 1
   fuente(doc, F.SANS, 'normal', 7.5, col); nuevoCampo(); m.tMeta.forEach(l => { texto(doc, l, cx, yy); yy += m.lhM })
+  ponerRef(doc, ctx, a, cx, yy, col)
   trazo(doc, LINEA); doc.setLineWidth(0.2); doc.setLineDashPattern([0.4, 0.9], 0)
   doc.line(ML, y + m.alto - 1.5, W - ML, y + m.alto - 1.5); doc.setLineDashPattern([], 0)
   return y + m.alto + 2
@@ -1029,15 +1092,37 @@ function renglonAccion(doc, ctx, a, m, y, col, seccion) {
 
 // Apertura del capítulo: el logro que Planeación marcó para abrir el eje, con
 // su foto o diagrama, y al costado las cifras de resultado del eje.
-async function aperturaLogros(doc, ctx, d, a, fotos, acciones) {
+// Cifras de resultado del eje: primero la del logro que lo abre, luego las de
+// los logros del año y el resto en su orden; al final, la inversión del eje.
+function cifrasEje(acciones, primero) {
+  const otras = acciones.filter(x => x !== primero && x.cifra_valor)
+    .sort((p, q) => (q.destacado_informe ? 1 : 0) - (p.destacado_informe ? 1 : 0))
+  const cifras = [primero, ...otras].filter(Boolean).map(cifraDe).filter(Boolean).slice(0, 4)
+  const montoEje = acciones.reduce((t, x) => t + (Number(x.monto) || 0), 0)
+  if (montoEje > 0) cifras.push({ v: pesos(montoEje), l: 'Inversión reportada en el eje' })
+  return cifras
+}
+
+// Logro destacado del eje (el que Planeación marcó para abrirlo), con su foto
+// o diagrama, y al costado las cifras de resultado del eje. Se dibuja desde
+// `y`, debajo de la entradilla.
+async function aperturaLogros(doc, ctx, d, a, fotos, acciones, y) {
   const col = hexARgb(d.color), seccion = `${d.corto} · Logros`
-  let y = nuevaPagina(doc, ctx, seccion, col)
   anotarPendientes(doc, ctx, a, seccion); nuevoCampo()
-  y = apertura(doc, y + 4, `${d.kick} · ${d.nombre}`, sinPunto(a.accion), col, 25)
+  anotarLogro(doc, ctx, a)
+  versalitas(doc, 'Logro destacado', ML, y, { tam: 7, color: col, cs: 0.55 })
+  const tTit = lineas(doc, sinPunto(a.accion), CW, F.SERIF, 'normal', 21)
+  const lhTit = altoLinea(21, 1.08)
+  fuente(doc, F.SERIF, 'normal', 21, TINTA)
+  tTit.forEach((l, i) => texto(doc, l, ML, y + 3 + lhTit * (i + 0.8)))
+  y += 3 + lhTit * tTit.length + 3.5
   const mw = 118, sx = ML + mw + 8, sw = W - ML - sx
   const invA = inversionDe(a)
+  const tMeta = lineas(doc, [metaAccion(a), invA && `Inversión: ${invA.v}`].filter(Boolean).join('  ·  '), CW, F.SANS, 'normal', 8)
   fuente(doc, F.SANS, 'normal', 8, col)
-  doc.text([metaAccion(a), invA && `Inversión: ${invA.v}`].filter(Boolean).join('  ·  '), ML, y - 3.5)
+  tMeta.forEach(l => { doc.text(l, ML, y); y += altoLinea(8, 1.35) })
+  if (refDe(a)) { ponerRef(doc, ctx, a, ML, y, col); y += altoLinea(8, 1.35) }
+  y += 2.5
   const yTop = y
 
   const dg = diagramaDe(a)
@@ -1064,11 +1149,7 @@ async function aperturaLogros(doc, ctx, d, a, fotos, acciones) {
   })
 
   // Columna lateral: cifras de los logros del eje (primero la de este logro).
-  const otras = acciones.filter(x => x !== a && x.cifra_valor)
-    .sort((p, q) => (q.destacado_informe ? 1 : 0) - (p.destacado_informe ? 1 : 0))
-  const cifras = [a, ...otras].map(cifraDe).filter(Boolean).slice(0, 4)
-  const montoEje = acciones.reduce((t, x) => t + (Number(x.monto) || 0), 0)
-  if (montoEje > 0) cifras.push({ v: pesos(montoEje), l: 'Inversión reportada en el eje' })
+  const cifras = cifrasEje(acciones, a)
   let ys = yTop
   if (cifras.length) {
     versalitas(doc, 'Resultados del eje', sx, ys + 2.5, { tam: 7, color: col, cs: 0.55 })
@@ -1090,36 +1171,61 @@ async function aperturaLogros(doc, ctx, d, a, fotos, acciones) {
 }
 
 // Capítulo de logros de un eje. Devuelve la página donde empieza.
-export async function logrosEje(doc, ctx, d, acciones, fotosPorAccion) {
+// `bloques`: catálogo de bloques del eje; `textos`: { entradilla, cierre }.
+// Todos los ejes abren igual: entradilla → logro destacado (si lo hay) →
+// resultados del eje → índice de bloques «En este eje».
+export async function logrosEje(doc, ctx, d, acciones, fotosPorAccion, { bloques = [], textos = {} } = {}) {
   const col = hexARgb(d.color)
   const seccion = `${d.corto} · Logros`
   const fotosDe = a => (fotosPorAccion.get(a.id) || []).slice(0, FOTOS_INFORME)
   const destacada = a => fotosDe(a).length > 0 || !!diagramaDe(a)
   const principal = acciones.find(a => a.destacado_eje)
   const resto = acciones.filter(a => a !== principal)
-  let y
+  const grupos = bloquesDe(resto, bloques)
+  let y = nuevaPagina(doc, ctx, seccion, col)
+  const pagInicio = doc.getNumberOfPages()
+  if (ctx.pagEje) ctx.pagEje[d.cod] = pagInicio
+  y = apertura(doc, y + 4, `${d.kick} · ${d.nombre}`, 'Logros', col, 26) - 3
 
-  if (principal) {
-    y = await aperturaLogros(doc, ctx, d, principal, fotosDe(principal), acciones)
-    if (resto.length && y + 60 > PIE) { cierraPagina(doc, ctx, y); y = nuevaPagina(doc, ctx, seccion, col) }
-  } else {
-    y = nuevaPagina(doc, ctx, seccion, col)
-    y = apertura(doc, y + 4, `${d.kick} · ${d.nombre}`, 'Logros', col, 26)
-    const monto = acciones.reduce((s, a) => s + (Number(a.monto) || 0), 0)
-    const areas = new Set(acciones.map(a => a.area_id ?? a.area)).size
-    const conFoto = acciones.filter(a => fotosPorAccion.get(a.id)?.length).length
-    y = franjaCifras(doc, y, [
-      [num(acciones.length), acciones.length === 1 ? 'Logro del periodo' : 'Logros del periodo'],
-      [num(areas), areas === 1 ? 'Área participante' : 'Áreas participantes'],
-      monto > 0 && [pesos(monto), 'Inversión reportada'],
-      conFoto > 0 && [num(conFoto), 'Con evidencia fotográfica'],
-    ].filter(Boolean), col)
+  if (textos.entradilla) {
+    const lhE = altoLinea(13, 1.3)
+    fuente(doc, F.SERIF, 'italic', 13, TINTA)
+    lineas(doc, textos.entradilla, CW, F.SERIF, 'italic', 13).forEach(l => { doc.text(l, ML, y + lhE * 0.75); y += lhE })
+    y += 6
   }
 
+  if (principal) {
+    y = await aperturaLogros(doc, ctx, d, principal, fotosDe(principal), acciones, y)
+  } else {
+    const cifras = cifrasEje(acciones, null)
+    if (cifras.length) {
+      versalitas(doc, 'Resultados del eje', ML, y, { tam: 7, color: col, cs: 0.55 })
+      y = franjaCifras(doc, y + 3, cifras.map(c => [c.v, c.l]), col) - 2
+    }
+  }
+
+  // Índice de bloques: el número de página se escribe al final del capítulo.
+  const indiceBloques = []
+  if (grupos.length > 1) {
+    const filasInd = Math.ceil(grupos.length / 2), altoInd = 7 + filasInd * 5.6 + 6
+    if (y + altoInd > PIE) { cierraPagina(doc, ctx, y); y = nuevaPagina(doc, ctx, seccion, col) }
+    versalitas(doc, 'En este eje', ML, y + 1, { tam: 7, color: col, cs: 0.55 })
+    trazo(doc, LINEA); doc.setLineWidth(0.25); doc.line(ML, y + 3.4, W - ML, y + 3.4)
+    const wc = (CW - 10) / 2
+    grupos.forEach((g, i) => {
+      const x = ML + Math.floor(i / filasInd) * (wc + 10), yy = y + 8.6 + (i % filasInd) * 5.6
+      fuente(doc, F.SANS, 'bold', 9, col); doc.text(String(i + 1), x, yy)
+      ajustar(doc, g.nombre, F.SANS, 'normal', 9.5, wc - 16, 7.5)
+      doc.setTextColor(TINTA[0], TINTA[1], TINTA[2]); doc.text(g.nombre, x + 6, yy)
+      indiceBloques.push({ g, pag: doc.getNumberOfPages(), x: x + wc, y: yy })
+    })
+    y += altoInd
+  }
+  if (resto.length && y + 60 > PIE) { cierraPagina(doc, ctx, y); y = nuevaPagina(doc, ctx, seccion, col) }
+
   // Paginación con relleno, en dos pasos por página. Primero se decide qué
-  // cabe con los logros en su forma más compacta (fotos a 120 pt): si el
-  // siguiente no cabe y queda al menos 30 % de la página, se adelanta otro
-  // logro del mismo subtítulo que sí quepa. Al cerrar la página, el espacio
+  // cabe con los logros en su forma más compacta (fotos a 120 pt), siempre en
+  // el orden editorial del bloque. Al cerrar la página, el espacio
   // que sobra se reparte entre las fotos de sus logros, que crecen hasta su
   // tamaño máximo. Así no quedan huecos al pie ni fotos miniatura.
   let lado = 'izq'
@@ -1150,13 +1256,32 @@ export async function logrosEje(doc, ctx, d, acciones, fotosPorAccion) {
     for (let i = 0; i < buf.length; i++) {
       const it = buf[i]
       if (it.titulo) {
-        const g = it.titulo
-        if (g.etiqueta) { versalitas(doc, g.etiqueta, ML, yy, { tam: 6.8, color: col, cs: 0.55 }); yy += 6.5 } else yy += 4.5
+        // Encabezado de bloque: título editorial y, debajo, la frase puente.
+        it.titulo.pag = doc.getNumberOfPages()
+        yy += 4.5
         fuente(doc, F.SERIF, 'normal', 15, TINTA)
         it.tt.forEach((l, k) => doc.text(l, ML, yy + k * altoLinea(15, 1.1)))
         yy += (it.tt.length - 1) * altoLinea(15, 1.1) + 2.5
         trazo(doc, col); doc.setLineWidth(0.35); doc.line(ML, yy, W - ML, yy)
         yy += 7
+        if (it.tp.length) {
+          fuente(doc, F.SERIF, 'italic', 11, SUB)
+          it.tp.forEach((l, k) => doc.text(l, ML, yy - 2 + k * LH_PUENTE))
+          yy += it.tp.length * LH_PUENTE + 1.5
+        }
+      } else if (it.breve) {
+        versalitas(doc, 'En breve', ML, yy + 2.2, { tam: 6.8, color: col, cs: 0.55 })
+        yy += ALTO_BREVE
+      } else if (it.cierre) {
+        relleno(doc, DORADO); doc.rect(ML, yy + 2, 22, 0.6, 'F')
+        fuente(doc, F.SERIF, 'italic', 12, TINTA)
+        it.cierre.forEach((l, k) => doc.text(l, ML, yy + 8 + k * LH_CIERRE))
+        const yr = yy + 8 + it.cierre.length * LH_CIERRE
+        fuente(doc, F.SERIF, 'italic', 8.5, col)
+        const t = 'Continúa en «La agenda del tercer año»'
+        doc.text(t, ML, yr)
+        ctx.refs?.push({ pag: doc.getNumberOfPages(), x: ML + doc.getTextWidth(t), y: yr, col, tipo: 'agenda' })
+        yy += it.alto
       } else if (it.min.renglon) {
         yy = renglonAccion(doc, ctx, it.a, it.min, yy, col, seccion)
         if (i < buf.length - 1) yy += extra
@@ -1177,22 +1302,26 @@ export async function logrosEje(doc, ctx, d, acciones, fotosPorAccion) {
     if (!ultima) y0 = nuevaPagina(doc, ctx, seccion, col)
   }
 
-  for (const g of grupos(resto, principal?.tema)) {
+  for (const g of grupos) {
     const pend = g.filas.map(a => ({ a, min: medir(a) }))
+    const hayFichas = pend.some(it => !it.min.renglon)
     const tt = lineas(doc, g.nombre, CW, F.SERIF, 'normal', 15)
-    const altoTitulo = (g.etiqueta ? 6.5 : 4.5) + (tt.length - 1) * altoLinea(15, 1.1) + 2.5 + 7
+    const tp = g.puente ? lineas(doc, g.puente, CW, F.SERIF, 'italic', 11) : []
+    const altoTitulo = 4.5 + (tt.length - 1) * altoLinea(15, 1.1) + 2.5 + 7 + (tp.length ? tp.length * LH_PUENTE + 1.5 : 0)
     // El subtítulo nunca queda solo al pie: necesita 140 pt libres después y
     // que quepa al menos un logro de su grupo.
     const tras = libre() - altoTitulo
-    const cabe = pend.some((it, i) => (i === 0 || tras >= util * 0.3) && it.min.alto <= tras)
+    const cabe = pend[0].min.alto <= tras
     if (buf.length && (tras < 140 * PT || !cabe)) await dibujaPagina(false)
     else if (!buf.length && y0 > 31 && (tras < 140 * PT || !cabe)) { cierraPagina(doc, ctx, y0); y0 = nuevaPagina(doc, ctx, seccion, col) }
-    buf.push({ titulo: g, tt }); usado += altoTitulo
+    buf.push({ titulo: g, tt, tp }); usado += altoTitulo
 
     while (pend.length) {
       let i = 0
       if (pend[0].min.alto > libre()) {
-        i = libre() >= util * 0.3 ? pend.findIndex((it, k) => k > 0 && it.min.alto <= libre()) : -1
+        // El orden editorial manda: ya no se adelanta otro logro para llenar
+        // la página, porque rompería el orden dentro del bloque.
+        i = -1
         if (i < 0) {
           // Nada cabe: página nueva. Si la página ya solo tiene el subtítulo
           // o está vacía, el logro se coloca aunque no quepa completo.
@@ -1202,11 +1331,37 @@ export async function logrosEje(doc, ctx, d, acciones, fotosPorAccion) {
         }
       }
       const it = pend.splice(i, 1)[0]
+      // «En breve»: rótulo antes de cada tramo de logros en formato compacto,
+      // cuando el bloque también lleva fichas completas.
+      const previo = buf[buf.length - 1]
+      if (it.min.renglon && hayFichas && !(previo?.a && previo.min.renglon) && !previo?.breve) {
+        if (libre() < ALTO_BREVE + altoItem(it.min) && buf.some(x => x.a)) await dibujaPagina(false)
+        buf.push({ breve: true }); usado += ALTO_BREVE
+      }
       buf.push(it); usado += altoItem(it.min)
     }
     usado += 2
   }
+
+  // Cierre del eje: la frase que enlaza con su compromiso del año siguiente.
+  if (textos.cierre) {
+    const tc = lineas(doc, textos.cierre, CW, F.SERIF, 'italic', 12)
+    const alto = 8 + tc.length * LH_CIERRE + 5
+    if (libre() < alto && buf.some(x => x.a)) await dibujaPagina(false)
+    buf.push({ cierre: tc, alto }); usado += alto
+  }
   await dibujaPagina(true)
+
+  // Páginas del índice «En este eje», ya conocidas.
+  const ultima = doc.getNumberOfPages()
+  indiceBloques.forEach(e => {
+    if (!e.g.pag) return
+    doc.setPage(e.pag)
+    fuente(doc, F.SANS, 'normal', 8.5, SUB)
+    doc.text(String(e.g.pag), e.x, e.y, { align: 'right' })
+  })
+  doc.setPage(ultima)
+  return pagInicio
 }
 
 // Página del borrador con los textos de plantilla que faltan por capturar.
