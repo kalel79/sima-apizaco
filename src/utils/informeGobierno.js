@@ -3,10 +3,11 @@ import { PMD_EJE_MAP } from './informeGobiernoContenido.js'
 import { prepararRecursos } from './informePDF/recursos.js'
 import { satelitesEje } from './informePDF/pictogramasSvg.js'
 import { pesos, accionConFormato } from './informePDF/formato.js'
+import { revisarContinuidad } from './informeContinuidad.js'
 import {
   portadaPrincipal, indice, presentacion, mensajePresidente, cabildo, gabinete,
   resumenEjecutivo, notaMetodologica, colofon, contraportada, portadaEje, resultadosEje, logrosEje, diezLogros, logrosDelAnio, pies, datosEje,
-  opcionesInforme, pendientesCaptura, revisarMaquetacion, agendaTercerAnio, resolverReferencias,
+  opcionesInforme, pendientesCaptura, revisarMaquetacion, agendaTercerAnio, resolverReferencias, bloquesDe,
 } from './informePDF/paginas.js'
 
 // Colores de eje propios del Informe: el azul del Eje 5 y el naranja de
@@ -153,7 +154,11 @@ export async function generarInformeGobierno({
   entradas.push({ label: 'Nota metodológica y glosario', anexo: true, page: notaMetodologica(doc, ctx, corteTexto.largo) })
   // Solo en el borrador: lista de textos de plantilla que faltan por capturar.
   if (borrador) {
-    const pPend = pendientesCaptura(doc, ctx)
+    // Con los avisos de continuidad: orden por bloques, tramos de cada área,
+    // títulos, temas repetidos entre ejes y áreas sin logros.
+    const continuidad = revisarContinuidad({ acciones, bloques, ejes, indicadoresPorEje, ordenar: bloquesDe })
+    ctx.continuidad = continuidad
+    const pPend = pendientesCaptura(doc, ctx, continuidad)
     if (pPend) entradas.push({ label: 'Pendientes de captura', anexo: true, page: pPend })
   }
   colofon(doc, ctx, { corteLargo: corteTexto.largo, nLogros: acciones.length })
@@ -166,7 +171,7 @@ export async function generarInformeGobierno({
   entradas.forEach(e => doc.outline.add(null, e.cod ? `${datos[e.cod].kick} · ${e.label}` : e.label, { pageNumber: e.page }))
 
   const maquetacion = revisarMaquetacion(ctx)
-  if (typeof window !== 'undefined') window.__informeLayout = { ...maquetacion, paginasTotal: doc.getNumberOfPages(), pendientes: ctx.pendientes }
+  if (typeof window !== 'undefined') window.__informeLayout = { ...maquetacion, paginasTotal: doc.getNumberOfPages(), pendientes: ctx.pendientes, continuidad: ctx.continuidad || [] }
 
   const f = new Date()
   const fStr = `${f.getFullYear()}${String(f.getMonth() + 1).padStart(2, '0')}${String(f.getDate()).padStart(2, '0')}`

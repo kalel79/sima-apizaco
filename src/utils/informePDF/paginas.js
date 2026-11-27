@@ -1391,21 +1391,42 @@ export async function logrosEje(doc, ctx, d, acciones, fotosPorAccion, { bloques
 }
 
 // Página del borrador con los textos de plantilla que faltan por capturar.
-export function pendientesCaptura(doc, ctx) {
+// `continuidad`: avisos del validador de continuidad (informeContinuidad.js),
+// filas { eje, tipo, detalle }. Van en la misma sección, bajo su subtítulo.
+export function pendientesCaptura(doc, ctx, continuidad = []) {
   const filas = ctx.pendientes || []
-  if (!filas.length) return null
+  if (!filas.length && !continuidad.length) return null
   let y = nuevaPagina(doc, ctx, 'Pendientes de captura')
   const page = doc.getNumberOfPages()
   y = apertura(doc, y + 4, 'Solo en el borrador', 'Pendientes de captura')
-  fuente(doc, F.SANS, 'normal', 9.5, [58, 46, 48])
-  doc.text(`${filas.length} textos de plantilla entre corchetes. La versión final no se genera mientras existan.`, ML, y - 3)
-  tabla(doc, ctx, 'Pendientes de captura', GUINDA, {
-    startY: y + 2,
-    head: [['Pág.', 'Eje', 'Logro', 'Campo', 'Pendiente']],
-    body: filas.map(f => [f.pag, f.eje, f.logro, f.campo, f.marca]),
-    styles: { fontSize: 7.6 },
-    columnStyles: { 0: { cellWidth: 11, halign: 'center' }, 1: { cellWidth: 24 }, 2: { cellWidth: 'auto' }, 3: { cellWidth: 26 }, 4: { cellWidth: 44 } },
-  })
+  if (filas.length) {
+    fuente(doc, F.SANS, 'normal', 9.5, [58, 46, 48])
+    doc.text(`${filas.length} textos de plantilla entre corchetes. La versión final no se genera mientras existan.`, ML, y - 3)
+    tabla(doc, ctx, 'Pendientes de captura', GUINDA, {
+      startY: y + 2,
+      head: [['Pág.', 'Eje', 'Logro', 'Campo', 'Pendiente']],
+      body: filas.map(f => [f.pag, f.eje, f.logro, f.campo, f.marca]),
+      styles: { fontSize: 7.6 },
+      columnStyles: { 0: { cellWidth: 11, halign: 'center' }, 1: { cellWidth: 24 }, 2: { cellWidth: 'auto' }, 3: { cellWidth: 26 }, 4: { cellWidth: 44 } },
+    })
+    y = (doc.lastAutoTable?.finalY ?? y) + 16
+  }
+  if (continuidad.length) {
+    if (y + 45 > PIE) y = nuevaPagina(doc, ctx, 'Pendientes de captura') + 6
+    fuente(doc, F.SERIF, 'normal', 17, TINTA); doc.text('Continuidad', ML, y)
+    relleno(doc, DORADO); doc.rect(ML, y + 2.5, 22, 0.6, 'F')
+    const sinBloque = continuidad.filter(f => f.tipo === 'Logro sin bloque').length
+    fuente(doc, F.SANS, 'normal', 9.5, [58, 46, 48])
+    doc.text(`${continuidad.length} ${continuidad.length === 1 ? 'aviso' : 'avisos'} sobre el orden y el enlace de los logros.` +
+      (sinBloque ? ` La versión final no se genera con logros sin bloque (${sinBloque}).` : ' Ninguno impide generar la versión final.'), ML, y + 9)
+    tabla(doc, ctx, 'Pendientes de captura', GUINDA, {
+      startY: y + 13,
+      head: [['Eje', 'Aviso', 'Detalle']],
+      body: continuidad.map(f => [f.eje, f.tipo, f.detalle]),
+      styles: { fontSize: 7.6 },
+      columnStyles: { 0: { cellWidth: 30 }, 1: { cellWidth: 36 }, 2: { cellWidth: 'auto' } },
+    })
+  }
   return page
 }
 
