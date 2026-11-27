@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Plus, Lock, LockOpen, Table2, ArrowLeft } from 'lucide-react'
+import { Plus, Lock, LockOpen, Table2, ArrowLeft, ListOrdered } from 'lucide-react'
 import { C, FS } from '../theme.js'
 import { Spinner, ErrMsg, Button } from '../components/ui.jsx'
 import FormAccionInforme from '../components/informe/FormAccionInforme.jsx'
 import ListaAccionesInforme from '../components/informe/ListaAccionesInforme.jsx'
+import EditorHilacion from '../components/informe/EditorHilacion.jsx'
 import {
   getInformeActual, getAccionesInforme, getIndicadoresInforme, getAreasInforme,
   setCapturaAbierta, anioMIRInforme, faltantesLogro,
@@ -32,6 +33,7 @@ export default function InformeGobierno({ areaIdPropia, isEnlace, isAdmin, isPla
   const [error, setError] = useState(null)
   const [aviso, setAviso] = useState(null)
   const [ocupado, setOcupado] = useState(false)
+  const [hilacion, setHilacion] = useState(false)     // editor de bloques narrativos (admin/planeación)
 
   useEffect(() => { if (isEnlace) setAreaSel(areaIdPropia) }, [isEnlace, areaIdPropia])
 
@@ -113,6 +115,10 @@ export default function InformeGobierno({ areaIdPropia, isEnlace, isAdmin, isPla
       onGuardada={trasGuardar} onCancelar={() => setEditando(null)} />
   )
 
+  if (esPlaneacion && hilacion) {
+    return <EditorHilacion informe={informe} acciones={acciones} onCerrar={() => setHilacion(false)} onCambio={cargar} />
+  }
+
   return (
     <div>
       <div style={{ marginBottom: '1rem' }}>
@@ -136,6 +142,9 @@ export default function InformeGobierno({ areaIdPropia, isEnlace, isAdmin, isPla
           </Button>
           <Button variant="azul" icon={Table2} loading={ocupado} disabled={!acciones.length} onClick={descargarExcel}>
             Excel para Comunicación Social
+          </Button>
+          <Button variant="morado" icon={ListOrdered} disabled={!acciones.length} onClick={() => setHilacion(true)}>
+            Hilación del Informe
           </Button>
         </div>
       )}

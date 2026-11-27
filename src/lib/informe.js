@@ -264,6 +264,61 @@ export async function getTextosEjeInforme(informeId) {
   return Object.fromEntries((data || []).filter(t => t.ejes?.codigo).map(t => [t.ejes.codigo, { entradilla: t.entradilla || '', cierre: t.cierre || '' }]))
 }
 
+// Ejes con su id, para el editor de la hilación.
+export async function getEjesInforme() {
+  const { data, error } = await supabase.from('ejes').select('id, codigo, nombre, orden').order('orden')
+  if (error) throw error
+  return data || []
+}
+
+// Guarda la hilación de un eje (solo admin/planeación; lo exige la RLS):
+//   bloques:  [{ id | null, clave, orden, titulo, texto_puente }] en su orden
+//   borrados: ids de bloques que se eliminan (ya sin logros)
+//   logros:   [{ id, clave | null, orden | null }] solo los que cambiaron
+//   textos:   { entradilla, cierre } o null si no cambiaron
+// Los bloques nuevos se insertan primero para conocer su id.
+export async function guardarHilacionEje(informeId, ejeId, { bloques = [], borrados = [], logros = [], textos = null }) {
+  const idDe = {}
+  for (const b of bloques) {
+    const fila = { orden: b.orden, titulo: b.titulo.trim(), texto_puente: b.texto_puente?.trim() || null }
+    if (b.id) {
+      idDe[b.clave] = b.id
+      if (!b.cambio) continue
+      const { error } = await supabase.from('informe_bloques').update(fila).eq('id', b.id)
+      if (error) throw error
+    } else {
+      const { data, error } = await supabase.from('informe_bloques')
+        .insert({ ...fila, informe_id: informeId, eje_id: ejeId }).select('id').single()
+      if (error) throw error
+      idDe[b.clave] = data.id
+    }
+  }
+  for (const l of logros) {
+    const { error } = await supabase.from('informe_acciones')
+      .update({ bloque_id: l.clave ? idDe[l.clave] ?? null : null, orden_en_bloque: l.clave ? l.orden : null }).eq('id', l.id)
+    if (error) throw error
+  }
+  if (borrados.length) {
+    const { error } = await supabase.from('informe_bloques').delete().in('id', borrados)
+    if (error) throw error
+  }
+  if (textos) {
+    const { error } = await supabase.from('informe_ejes_texto').upsert({
+      informe_id: informeId, eje_id: ejeId, entradilla: textos.entradilla?.trim() || null, cierre: textos.cierre?.trim() || null,
+    }, { onConflict: 'informe_id,eje_id' })
+    if (error) throw error
+  }
+}
+
+// Mensaje legible de los errores de la hilación.
+export function mensajeErrorHilacion(e) {
+  const m = e?.message || String(e)
+  if (m.includes('informe_bloques_titulo_uk')) return 'Ya hay un bloque con ese título en el eje.'
+  if (m.includes('informe_bloques_titulo_chk')) return 'El título del bloque debe tener entre 3 y 60 caracteres y no terminar en punto.'
+  if (m.includes('no pertenece al eje')) return 'Un logro solo puede ir en un bloque de su propio eje.'
+  return m
+}
+
 export async function setRevisionAccion(id, { revisada, incluir_en_informe }) {
   const cambios = {}
   if (revisada !== undefined) cambios.revisada = revisada
