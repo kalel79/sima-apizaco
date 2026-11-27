@@ -1094,10 +1094,10 @@ function renglonAccion(doc, ctx, a, m, y, col, seccion) {
 // su foto o diagrama, y al costado las cifras de resultado del eje.
 // Cifras de resultado del eje: primero la del logro que lo abre, luego las de
 // los logros del año y el resto en su orden; al final, la inversión del eje.
-function cifrasEje(acciones, primero) {
+function cifrasEje(acciones, primero, max = 4) {
   const otras = acciones.filter(x => x !== primero && x.cifra_valor)
     .sort((p, q) => (q.destacado_informe ? 1 : 0) - (p.destacado_informe ? 1 : 0))
-  const cifras = [primero, ...otras].filter(Boolean).map(cifraDe).filter(Boolean).slice(0, 4)
+  const cifras = [primero, ...otras].filter(Boolean).map(cifraDe).filter(Boolean).slice(0, max)
   const montoEje = acciones.reduce((t, x) => t + (Number(x.monto) || 0), 0)
   if (montoEje > 0) cifras.push({ v: pesos(montoEje), l: 'Inversión reportada en el eje' })
   return cifras
@@ -1106,7 +1106,9 @@ function cifrasEje(acciones, primero) {
 // Logro destacado del eje (el que Planeación marcó para abrirlo), con su foto
 // o diagrama, y al costado las cifras de resultado del eje. Se dibuja desde
 // `y`, debajo de la entradilla.
-async function aperturaLogros(doc, ctx, d, a, fotos, acciones, y) {
+// `indiceLateral(x, y, ancho)` dibuja el índice de bloques en la columna si
+// cabe y devuelve la Y siguiente (o null).
+async function aperturaLogros(doc, ctx, d, a, fotos, acciones, y, indiceLateral) {
   const col = hexARgb(d.color), seccion = `${d.corto} · Logros`
   anotarPendientes(doc, ctx, a, seccion); nuevoCampo()
   anotarLogro(doc, ctx, a)
@@ -1149,7 +1151,8 @@ async function aperturaLogros(doc, ctx, d, a, fotos, acciones, y) {
   })
 
   // Columna lateral: cifras de los logros del eje (primero la de este logro).
-  const cifras = cifrasEje(acciones, a)
+  // Con índice de bloques debajo, la columna lleva una cifra menos.
+  const cifras = cifrasEje(acciones, a, indiceLateral ? 3 : 4)
   let ys = yTop
   if (cifras.length) {
     versalitas(doc, 'Resultados del eje', sx, ys + 2.5, { tam: 7, color: col, cs: 0.55 })
@@ -1166,6 +1169,7 @@ async function aperturaLogros(doc, ctx, d, a, fotos, acciones, y) {
   if (!dg && fotos[1] && ys + sw * 0.75 < PIE) {
     ponerFoto(doc, ctx, a, fotos[1], sx, ys + 2, sw, sw * 0.75); ys += sw * 0.75 + 4
   }
+  ys = indiceLateral?.(sx, ys + 3, sw) ?? ys
   if (cifras.length) { trazo(doc, LINEA); doc.setLineWidth(0.25); doc.line(sx - 4, yTop, sx - 4, Math.max(ys, yTop + 40)) }
   return Math.max(y, ys) + 6
 }
@@ -1194,8 +1198,30 @@ export async function logrosEje(doc, ctx, d, acciones, fotosPorAccion, { bloques
     y += 6
   }
 
+  // Índice de bloques: el número de página se escribe al final del capítulo.
+  // Con logro destacado va en su columna lateral, bajo los resultados del eje;
+  // si no cabe ahí (o no hay destacado), a todo el ancho.
+  const indiceBloques = []
+  const indiceLateral = (x, y1, w) => {
+    if (grupos.length < 2) return null
+    const lh = 3.6
+    const filas = grupos.map(g => lineas(doc, g.nombre, w - 12, F.SANS, 'normal', 8))
+    const alto = 8 + filas.reduce((s, l) => s + l.length * lh + 1.8, 0)
+    if (y1 + alto > PIE) return null
+    versalitas(doc, 'En este eje', x, y1 + 2.5, { tam: 7, color: col, cs: 0.55 })
+    let yy = y1 + 9
+    grupos.forEach((g, i) => {
+      fuente(doc, F.SANS, 'bold', 8, col); doc.text(String(i + 1), x, yy)
+      fuente(doc, F.SANS, 'normal', 8, TINTA)
+      filas[i].forEach((l, k) => doc.text(l, x + 5, yy + k * lh))
+      indiceBloques.push({ g, pag: doc.getNumberOfPages(), x: x + w, y: yy })
+      yy += filas[i].length * lh + 1.8
+    })
+    return y1 + alto
+  }
+
   if (principal) {
-    y = await aperturaLogros(doc, ctx, d, principal, fotosDe(principal), acciones, y)
+    y = await aperturaLogros(doc, ctx, d, principal, fotosDe(principal), acciones, y, grupos.length > 1 ? indiceLateral : null)
   } else {
     const cifras = cifrasEje(acciones, null)
     if (cifras.length) {
@@ -1204,9 +1230,7 @@ export async function logrosEje(doc, ctx, d, acciones, fotosPorAccion, { bloques
     }
   }
 
-  // Índice de bloques: el número de página se escribe al final del capítulo.
-  const indiceBloques = []
-  if (grupos.length > 1) {
+  if (grupos.length > 1 && !indiceBloques.length) {
     const filasInd = Math.ceil(grupos.length / 2), altoInd = 7 + filasInd * 5.6 + 6
     if (y + altoInd > PIE) { cierraPagina(doc, ctx, y); y = nuevaPagina(doc, ctx, seccion, col) }
     versalitas(doc, 'En este eje', ML, y + 1, { tam: 7, color: col, cs: 0.55 })
@@ -1284,7 +1308,9 @@ export async function logrosEje(doc, ctx, d, acciones, fotosPorAccion, { bloques
         yy += it.alto
       } else if (it.min.renglon) {
         yy = renglonAccion(doc, ctx, it.a, it.min, yy, col, seccion)
-        if (i < buf.length - 1) yy += extra
+        // Los renglones compactos seguidos van juntos: el espacio sobrante
+        // solo se reparte antes de una ficha completa.
+        if (i < buf.length - 1 && !buf[i + 1].min?.renglon) yy += extra
       } else {
         const m = planes[i], ex = i < buf.length - 1 ? extra : 0
         yy = await dibujarBloque(doc, ctx, it.a, fotosDe(it.a), m, yy, lado, col, seccion)
